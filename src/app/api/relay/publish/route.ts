@@ -31,14 +31,19 @@ interface DefaultLeg {
   lastName: string;
 }
 
+interface TeamVariantEntry {
+  teamLetter: string;
+  legs: DefaultLeg[];
+}
+
 interface TeamPayload {
   id: string;
   name: string;
   roster: AthletePayload[];
-  /** Event IDs this team is actually entered in (filters what the coach sees). */
-  enteredEventIds?: string[];
-  /** Current leg assignments from Nexus Manager — inserted as initial cloud entries. */
-  currentEntries?: Record<string, { legs: DefaultLeg[] }>;
+  /** All (eventId, teamLetter) combos this team is entered in — drives what the coach sees. */
+  enteredTeams?: Array<{ eventId: string; teamLetter: string }>;
+  /** Current leg assignments from Nexus Manager — keyed by eventId → array of variants (one per team letter). */
+  currentEntries?: Record<string, TeamVariantEntry[]>;
 }
 
 // ── POST /api/relay/publish ─────────────────────────────────────────────────
@@ -84,7 +89,8 @@ export async function POST(request: NextRequest) {
       teamId: team.id,
       teamName: team.name,
       rosterJson: JSON.stringify(team.roster),
-      enteredEventsJson: team.enteredEventIds ? JSON.stringify(team.enteredEventIds) : null,
+      // enteredTeamsJson supersedes enteredEventsJson — store the full (eventId, teamLetter) list
+      enteredTeamsJson: team.enteredTeams ? JSON.stringify(team.enteredTeams) : null,
     }));
 
     const insertedTeams = await db.insert(teamRelayAccess).values(teamRows).returning();
@@ -95,6 +101,7 @@ export async function POST(request: NextRequest) {
       meetSessionId: string;
       eventId: string;
       eventName: string;
+      teamLetter: string;
       legsJson: string;
       seededByDesktop: boolean;
     }> = [];
@@ -104,17 +111,20 @@ export async function POST(request: NextRequest) {
       const access = insertedTeams.find((t) => t.teamId === team.id);
       if (!access) continue;
 
-      for (const [eventId, entryData] of Object.entries(team.currentEntries)) {
-        if (!entryData.legs || entryData.legs.length === 0) continue;
+      for (const [eventId, variants] of Object.entries(team.currentEntries)) {
         const ev = events.find((e) => e.id === eventId);
-        entryRows.push({
-          teamAccessId: access.id,
-          meetSessionId: session.id,
-          eventId,
-          eventName: ev?.name ?? eventId,
-          legsJson: JSON.stringify(entryData.legs),
-          seededByDesktop: true,
-        });
+        for (const variant of variants) {
+          if (!variant.legs || variant.legs.length === 0) continue;
+          entryRows.push({
+            teamAccessId: access.id,
+            meetSessionId: session.id,
+            eventId,
+            eventName: ev?.name ?? eventId,
+            teamLetter: variant.teamLetter,
+            legsJson: JSON.stringify(variant.legs),
+            seededByDesktop: true,
+          });
+        }
       }
     }
 

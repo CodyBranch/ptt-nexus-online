@@ -292,6 +292,10 @@ export const teamRelayAccess = pgTable('team_relay_access', {
   // JSON string[] of event IDs this team is entered in; null = show all (backward compat)
   enteredEventsJson: text('entered_events_json'),
 
+  // JSON {eventId, teamLetter}[] — one entry per (event, letter) combo the team is in.
+  // Supersedes enteredEventsJson when present. Null = fall back to enteredEventsJson.
+  enteredTeamsJson: text('entered_teams_json'),
+
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (table) => [
   index('idx_team_relay_session').on(table.meetSessionId),
@@ -311,6 +315,9 @@ export const relayOnlineEntries = pgTable('relay_online_entries', {
   // Local desktop event ID (passed back when syncing)
   eventId: text('event_id').notNull(),
   eventName: text('event_name').notNull(),
+
+  // Which relay team variant (A, B, C…) within a school for this event
+  teamLetter: text('team_letter').notNull().default('A'),
 
   // JSON array: [{leg, athleteId, firstName, lastName}]
   legsJson: text('legs_json').notNull().default('[]'),

@@ -41,34 +41,55 @@ export async function GET(
       return NextResponse.json({ error: 'Team access not found' }, { status: 404 });
     }
 
-    // Fetch existing entries for this team
+    // Fetch all existing entries for this team
     const entries = await db
       .select()
       .from(relayOnlineEntries)
       .where(eq(relayOnlineEntries.teamAccessId, teamAccess.id));
 
-    const existingEntries = Object.fromEntries(
-      entries.map((e) => [
-        e.eventId,
-        {
-          legs: JSON.parse(e.legsJson) as Array<{ leg: number; athleteId: string; firstName: string; lastName: string }>,
-          finalizedAt: e.finalizedAt?.toISOString() ?? null,
-        },
-      ])
-    );
+    // Nested: existingEntries[eventId][teamLetter] = { legs, finalizedAt }
+    const existingEntries: Record<string, Record<string, {
+      legs: Array<{ leg: number; athleteId: string; firstName: string; lastName: string }>;
+      finalizedAt: string | null;
+    }>> = {};
 
-    // Filter to only events this team is entered in (null = show all, backward compat)
+    for (const e of entries) {
+      if (!existingEntries[e.eventId]) existingEntries[e.eventId] = {};
+      existingEntries[e.eventId][e.teamLetter] = {
+        legs: JSON.parse(e.legsJson) as Array<{ leg: number; athleteId: string; firstName: string; lastName: string }>,
+        finalizedAt: e.finalizedAt?.toISOString() ?? null,
+      };
+    }
+
+    // Filter events using enteredTeamsJson (preferred) or enteredEventsJson (legacy)
     const allEvents = JSON.parse(session.eventsJson) as Array<{ id: string }>;
-    const enteredIds: string[] | null = teamAccess.enteredEventsJson
-      ? JSON.parse(teamAccess.enteredEventsJson) as string[]
-      : null;
-    const events = enteredIds ? allEvents.filter(e => enteredIds.includes(e.id)) : allEvents;
+
+    let events: typeof allEvents;
+    if (teamAccess.enteredTeamsJson) {
+      // New shape: [{eventId, teamLetter}] — extract unique event IDs
+      const enteredTeams = JSON.parse(teamAccess.enteredTeamsJson) as Array<{ eventId: string; teamLetter: string }>;
+      const enteredEventIds = new Set(enteredTeams.map(et => et.eventId));
+      events = allEvents.filter(e => enteredEventIds.has(e.id));
+    } else if (teamAccess.enteredEventsJson) {
+      // Legacy shape: string[] of event IDs
+      const enteredIds = JSON.parse(teamAccess.enteredEventsJson) as string[];
+      events = allEvents.filter(e => enteredIds.includes(e.id));
+    } else {
+      events = allEvents;
+    }
+
+    // Parse enteredTeams for the coach page to know which letters to show per event
+    const enteredTeams: Array<{ eventId: string; teamLetter: string }> | null =
+      teamAccess.enteredTeamsJson
+        ? (JSON.parse(teamAccess.enteredTeamsJson) as Array<{ eventId: string; teamLetter: string }>)
+        : null;
 
     return NextResponse.json({
       meetName: session.meetName,
       meetDate: session.meetDate,
       teamName: teamAccess.teamName,
       events,
+      enteredTeams,
       roster: JSON.parse(teamAccess.rosterJson),
       existingEntries,
     });

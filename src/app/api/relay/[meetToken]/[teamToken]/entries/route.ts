@@ -11,8 +11,8 @@ interface LegPayload {
 }
 
 // ── POST /api/relay/[meetToken]/[teamToken]/entries ─────────────────────────
-// Coach submits (or updates) their relay legs for one event.
-// Upserts: if a row exists for (teamAccessId, eventId), update it; else insert.
+// Coach submits (or updates) their relay legs for one event + team letter.
+// Upserts: if a row exists for (teamAccessId, eventId, teamLetter), update it; else insert.
 
 export async function POST(
   request: NextRequest,
@@ -23,11 +23,14 @@ export async function POST(
     const body = await request.json() as {
       eventId: string;
       eventName?: string;
+      teamLetter?: string;
       legs: LegPayload[];
       finalized?: boolean;
     };
 
     const { eventId, eventName, legs, finalized } = body;
+    // Default to 'A' for backward compatibility with older coach page versions
+    const teamLetter = body.teamLetter ?? 'A';
 
     if (!eventId || !Array.isArray(legs)) {
       return NextResponse.json({ error: 'eventId and legs[] are required' }, { status: 400 });
@@ -71,6 +74,18 @@ export async function POST(
       );
     }
 
+    // Validate that this (eventId, teamLetter) combo is in the team's enteredTeams list
+    if (teamAccess.enteredTeamsJson) {
+      const enteredTeams = JSON.parse(teamAccess.enteredTeamsJson) as Array<{ eventId: string; teamLetter: string }>;
+      const allowed = enteredTeams.some(et => et.eventId === eventId && et.teamLetter === teamLetter);
+      if (!allowed) {
+        return NextResponse.json(
+          { error: `Team is not entered in event ${eventId} as ${teamLetter}-team` },
+          { status: 403 }
+        );
+      }
+    }
+
     // Determine event name from session events if not provided
     const events = JSON.parse(session.eventsJson) as { id: string; name: string }[];
     const resolvedEventName = eventName ?? events.find((e) => e.id === eventId)?.name ?? eventId;
@@ -82,7 +97,8 @@ export async function POST(
       .where(
         and(
           eq(relayOnlineEntries.teamAccessId, teamAccess.id),
-          eq(relayOnlineEntries.eventId, eventId)
+          eq(relayOnlineEntries.eventId, eventId),
+          eq(relayOnlineEntries.teamLetter, teamLetter)
         )
       )
       .limit(1);
@@ -106,6 +122,7 @@ export async function POST(
         meetSessionId: session.id,
         eventId,
         eventName: resolvedEventName,
+        teamLetter,
         legsJson: JSON.stringify(legs),
         seededByDesktop: false, // created fresh by the coach
         ...(finalizedAt !== undefined ? { finalizedAt } : {}),

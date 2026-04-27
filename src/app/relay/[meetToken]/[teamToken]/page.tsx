@@ -30,18 +30,23 @@ interface LegEntry {
   lastName: string;
 }
 
-interface EventState {
+interface EventLetterState {
   legs: LegEntry[];
   finalizedAt: string | null;
 }
+
+// existingEntries[eventId][teamLetter] = { legs, finalizedAt }
+type ExistingEntries = Record<string, Record<string, EventLetterState>>;
 
 interface SessionData {
   meetName: string;
   meetDate?: string;
   teamName: string;
   events: RelayEvent[];
+  /** Which (eventId, teamLetter) combos this team has. null = legacy (show all events as A-team). */
+  enteredTeams: Array<{ eventId: string; teamLetter: string }> | null;
   roster: Athlete[];
-  existingEntries: Record<string, EventState>;
+  existingEntries: ExistingEntries;
 }
 
 // Leg slot (1-indexed): positions 1–4 are runners, 5–8 are alternates
@@ -54,6 +59,12 @@ interface Slot {
 interface EntryStatus {
   saved: boolean;
   finalizedAt: string | null;
+}
+
+// One display card: an event + a specific team letter
+interface EventLetterKey {
+  event: RelayEvent;
+  teamLetter: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -96,12 +107,17 @@ function filterRosterForEvent(roster: Athlete[], event: RelayEvent): Athlete[] {
   const g = event.gender?.toUpperCase();
   if (!g || g === 'X' || g === 'B' || g === 'N') return roster;
   return roster.filter(a => {
-    if (!a.gender) return true; // unknown — show it
+    if (!a.gender) return true;
     const ag = a.gender.toUpperCase();
     if (g === 'M') return ag === 'M';
     if (g === 'F' || g === 'W') return ag === 'F';
     return true;
   });
+}
+
+/** Stable string key for an (eventId, teamLetter) pair. */
+function entryKey(eventId: string, teamLetter: string): string {
+  return `${eventId}::${teamLetter}`;
 }
 
 // ── Countdown ─────────────────────────────────────────────────────────────────
@@ -248,7 +264,7 @@ function LegRow({
       className={`flex items-center gap-2 px-3 py-2.5 min-h-[42px] ${isFloating ? '' : 'transition-transform duration-150'}`}
       style={{ transform: isFloating ? undefined : rowTranslate !== 0 ? `translateY(${rowTranslate}px)` : undefined }}
     >
-      {/* Drag handle — select-none prevents text selection during drag */}
+      {/* Drag handle */}
       <div className="w-5 shrink-0 flex items-center justify-center">
         {athlete && !finalized ? (
           <div
@@ -349,12 +365,13 @@ function LegRow({
 // ── Event Card ────────────────────────────────────────────────────────────────
 
 function EventCard({
-  event, roster, rosterMap, initialState, meetToken, teamToken, onSaved,
+  event, teamLetter, roster, rosterMap, initialState, meetToken, teamToken, onSaved,
 }: {
   event: RelayEvent;
+  teamLetter: string;
   roster: Athlete[];
   rosterMap: Map<string, Athlete>;
-  initialState: EventState;
+  initialState: EventLetterState;
   meetToken: string;
   teamToken: string;
   onSaved: (finalizedAt: string | null, legs: LegEntry[]) => void;
@@ -420,7 +437,7 @@ function EventCard({
     if (dragIdx !== null && overIdx !== null && dragIdx !== overIdx) {
       setSlots(prev => {
         const next = [...prev];
-        // Sort-style move: shift intermediate slots, don't swap
+        // Sort-style move: shift intermediate slots
         const draggedId = next[dragIdx].athleteId;
         if (dragIdx < overIdx) {
           for (let i = dragIdx; i < overIdx; i++) {
@@ -475,7 +492,13 @@ function EventCard({
       const res = await fetch(`/api/relay/${meetToken}/${teamToken}/entries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId: event.id, eventName: event.name, legs, finalized: finalize }),
+        body: JSON.stringify({
+          eventId: event.id,
+          eventName: event.name,
+          teamLetter,
+          legs,
+          finalized: finalize,
+        }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({})) as { error?: string };
@@ -491,7 +514,7 @@ function EventCard({
     } finally {
       setSaving(false);
     }
-  }, [slots, rosterMap, meetToken, teamToken, event, onSaved]);
+  }, [slots, rosterMap, meetToken, teamToken, event, teamLetter, onSaved]);
 
   const runnerSlots = slots.slice(0, 4);
   const altSlots = slots.slice(4);
@@ -617,8 +640,9 @@ function EventCard({
             </button>
             <button
               onClick={() => {
+                const label = teamLetter !== 'A' ? `${event.name} (${teamLetter}-team)` : event.name;
                 if (window.confirm(
-                  `Finalize your ${event.name} lineup?\n\nThis locks your entry. Contact the meet director to make any changes after finalizing.`
+                  `Finalize your ${label} lineup?\n\nThis locks your entry. Contact the meet director to make any changes after finalizing.`
                 )) submit(true);
               }}
               disabled={saving || filledRunners === 0}
@@ -665,15 +689,20 @@ function EventCard({
   );
 }
 
-// ── Event Summary Card (list view) ────────────────────────────────────────────
+// ── Event+Letter Summary Card (list view) ─────────────────────────────────────
 
 function EventSummaryCard({
   event,
+  teamLetter,
+  showLetter,
   status,
   now,
   onClick,
 }: {
   event: RelayEvent;
+  teamLetter: string;
+  /** Show the A/B/C-Team badge — true when event appears more than once in the list. */
+  showLetter: boolean;
   status: EntryStatus | undefined;
   now: number;
   onClick: () => void;
@@ -703,6 +732,12 @@ function EventSummaryCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className="font-semibold text-gray-100 truncate">{event.name}</span>
+            {/* Show team letter badge when this event has multiple relay teams */}
+            {showLetter && (
+              <span className="text-[10px] font-bold text-indigo-400 bg-indigo-900/30 border border-indigo-700/30 px-1.5 py-0.5 rounded shrink-0">
+                {teamLetter}-Team
+              </span>
+            )}
             {event.gender && (
               <span className="text-[10px] font-bold text-gray-600 uppercase shrink-0">
                 {genderLabel[event.gender] ?? event.gender}
@@ -746,10 +781,14 @@ export default function CoachRelayPage() {
   const [session, setSession] = useState<SessionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+
+  // Selected card: null = list view, { eventId, teamLetter } = editor view
+  const [selectedCard, setSelectedCard] = useState<{ eventId: string; teamLetter: string } | null>(null);
+
+  // Status keyed by entryKey(eventId, teamLetter)
   const [entryStatuses, setEntryStatuses] = useState<Record<string, EntryStatus>>({});
 
-  // Single clock tick for list-view countdown timers (avoids N separate intervals)
+  // Single clock tick for list-view countdown timers
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -762,10 +801,12 @@ export default function CoachRelayPage() {
       .then(r => r.ok ? r.json() : r.json().then((d: { error?: string }) => Promise.reject(new Error(d.error ?? 'Failed to load'))))
       .then((data: SessionData) => {
         setSession(data);
-        // Initialise status from any existing entries (incl. pre-populated ones from publish)
+        // Initialise statuses from existing entries
         const statuses: Record<string, EntryStatus> = {};
-        for (const [eventId, entry] of Object.entries(data.existingEntries)) {
-          statuses[eventId] = { saved: true, finalizedAt: entry.finalizedAt };
+        for (const [eventId, byLetter] of Object.entries(data.existingEntries)) {
+          for (const [letter, entry] of Object.entries(byLetter)) {
+            statuses[entryKey(eventId, letter)] = { saved: true, finalizedAt: entry.finalizedAt };
+          }
         }
         setEntryStatuses(statuses);
       })
@@ -774,19 +815,22 @@ export default function CoachRelayPage() {
   }, [meetToken, teamToken]);
 
   // Called by EventCard after each save/finalize
-  const handleSaved = useCallback((eventId: string, finalizedAt: string | null, legs: LegEntry[]) => {
-    setEntryStatuses(prev => ({ ...prev, [eventId]: { saved: true, finalizedAt } }));
-    // Keep session.existingEntries fresh so re-entering the event shows current state
-    setSession(prev => !prev ? null : {
+  const handleSaved = useCallback((eventId: string, teamLetter: string, finalizedAt: string | null, legs: LegEntry[]) => {
+    const key = entryKey(eventId, teamLetter);
+    setEntryStatuses(prev => ({ ...prev, [key]: { saved: true, finalizedAt } }));
+    // Keep session.existingEntries fresh
+    setSession(prev => !prev ? null : ({
       ...prev,
       existingEntries: {
         ...prev.existingEntries,
-        [eventId]: { legs, finalizedAt },
+        [eventId]: {
+          ...(prev.existingEntries[eventId] ?? {}),
+          [teamLetter]: { legs, finalizedAt },
+        },
       },
-    });
+    }));
     if (finalizedAt) {
-      // Navigate back to event list after finalize (a brief moment to see the badge)
-      setTimeout(() => setSelectedEventId(null), 400);
+      setTimeout(() => setSelectedCard(null), 400);
     }
   }, []);
 
@@ -815,7 +859,35 @@ export default function CoachRelayPage() {
   );
 
   const rosterMap = new Map(session.roster.map(a => [a.id, a]));
-  const selectedEvent = selectedEventId ? session.events.find(e => e.id === selectedEventId) : null;
+
+  // Build the flat list of (event, teamLetter) cards to display
+  const cards: EventLetterKey[] = (() => {
+    const eventMap = new Map(session.events.map(e => [e.id, e]));
+    if (session.enteredTeams) {
+      // Multi-team shape: one card per (eventId, teamLetter) in enteredTeams order
+      return session.enteredTeams
+        .map(({ eventId, teamLetter }) => {
+          const event = eventMap.get(eventId);
+          if (!event) return null;
+          return { event, teamLetter };
+        })
+        .filter((c): c is EventLetterKey => c !== null);
+    } else {
+      // Legacy: one card per event, all as A-team
+      return session.events.map(event => ({ event, teamLetter: 'A' }));
+    }
+  })();
+
+  const selectedCard_ = selectedCard
+    ? cards.find(c => c.event.id === selectedCard.eventId && c.teamLetter === selectedCard.teamLetter)
+    : null;
+
+  // Events that appear more than once need the A/B/C badge to disambiguate
+  const multiTeamEventIds = new Set(
+    cards
+      .map(c => c.event.id)
+      .filter((id, _i, arr) => arr.filter(x => x === id).length > 1)
+  );
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -823,11 +895,11 @@ export default function CoachRelayPage() {
       {/* ── Sticky header ── */}
       <div className="bg-gray-900 border-b border-gray-800 px-4 py-4 sticky top-0 z-10">
         <div className="max-w-lg mx-auto">
-          {selectedEvent ? (
+          {selectedCard_ ? (
             /* Event detail header */
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setSelectedEventId(null)}
+                onClick={() => setSelectedCard(null)}
                 className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-400 hover:text-gray-100 shrink-0"
                 aria-label="Back to event list"
               >
@@ -837,7 +909,12 @@ export default function CoachRelayPage() {
               </button>
               <div className="min-w-0">
                 <p className="text-xs text-gray-500 truncate">{session.teamName}</p>
-                <h1 className="text-lg font-bold text-white truncate">{selectedEvent.name}</h1>
+                <h1 className="text-lg font-bold text-white truncate">
+                  {selectedCard_.event.name}
+                  {multiTeamEventIds.has(selectedCard_.event.id) && (
+                    <span className="ml-2 text-sm font-normal text-indigo-400">{selectedCard_.teamLetter}-Team</span>
+                  )}
+                </h1>
               </div>
             </div>
           ) : (
@@ -848,7 +925,7 @@ export default function CoachRelayPage() {
               </p>
               <h1 className="text-xl font-bold text-white">{session.teamName}</h1>
               <p className="text-xs text-gray-500 mt-0.5">
-                {session.events.length} relay event{session.events.length !== 1 ? 's' : ''} · tap to enter your lineup
+                {cards.length} relay entr{cards.length !== 1 ? 'ies' : 'y'} · tap to enter your lineup
               </p>
             </>
           )}
@@ -857,31 +934,39 @@ export default function CoachRelayPage() {
 
       {/* ── Content ── */}
       <div className="max-w-lg mx-auto px-4 py-5">
-        {selectedEvent ? (
+        {selectedCard_ ? (
           /* Event editor */
           <EventCard
-            key={selectedEvent.id}
-            event={selectedEvent}
+            key={entryKey(selectedCard_.event.id, selectedCard_.teamLetter)}
+            event={selectedCard_.event}
+            teamLetter={selectedCard_.teamLetter}
             roster={session.roster}
             rosterMap={rosterMap}
-            initialState={session.existingEntries[selectedEvent.id] ?? { legs: [], finalizedAt: null }}
+            initialState={
+              session.existingEntries[selectedCard_.event.id]?.[selectedCard_.teamLetter]
+              ?? { legs: [], finalizedAt: null }
+            }
             meetToken={meetToken}
             teamToken={teamToken}
-            onSaved={(finalizedAt, legs) => handleSaved(selectedEvent.id, finalizedAt, legs)}
+            onSaved={(finalizedAt, legs) =>
+              handleSaved(selectedCard_.event.id, selectedCard_.teamLetter, finalizedAt, legs)
+            }
           />
         ) : (
           /* Event list */
           <div className="space-y-3">
-            {session.events.length === 0 ? (
-              <p className="text-center text-sm text-gray-500 py-16">No relay events found.</p>
+            {cards.length === 0 ? (
+              <p className="text-center text-sm text-gray-500 py-16">No relay entries found.</p>
             ) : (
-              session.events.map(event => (
+              cards.map(({ event, teamLetter }) => (
                 <EventSummaryCard
-                  key={event.id}
+                  key={entryKey(event.id, teamLetter)}
                   event={event}
-                  status={entryStatuses[event.id]}
+                  teamLetter={teamLetter}
+                  showLetter={multiTeamEventIds.has(event.id)}
+                  status={entryStatuses[entryKey(event.id, teamLetter)]}
                   now={now}
-                  onClick={() => setSelectedEventId(event.id)}
+                  onClick={() => setSelectedCard({ eventId: event.id, teamLetter })}
                 />
               ))
             )}

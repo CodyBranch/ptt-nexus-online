@@ -51,8 +51,18 @@ export async function GET(
       .from(relayOnlineEntries)
       .where(and(...conditions));
 
-    // Group by eventId → teams
-    const eventMap = new Map<string, { eventId: string; eventName: string; teams: object[] }>();
+    // Group by eventId → teams (one entry per teamAccessId + teamLetter)
+    const eventMap = new Map<string, {
+      eventId: string;
+      eventName: string;
+      teams: Array<{
+        teamId: string | null;
+        teamName: string;
+        teamLetter: string;
+        legs: unknown;
+        updatedAt: Date | null;
+      }>;
+    }>();
 
     for (const entry of entries) {
       const team = teamMap.get(entry.teamAccessId);
@@ -63,6 +73,7 @@ export async function GET(
       eventMap.get(key)!.teams.push({
         teamId: team?.teamId ?? null,
         teamName: team?.teamName ?? 'Unknown',
+        teamLetter: entry.teamLetter,
         legs: JSON.parse(entry.legsJson),
         updatedAt: entry.updatedAt,
       });

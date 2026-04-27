@@ -22,6 +22,11 @@ interface DefaultLeg {
   lastName: string;
 }
 
+interface TeamVariantEntry {
+  teamLetter: string;
+  legs: DefaultLeg[];
+}
+
 interface EventPayload {
   id: string;
   name: string;
@@ -36,8 +41,8 @@ interface TeamPayload {
   id: string;
   name: string;
   roster: AthletePayload[];
-  enteredEventIds?: string[];
-  currentEntries?: Record<string, { legs: DefaultLeg[] }>;
+  enteredTeams?: Array<{ eventId: string; teamLetter: string }>;
+  currentEntries?: Record<string, TeamVariantEntry[]>;
 }
 
 // ── POST /api/relay/[meetToken]/update ──────────────────────────────────────
@@ -46,8 +51,8 @@ interface TeamPayload {
 //
 // What gets updated:
 //   - Session: meetName, meetDate, eventsJson
-//   - Existing teams: rosterJson, enteredEventsJson
-//   - Non-finalized entries: legsJson refreshed from currentEntries
+//   - Existing teams: rosterJson, enteredTeamsJson
+//   - Non-finalized seeded entries: legsJson refreshed from currentEntries
 //   - New teams (added since initial publish): inserted with fresh teamToken
 //
 // Returns: { updated: true, newTeams: [{teamId, teamToken, teamName}] }
@@ -107,55 +112,56 @@ export async function POST(
       const existing = existingByTeamId.get(team.id);
 
       if (existing) {
-        // 2a. Update existing team access (roster + entered events)
+        // 2a. Update existing team access (roster + entered teams)
         await db
           .update(teamRelayAccess)
           .set({
             teamName: team.name,
             rosterJson: JSON.stringify(team.roster),
-            enteredEventsJson: team.enteredEventIds ? JSON.stringify(team.enteredEventIds) : null,
+            enteredTeamsJson: team.enteredTeams ? JSON.stringify(team.enteredTeams) : null,
           })
           .where(eq(teamRelayAccess.id, existing.id));
 
         // 2b. Refresh pre-populated entries for non-finalized events
         if (team.currentEntries) {
-          for (const [eventId, entryData] of Object.entries(team.currentEntries)) {
-            if (!entryData.legs || entryData.legs.length === 0) continue;
+          for (const [eventId, variants] of Object.entries(team.currentEntries)) {
+            const ev = events.find(e => e.id === eventId);
 
-            const [existingEntry] = await db
-              .select()
-              .from(relayOnlineEntries)
-              .where(
-                and(
-                  eq(relayOnlineEntries.teamAccessId, existing.id),
-                  eq(relayOnlineEntries.eventId, eventId)
+            for (const variant of variants) {
+              if (!variant.legs || variant.legs.length === 0) continue;
+
+              const [existingEntry] = await db
+                .select()
+                .from(relayOnlineEntries)
+                .where(
+                  and(
+                    eq(relayOnlineEntries.teamAccessId, existing.id),
+                    eq(relayOnlineEntries.eventId, eventId),
+                    eq(relayOnlineEntries.teamLetter, variant.teamLetter)
+                  )
                 )
-              )
-              .limit(1);
+                .limit(1);
 
-            if (existingEntry) {
-              // Only overwrite if:
-              //   1. The coach hasn't finalized (their decision is final), AND
-              //   2. The entry is still in its Nexus-seeded state (seededByDesktop = true)
-              //      i.e. the coach hasn't saved any changes yet.
-              // This prevents "Update Cloud Data" from clobbering draft work.
-              if (!existingEntry.finalizedAt && existingEntry.seededByDesktop) {
-                await db
-                  .update(relayOnlineEntries)
-                  .set({ legsJson: JSON.stringify(entryData.legs), updatedAt: new Date() })
-                  .where(eq(relayOnlineEntries.id, existingEntry.id));
+              if (existingEntry) {
+                // Only overwrite if coach hasn't finalized AND it's still in seeded state
+                if (!existingEntry.finalizedAt && existingEntry.seededByDesktop) {
+                  await db
+                    .update(relayOnlineEntries)
+                    .set({ legsJson: JSON.stringify(variant.legs), updatedAt: new Date() })
+                    .where(eq(relayOnlineEntries.id, existingEntry.id));
+                }
+              } else {
+                // No entry yet — insert the pre-populated one, flagged as seeded
+                await db.insert(relayOnlineEntries).values({
+                  teamAccessId: existing.id,
+                  meetSessionId: session.id,
+                  eventId,
+                  eventName: ev?.name ?? eventId,
+                  teamLetter: variant.teamLetter,
+                  legsJson: JSON.stringify(variant.legs),
+                  seededByDesktop: true,
+                });
               }
-            } else {
-              // No entry yet — insert the pre-populated one, flagged as seeded
-              const ev = events.find(e => e.id === eventId);
-              await db.insert(relayOnlineEntries).values({
-                teamAccessId: existing.id,
-                meetSessionId: session.id,
-                eventId,
-                eventName: ev?.name ?? eventId,
-                legsJson: JSON.stringify(entryData.legs),
-                seededByDesktop: true,
-              });
             }
           }
         }
@@ -169,7 +175,7 @@ export async function POST(
             teamId: team.id,
             teamName: team.name,
             rosterJson: JSON.stringify(team.roster),
-            enteredEventsJson: team.enteredEventIds ? JSON.stringify(team.enteredEventIds) : null,
+            enteredTeamsJson: team.enteredTeams ? JSON.stringify(team.enteredTeams) : null,
           })
           .returning();
 
@@ -177,19 +183,20 @@ export async function POST(
 
         // Insert pre-populated entries for the new team
         if (team.currentEntries) {
-          const entryRows = Object.entries(team.currentEntries)
-            .filter(([, d]) => d.legs && d.legs.length > 0)
-            .map(([eventId, entryData]) => {
-              const ev = events.find(e => e.id === eventId);
-              return {
+          const entryRows = Object.entries(team.currentEntries).flatMap(([eventId, variants]) => {
+            const ev = events.find(e => e.id === eventId);
+            return variants
+              .filter(v => v.legs && v.legs.length > 0)
+              .map(v => ({
                 teamAccessId: inserted.id,
                 meetSessionId: session.id,
                 eventId,
                 eventName: ev?.name ?? eventId,
-                legsJson: JSON.stringify(entryData.legs),
+                teamLetter: v.teamLetter,
+                legsJson: JSON.stringify(v.legs),
                 seededByDesktop: true,
-              };
-            });
+              }));
+          });
           if (entryRows.length > 0) {
             await db.insert(relayOnlineEntries).values(entryRows);
           }
