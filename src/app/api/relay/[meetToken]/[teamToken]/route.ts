@@ -57,11 +57,18 @@ export async function GET(
       ])
     );
 
+    // Filter to only events this team is entered in (null = show all, backward compat)
+    const allEvents = JSON.parse(session.eventsJson) as Array<{ id: string }>;
+    const enteredIds: string[] | null = teamAccess.enteredEventsJson
+      ? JSON.parse(teamAccess.enteredEventsJson) as string[]
+      : null;
+    const events = enteredIds ? allEvents.filter(e => enteredIds.includes(e.id)) : allEvents;
+
     return NextResponse.json({
       meetName: session.meetName,
       meetDate: session.meetDate,
       teamName: teamAccess.teamName,
-      events: JSON.parse(session.eventsJson),
+      events,
       roster: JSON.parse(teamAccess.rosterJson),
       existingEntries,
     });

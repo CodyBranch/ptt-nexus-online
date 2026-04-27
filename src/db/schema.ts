@@ -286,8 +286,11 @@ export const teamRelayAccess = pgTable('team_relay_access', {
   teamId: text('team_id').notNull(),
   teamName: text('team_name').notNull(),
 
-  // JSON array of athletes from meet DB: [{id, firstName, lastName, bib}]
+  // JSON array of athletes from meet DB: [{id, firstName, lastName, bib, gender}]
   rosterJson: text('roster_json').notNull().default('[]'),
+
+  // JSON string[] of event IDs this team is entered in; null = show all (backward compat)
+  enteredEventsJson: text('entered_events_json'),
 
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (table) => [

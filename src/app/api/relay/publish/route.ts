@@ -35,6 +35,8 @@ interface TeamPayload {
   id: string;
   name: string;
   roster: AthletePayload[];
+  /** Event IDs this team is actually entered in (filters what the coach sees). */
+  enteredEventIds?: string[];
   /** Current leg assignments from Nexus Manager — inserted as initial cloud entries. */
   currentEntries?: Record<string, { legs: DefaultLeg[] }>;
 }
@@ -82,6 +84,7 @@ export async function POST(request: NextRequest) {
       teamId: team.id,
       teamName: team.name,
       rosterJson: JSON.stringify(team.roster),
+      enteredEventsJson: team.enteredEventIds ? JSON.stringify(team.enteredEventIds) : null,
     }));
 
     const insertedTeams = await db.insert(teamRelayAccess).values(teamRows).returning();

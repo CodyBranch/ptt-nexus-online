@@ -420,9 +420,18 @@ function EventCard({
     if (dragIdx !== null && overIdx !== null && dragIdx !== overIdx) {
       setSlots(prev => {
         const next = [...prev];
-        const tmp = next[dragIdx].athleteId;
-        next[dragIdx] = { ...next[dragIdx], athleteId: next[overIdx].athleteId };
-        next[overIdx] = { ...next[overIdx], athleteId: tmp };
+        // Sort-style move: shift intermediate slots, don't swap
+        const draggedId = next[dragIdx].athleteId;
+        if (dragIdx < overIdx) {
+          for (let i = dragIdx; i < overIdx; i++) {
+            next[i] = { ...next[i], athleteId: next[i + 1].athleteId };
+          }
+        } else {
+          for (let i = dragIdx; i > overIdx; i--) {
+            next[i] = { ...next[i], athleteId: next[i - 1].athleteId };
+          }
+        }
+        next[overIdx] = { ...next[overIdx], athleteId: draggedId };
         return next;
       });
       setDirty(true);
