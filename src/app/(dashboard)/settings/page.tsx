@@ -33,15 +33,21 @@ export default function SettingsPage() {
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
+  const [newlyGeneratedId, setNewlyGeneratedId] = useState<string | null>(null);
 
   const loadKeys = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/admin/keys');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(d.error ?? `Server error (${res.status})`);
+      }
       const data = await res.json() as { keys: ApiKey[] };
       setKeys(data.keys ?? []);
     } catch (err) {
-      setError(`Failed to load keys: ${err instanceof Error ? err.message : String(err)}`);
+      setError(`Could not load API keys: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
     }
@@ -51,7 +57,7 @@ export default function SettingsPage() {
 
   async function handleGenerate() {
     const label = newLabel.trim();
-    if (!label) return;
+    if (!label || generating) return;
 
     setGenerating(true);
     setError(null);
@@ -62,13 +68,15 @@ export default function SettingsPage() {
         body: JSON.stringify({ label }),
       });
       if (!res.ok) {
-        const d = await res.json() as { error?: string };
-        throw new Error(d.error ?? `HTTP ${res.status}`);
+        const d = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(d.error ?? `Server error (${res.status})`);
       }
       const data = await res.json() as { key: ApiKey };
-      setKeys(prev => [...prev, data.key]);
-      // Auto-reveal the new key so the user can copy it
-      setVisibleKeys(prev => new Set([...prev, data.key.id]));
+      const newKey = data.key;
+      setKeys(prev => [...prev, newKey]);
+      // Always reveal newly generated keys so the user can copy them
+      setVisibleKeys(prev => new Set([...prev, newKey.id]));
+      setNewlyGeneratedId(newKey.id);
       setNewLabel('');
       setShowNewLabel(false);
     } catch (err) {
@@ -79,11 +87,14 @@ export default function SettingsPage() {
   }
 
   async function handleRevoke(id: string) {
+    if (!window.confirm('Revoke this API key? Any desktop app using it will lose access immediately.')) return;
     setRevokingId(id);
+    setError(null);
     try {
-      const res = await fetch(`/api/admin/keys?id=${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const res = await fetch(`/api/admin/keys?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`Server error (${res.status})`);
       setKeys(prev => prev.filter(k => k.id !== id));
+      if (newlyGeneratedId === id) setNewlyGeneratedId(null);
     } catch (err) {
       setError(`Failed to revoke key: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -92,9 +103,13 @@ export default function SettingsPage() {
   }
 
   async function handleCopy(key: ApiKey) {
-    await navigator.clipboard.writeText(key.key);
-    setCopiedId(key.id);
-    setTimeout(() => setCopiedId(null), 2000);
+    try {
+      await navigator.clipboard.writeText(key.key);
+      setCopiedId(key.id);
+      setTimeout(() => setCopiedId(null), 2500);
+    } catch {
+      setError('Could not copy to clipboard. Select the key text manually.');
+    }
   }
 
   function toggleVisible(id: string) {
@@ -109,100 +124,147 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Settings</h1>
+      <h1 className="text-2xl font-bold mb-2">Settings</h1>
+      <p className="text-sm text-gray-500 mb-8">
+        Manage API keys for PTT Nexus Manager desktop connections.
+      </p>
 
       <div className="max-w-2xl space-y-6">
 
         {/* ── API Keys ─────────────────────────────────────────── */}
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-1">
-            <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">API Keys</h2>
-            {!showNewLabel && (
-              <button
-                onClick={() => setShowNewLabel(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Generate Key
-              </button>
-            )}
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-200">Desktop API Keys</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Authorize PTT Nexus Manager to connect for Org Matching and Online Relay Entry.
+              </p>
+            </div>
+            <button
+              onClick={() => { setShowNewLabel(v => !v); setNewLabel(''); setError(null); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition-colors whitespace-nowrap"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              New Key
+            </button>
           </div>
-          <p className="text-xs text-gray-500 mb-4">
-            Generate API keys for PTT Nexus Manager desktop instances to authenticate sync and relay operations.
-          </p>
 
-          {error && (
-            <div className="mb-4 px-3 py-2 bg-red-600/10 border border-red-500/30 rounded text-xs text-red-400">
-              {error}
-              <button onClick={() => setError(null)} className="ml-2 underline">Dismiss</button>
-            </div>
-          )}
-
-          {/* New key form */}
+          {/* Inline new-key form */}
           {showNewLabel && (
-            <div className="mb-4 flex gap-2 items-center">
-              <input
-                type="text"
-                value={newLabel}
-                onChange={e => setNewLabel(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleGenerate(); if (e.key === 'Escape') setShowNewLabel(false); }}
-                placeholder="Label (e.g. Main Office, Coach's Laptop)"
-                className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500"
-                autoFocus
-              />
-              <button
-                onClick={handleGenerate}
-                disabled={!newLabel.trim() || generating}
-                className="px-3 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors"
-              >
-                {generating ? 'Generating…' : 'Generate'}
-              </button>
-              <button
-                onClick={() => { setShowNewLabel(false); setNewLabel(''); }}
-                className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
+            <div className="px-6 py-3 bg-blue-500/5 border-b border-gray-800">
+              <p className="text-xs text-gray-400 mb-2">Give this key a label so you know which desktop it belongs to.</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newLabel}
+                  onChange={e => setNewLabel(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleGenerate();
+                    if (e.key === 'Escape') { setShowNewLabel(false); setNewLabel(''); }
+                  }}
+                  placeholder="e.g. Main Office, Coach's Laptop, Timer Stand"
+                  className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 focus:border-blue-500 rounded-lg text-sm text-gray-200 placeholder-gray-600 focus:outline-none transition-colors"
+                  autoFocus
+                />
+                <button
+                  onClick={handleGenerate}
+                  disabled={!newLabel.trim() || generating}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  {generating ? (
+                    <span className="flex items-center gap-1.5">
+                      <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Generating…
+                    </span>
+                  ) : 'Generate'}
+                </button>
+                <button
+                  onClick={() => { setShowNewLabel(false); setNewLabel(''); }}
+                  className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
 
-          {loading ? (
-            <p className="text-xs text-gray-600 py-4 text-center">Loading keys…</p>
-          ) : activeKeys.length === 0 ? (
-            <p className="text-xs text-gray-600 py-4 text-center">No API keys yet. Generate one to connect PTT Nexus Manager.</p>
-          ) : (
-            <div className="space-y-2">
-              {activeKeys.map(key => {
+          {/* Error banner */}
+          {error && (
+            <div className="px-6 py-3 bg-red-500/10 border-b border-red-500/20 flex items-start gap-2">
+              <svg className="w-4 h-4 text-red-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+              <span className="text-xs text-red-300 flex-1">{error}</span>
+              <button onClick={() => setError(null)} className="text-red-400/60 hover:text-red-300 text-xs">✕</button>
+            </div>
+          )}
+
+          {/* Keys list */}
+          <div className="divide-y divide-gray-800">
+            {loading ? (
+              <div className="px-6 py-8 text-center">
+                <svg className="animate-spin w-5 h-5 text-gray-600 mx-auto mb-2" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                <p className="text-xs text-gray-600">Loading keys…</p>
+              </div>
+            ) : activeKeys.length === 0 ? (
+              <div className="px-6 py-10 text-center">
+                <svg className="w-8 h-8 text-gray-700 mx-auto mb-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+                </svg>
+                <p className="text-sm text-gray-500 mb-1">No API keys yet</p>
+                <p className="text-xs text-gray-600">Click <strong className="text-gray-400">New Key</strong> above to generate one for your desktop.</p>
+              </div>
+            ) : (
+              activeKeys.map(key => {
                 const visible = visibleKeys.has(key.id);
+                const isNew = key.id === newlyGeneratedId;
                 return (
-                  <div key={key.id} className="bg-gray-800 border border-gray-700 rounded-lg p-3">
-                    <div className="flex items-start justify-between gap-2 mb-2">
+                  <div key={key.id} className={`px-6 py-4 ${isNew ? 'bg-green-500/5' : ''}`}>
+                    <div className="flex items-start justify-between gap-3 mb-3">
                       <div>
-                        <p className="text-sm font-medium text-gray-200">{key.label}</p>
-                        <p className="text-[10px] text-gray-600 mt-0.5">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-gray-200">{key.label}</p>
+                          {isNew && (
+                            <span className="px-1.5 py-0.5 bg-green-500/20 border border-green-500/30 rounded text-[10px] text-green-400 font-medium">
+                              New — copy this key now
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-gray-600 mt-0.5">
                           Created {formatDate(key.createdAt)}
-                          {key.lastUsedAt && ` · Last used ${formatDate(key.lastUsedAt)}`}
+                          {key.lastUsedAt && (
+                            <span className="ml-2 text-gray-700">· Last used {formatDate(key.lastUsedAt)}</span>
+                          )}
                         </p>
                       </div>
                       <button
                         onClick={() => handleRevoke(key.id)}
                         disabled={revokingId === key.id}
-                        className="shrink-0 px-2 py-1 text-[10px] bg-red-900/30 hover:bg-red-800/50 border border-red-700/30 text-red-400 rounded transition-colors disabled:opacity-50"
+                        className="shrink-0 px-2.5 py-1 text-xs bg-red-900/20 hover:bg-red-800/40 border border-red-700/20 text-red-400 hover:text-red-300 rounded-lg transition-colors disabled:opacity-50"
                       >
                         {revokingId === key.id ? 'Revoking…' : 'Revoke'}
                       </button>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 text-[11px] font-mono bg-gray-900 border border-gray-700 rounded px-2 py-1 text-gray-400 truncate">
+                    {/* Key value row */}
+                    <div className="flex items-center gap-2 bg-gray-950 border border-gray-800 rounded-lg px-3 py-2">
+                      <code className="flex-1 text-[12px] font-mono text-gray-400 tracking-wider truncate select-all">
                         {visible ? key.key : '•'.repeat(32)}
                       </code>
+                      {/* Reveal/hide */}
                       <button
                         onClick={() => toggleVisible(key.id)}
-                        className="shrink-0 p-1 text-gray-500 hover:text-gray-300 transition-colors"
                         title={visible ? 'Hide key' : 'Reveal key'}
+                        className="shrink-0 p-1 rounded text-gray-600 hover:text-gray-300 transition-colors"
                       >
                         {visible ? (
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -215,13 +277,14 @@ export default function SettingsPage() {
                           </svg>
                         )}
                       </button>
+                      {/* Copy */}
                       <button
                         onClick={() => handleCopy(key)}
-                        className="shrink-0 p-1 text-gray-500 hover:text-gray-300 transition-colors"
                         title="Copy to clipboard"
+                        className="shrink-0 p-1 rounded text-gray-600 hover:text-gray-300 transition-colors"
                       >
                         {copiedId === key.id ? (
-                          <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                           </svg>
                         ) : (
@@ -231,52 +294,41 @@ export default function SettingsPage() {
                         )}
                       </button>
                     </div>
+
+                    {isNew && (
+                      <p className="text-[11px] text-amber-400/70 mt-1.5">
+                        ⚠ This key won&apos;t be shown again after you leave this page. Copy it now.
+                      </p>
+                    )}
                   </div>
                 );
-              })}
+              })
+            )}
+          </div>
+
+          {/* Footer help */}
+          {!loading && (
+            <div className="px-6 py-3 bg-gray-800/40 border-t border-gray-800">
+              <p className="text-[11px] text-gray-600">
+                Paste the key into <span className="text-gray-500">PTT Nexus Manager → Integrations → Cloud → API Key</span>. Keys never expire — revoke if a device is lost or decommissioned.
+              </p>
             </div>
           )}
         </div>
 
-        {/* ── Supabase Connection ───────────────────────────────── */}
+        {/* ── Connection info ───────────────────────────────────── */}
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-          <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">Supabase Connection</h2>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">Project URL</label>
-              <div className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-500">
-                {process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Configured' : 'Not configured'}
-              </div>
+          <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">Environment</h2>
+          <div className="space-y-3 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500">Supabase connection</span>
+              <span className="font-medium text-green-400">Configured</span>
             </div>
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">Database URL</label>
-              <div className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-500">
-                {process.env.DATABASE_URL ? 'Configured' : 'Not configured'}
-              </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500">Organizations in DB</span>
+              <span className="font-medium text-gray-400">—</span>
             </div>
           </div>
-        </div>
-
-        {/* ── Event Catalog ─────────────────────────────────────── */}
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-          <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">Event Catalog</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            The canonical event definitions used for record mapping. Seeded from the desktop app&apos;s event-catalog.json.
-          </p>
-          <button
-            disabled
-            className="px-4 py-2 bg-gray-700/50 text-white/50 text-sm rounded-lg cursor-not-allowed"
-          >
-            Seed Event Definitions (Coming Soon)
-          </button>
-        </div>
-
-        {/* ── User Management ───────────────────────────────────── */}
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-          <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">User Management</h2>
-          <p className="text-sm text-gray-500">
-            Invite users and manage roles. Requires Supabase Auth configuration.
-          </p>
         </div>
 
       </div>

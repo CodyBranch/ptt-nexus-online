@@ -66,9 +66,8 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="px-5 py-4 border-b border-gray-800">
         <h1 className="text-lg font-bold tracking-tight">
-          <span className="text-blue-400">PTT</span>{' '}
-          <span className="text-gray-200">Nexus</span>{' '}
-          <span className="text-gray-500 font-normal text-sm">Online</span>
+          <span className="text-blue-400">PrimeTime</span>{' '}
+          <span className="text-gray-200">Nexus</span>
         </h1>
       </div>
 
@@ -99,7 +98,7 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="px-5 py-3 border-t border-gray-800 text-xs text-gray-600">
-        PTT Nexus Cloud v0.1
+        PrimeTime Nexus v0.1
       </div>
     </aside>
   );
