@@ -321,6 +321,30 @@ export const relayOnlineEntries = pgTable('relay_online_entries', {
 ]);
 
 // ═══════════════════════════════════════════════════════════
+// Desktop API Keys
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * API keys issued to PTT Nexus Manager desktop instances.
+ * Used to authenticate /api/relay/* and /api/organizations calls.
+ */
+export const desktopApiKeys = pgTable('desktop_api_keys', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  // Human-readable label set by the admin (e.g. "Main Office", "Coach's Laptop")
+  label: text('label').notNull(),
+
+  // 32-char hex random key — stored plaintext for easy lookup
+  key: text('key').notNull(),
+
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+}, (table) => [
+  uniqueIndex('idx_desktop_api_keys_key').on(table.key),
+]);
+
+// ═══════════════════════════════════════════════════════════
 // Sync Logs
 // ═══════════════════════════════════════════════════════════
 

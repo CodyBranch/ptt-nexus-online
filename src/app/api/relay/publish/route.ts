@@ -2,15 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { meetRelaySessions, teamRelayAccess } from '@/db/schema';
 import { randomBytes } from 'crypto';
-
-// ── Auth ────────────────────────────────────────────────────────────────────
-// Desktop callers must send:  Authorization: Bearer <RELAY_API_KEY>
-function checkApiKey(request: NextRequest): boolean {
-  const relay_api_key = process.env.RELAY_API_KEY;
-  if (!relay_api_key) return true; // key not configured → open (dev mode)
-  const auth = request.headers.get('authorization') ?? '';
-  return auth === `Bearer ${relay_api_key}`;
-}
+import { checkRelayAuth } from '@/lib/relay-auth';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -39,7 +31,7 @@ interface TeamPayload {
 // Desktop publishes a relay meet and receives tokens per team.
 
 export async function POST(request: NextRequest) {
-  if (!checkApiKey(request)) {
+  if (!await checkRelayAuth(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

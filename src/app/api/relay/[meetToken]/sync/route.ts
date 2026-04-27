@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { meetRelaySessions, teamRelayAccess, relayOnlineEntries } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
-
-function checkApiKey(request: NextRequest): boolean {
-  const relay_api_key = process.env.RELAY_API_KEY;
-  if (!relay_api_key) return true;
-  const auth = request.headers.get('authorization') ?? '';
-  return auth === `Bearer ${relay_api_key}`;
-}
+import { checkRelayAuth } from '@/lib/relay-auth';
 
 // ── GET /api/relay/[meetToken]/sync?eventId=... ─────────────────────────────
 // Desktop pulls all coach-submitted relay entries for a meet (optionally filtered
@@ -18,7 +12,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ meetToken: string }> }
 ) {
-  if (!checkApiKey(request)) {
+  if (!await checkRelayAuth(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
