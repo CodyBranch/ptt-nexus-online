@@ -102,16 +102,39 @@ function fmtCountdown(ms: number): string {
   return `${sec}s until deadline`;
 }
 
+/**
+ * Normalize any common gender string to 'M', 'F', or null (mixed/unknown).
+ * Handles HY-TEK codes ('M'/'F'), long-form ('Men', 'Women', 'Male', 'Female'),
+ * and possessive forms ("Men's", "Women's", "Boys'", "Girls'").
+ */
+function normalizeGender(raw: string | null | undefined): 'M' | 'F' | null {
+  const g = (raw ?? '').toUpperCase().trim();
+  if (g === 'M' || g === 'MALE' || g === 'MEN' || g === "MEN'S" || g === 'BOY' || g === 'BOYS' || g === "BOYS'") return 'M';
+  if (g === 'F' || g === 'FEMALE' || g === 'W' || g === 'WOMEN' || g === "WOMEN'S" || g === 'GIRL' || g === 'GIRLS' || g === "GIRLS'") return 'F';
+  return null; // mixed / both / unknown
+}
+
 /** Filter roster to only athletes whose gender matches the event. */
 function filterRosterForEvent(roster: Athlete[], event: RelayEvent): Athlete[] {
-  const g = event.gender?.toUpperCase();
-  if (!g || g === 'X' || g === 'B' || g === 'N') return roster;
+  // Prefer the explicit gender field; fall back to parsing the event name
+  // (e.g. "Men's 4x100m Relay" → 'M') so the filter still works when the
+  // gender field wasn't stored or is null.
+  let evGender = normalizeGender(event.gender);
+
+  if (!evGender) {
+    const name = (event.name ?? '').toUpperCase();
+    const hasMen   = /\bMEN'?S?\b|\bBOYS'?\b|\bMALE\b/.test(name);
+    const hasWomen = /\bWOMEN'?S?\b|\bGIRLS'?\b|\bFEMALE\b/.test(name);
+    if (hasMen && !hasWomen) evGender = 'M';
+    else if (hasWomen)       evGender = 'F';
+  }
+
+  if (!evGender) return roster; // mixed / both / unknown → show everyone
+
   return roster.filter(a => {
-    if (!a.gender) return true;
-    const ag = a.gender.toUpperCase();
-    if (g === 'M') return ag === 'M';
-    if (g === 'F' || g === 'W') return ag === 'F';
-    return true;
+    const ag = normalizeGender(a.gender);
+    if (!ag) return true; // no gender data on athlete → include (can't exclude)
+    return ag === evGender;
   });
 }
 
