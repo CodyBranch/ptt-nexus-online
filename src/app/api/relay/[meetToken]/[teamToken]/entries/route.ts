@@ -96,6 +96,7 @@ export async function POST(
         .set({
           legsJson: JSON.stringify(legs),
           updatedAt: now,
+          seededByDesktop: false, // coach has taken ownership — protect from future TD overwrites
           ...(finalizedAt !== undefined ? { finalizedAt } : {}),
         })
         .where(eq(relayOnlineEntries.id, existing.id));
@@ -106,6 +107,7 @@ export async function POST(
         eventId,
         eventName: resolvedEventName,
         legsJson: JSON.stringify(legs),
+        seededByDesktop: false, // created fresh by the coach
         ...(finalizedAt !== undefined ? { finalizedAt } : {}),
       });
     }

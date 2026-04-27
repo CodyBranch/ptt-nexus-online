@@ -134,16 +134,19 @@ export async function POST(
               .limit(1);
 
             if (existingEntry) {
-              // Only update if the coach hasn't finalized
-              if (!existingEntry.finalizedAt) {
+              // Only overwrite if:
+              //   1. The coach hasn't finalized (their decision is final), AND
+              //   2. The entry is still in its Nexus-seeded state (seededByDesktop = true)
+              //      i.e. the coach hasn't saved any changes yet.
+              // This prevents "Update Cloud Data" from clobbering draft work.
+              if (!existingEntry.finalizedAt && existingEntry.seededByDesktop) {
                 await db
                   .update(relayOnlineEntries)
                   .set({ legsJson: JSON.stringify(entryData.legs), updatedAt: new Date() })
                   .where(eq(relayOnlineEntries.id, existingEntry.id));
               }
-              // If finalized, leave it alone — coach's choice is final
             } else {
-              // No entry yet — insert the pre-populated one
+              // No entry yet — insert the pre-populated one, flagged as seeded
               const ev = events.find(e => e.id === eventId);
               await db.insert(relayOnlineEntries).values({
                 teamAccessId: existing.id,
@@ -151,6 +154,7 @@ export async function POST(
                 eventId,
                 eventName: ev?.name ?? eventId,
                 legsJson: JSON.stringify(entryData.legs),
+                seededByDesktop: true,
               });
             }
           }
@@ -183,6 +187,7 @@ export async function POST(
                 eventId,
                 eventName: ev?.name ?? eventId,
                 legsJson: JSON.stringify(entryData.legs),
+                seededByDesktop: true,
               };
             });
           if (entryRows.length > 0) {

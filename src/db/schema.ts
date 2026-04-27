@@ -320,6 +320,11 @@ export const relayOnlineEntries = pgTable('relay_online_entries', {
 
   // Set when the coach clicks "Finalize & Lock" — signals entry is confirmed
   finalizedAt: timestamp('finalized_at', { withTimezone: true }),
+
+  // True when this entry was seeded by a Nexus publish/update and the coach
+  // has NOT yet made any changes. Set to false the moment the coach saves.
+  // The update endpoint only overwrites entries where this is still true.
+  seededByDesktop: boolean('seeded_by_desktop').notNull().default(false),
 }, (table) => [
   index('idx_relay_entries_team').on(table.teamAccessId),
   index('idx_relay_entries_session').on(table.meetSessionId),

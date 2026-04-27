@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
       eventId: string;
       eventName: string;
       legsJson: string;
+      seededByDesktop: boolean;
     }> = [];
 
     for (const team of teams) {
@@ -112,6 +113,7 @@ export async function POST(request: NextRequest) {
           eventId,
           eventName: ev?.name ?? eventId,
           legsJson: JSON.stringify(entryData.legs),
+          seededByDesktop: true,
         });
       }
     }
