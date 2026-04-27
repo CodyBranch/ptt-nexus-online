@@ -721,8 +721,6 @@ function EventSummaryCard({
     ? 'text-blue-400 bg-blue-900/20 border-blue-700/30'
     : 'text-gray-500 bg-gray-800/40 border-gray-700/30';
 
-  const genderLabel: Record<string, string> = { M: 'Men', F: 'Women', W: 'Women', X: 'Mixed', B: 'Mixed' };
-
   return (
     <button
       onClick={onClick}
@@ -736,11 +734,6 @@ function EventSummaryCard({
             {showLetter && (
               <span className="text-[10px] font-bold text-indigo-400 bg-indigo-900/30 border border-indigo-700/30 px-1.5 py-0.5 rounded shrink-0">
                 {teamLetter}-Team
-              </span>
-            )}
-            {event.gender && (
-              <span className="text-[10px] font-bold text-gray-600 uppercase shrink-0">
-                {genderLabel[event.gender] ?? event.gender}
               </span>
             )}
           </div>

@@ -61,6 +61,7 @@ export async function GET(
         teamLetter: string;
         legs: unknown;
         updatedAt: Date | null;
+        finalizedAt: string | null;
       }>;
     }>();
 
@@ -76,6 +77,7 @@ export async function GET(
         teamLetter: entry.teamLetter,
         legs: JSON.parse(entry.legsJson),
         updatedAt: entry.updatedAt,
+        finalizedAt: entry.finalizedAt?.toISOString() ?? null,
       });
     }
 
