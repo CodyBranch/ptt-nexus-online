@@ -437,18 +437,11 @@ function EventCard({
     if (dragIdx !== null && overIdx !== null && dragIdx !== overIdx) {
       setSlots(prev => {
         const next = [...prev];
-        // Sort-style move: shift intermediate slots
-        const draggedId = next[dragIdx].athleteId;
-        if (dragIdx < overIdx) {
-          for (let i = dragIdx; i < overIdx; i++) {
-            next[i] = { ...next[i], athleteId: next[i + 1].athleteId };
-          }
-        } else {
-          for (let i = dragIdx; i > overIdx; i--) {
-            next[i] = { ...next[i], athleteId: next[i - 1].athleteId };
-          }
-        }
-        next[overIdx] = { ...next[overIdx], athleteId: draggedId };
+        // Swap the two athletes — no shifting of legs in between
+        const fromId = next[dragIdx].athleteId;
+        const toId   = next[overIdx].athleteId;
+        next[dragIdx] = { ...next[dragIdx], athleteId: toId };
+        next[overIdx] = { ...next[overIdx], athleteId: fromId };
         return next;
       });
       setDirty(true);
@@ -458,13 +451,8 @@ function EventCard({
     setOverIdx(null);
   }, [dragIdx, overIdx]);
 
-  const getRowTranslate = (idx: number): number => {
-    if (dragIdx === null || overIdx === null || idx === dragIdx) return 0;
-    const rh = rowHeightRef.current;
-    if (dragIdx < overIdx && idx > dragIdx && idx <= overIdx) return -rh;
-    if (dragIdx > overIdx && idx >= overIdx && idx < dragIdx) return rh;
-    return 0;
-  };
+  // Swap means nothing shifts — return 0 for all rows so only the drag ghost moves
+  const getRowTranslate = (_idx: number): number => 0;
 
   // ── Assign / clear ──
   const handleAssign = (position: number, athleteId: string) => {
@@ -522,7 +510,7 @@ function EventCard({
 
   return (
     <div
-      className={`rounded-xl border overflow-visible ${finalized ? 'border-emerald-700/40' : 'border-gray-700'}`}
+      className={`rounded-xl border overflow-hidden ${finalized ? 'border-emerald-700/40' : 'border-gray-700'}`}
       style={isDragging ? { userSelect: 'none' } : undefined}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
