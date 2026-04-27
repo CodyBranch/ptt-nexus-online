@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/client';
-import { meetRelaySessions, teamRelayAccess } from '@/db/schema';
+import { meetRelaySessions, teamRelayAccess, relayOnlineEntries } from '@/db/schema';
 import { randomBytes } from 'crypto';
 import { checkRelayAuth } from '@/lib/relay-auth';
 
@@ -12,6 +12,8 @@ interface EventPayload {
   gender: string;
   distance?: number;
   legs?: number;
+  scheduledTime?: string;
+  deadlineMinutes?: number;
 }
 
 interface AthletePayload {
@@ -19,12 +21,22 @@ interface AthletePayload {
   firstName: string;
   lastName: string;
   bib?: string;
+  gender?: string;
+}
+
+interface DefaultLeg {
+  leg: number;
+  athleteId: string;
+  firstName: string;
+  lastName: string;
 }
 
 interface TeamPayload {
   id: string;
   name: string;
   roster: AthletePayload[];
+  /** Current leg assignments from Nexus Manager — inserted as initial cloud entries. */
+  currentEntries?: Record<string, { legs: DefaultLeg[] }>;
 }
 
 // ── POST /api/relay/publish ─────────────────────────────────────────────────
@@ -73,6 +85,37 @@ export async function POST(request: NextRequest) {
     }));
 
     const insertedTeams = await db.insert(teamRelayAccess).values(teamRows).returning();
+
+    // Insert initial relay entries pre-populated from Nexus Manager's current assignments
+    const entryRows: Array<{
+      teamAccessId: string;
+      meetSessionId: string;
+      eventId: string;
+      eventName: string;
+      legsJson: string;
+    }> = [];
+
+    for (const team of teams) {
+      if (!team.currentEntries) continue;
+      const access = insertedTeams.find((t) => t.teamId === team.id);
+      if (!access) continue;
+
+      for (const [eventId, entryData] of Object.entries(team.currentEntries)) {
+        if (!entryData.legs || entryData.legs.length === 0) continue;
+        const ev = events.find((e) => e.id === eventId);
+        entryRows.push({
+          teamAccessId: access.id,
+          meetSessionId: session.id,
+          eventId,
+          eventName: ev?.name ?? eventId,
+          legsJson: JSON.stringify(entryData.legs),
+        });
+      }
+    }
+
+    if (entryRows.length > 0) {
+      await db.insert(relayOnlineEntries).values(entryRows);
+    }
 
     return NextResponse.json({
       meetToken,

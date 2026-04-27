@@ -10,6 +10,7 @@ interface Athlete {
   firstName: string;
   lastName: string;
   bib?: string;
+  gender?: string;
 }
 
 interface RelayEvent {
@@ -43,10 +44,16 @@ interface SessionData {
   existingEntries: Record<string, EventState>;
 }
 
-// Leg slot (1-indexed): position 1–4 are runners, 5–8 are alternates
+// Leg slot (1-indexed): positions 1–4 are runners, 5–8 are alternates
 interface Slot {
   position: number;
   athleteId: string | null;
+}
+
+// Entry status tracked in parent (updated optimistically on save)
+interface EntryStatus {
+  saved: boolean;
+  finalizedAt: string | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -68,19 +75,9 @@ function slotsToPayload(slots: Slot[], rosterMap: Map<string, Athlete>): LegEntr
     });
 }
 
-// ── Countdown ─────────────────────────────────────────────────────────────────
-
-function useCountdown(deadlineISO: string | null): number | null {
-  const [ms, setMs] = useState<number | null>(null);
-  useEffect(() => {
-    if (!deadlineISO) return;
-    const dead = new Date(deadlineISO).getTime();
-    const tick = () => setMs(dead - Date.now());
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [deadlineISO]);
-  return ms;
+function deadlineISO(event: RelayEvent): string | null {
+  if (!event.scheduledTime) return null;
+  return new Date(new Date(event.scheduledTime).getTime() - (event.deadlineMinutes ?? 30) * 60_000).toISOString();
 }
 
 function fmtCountdown(ms: number): string {
@@ -92,6 +89,34 @@ function fmtCountdown(ms: number): string {
   if (h > 0) return `${h}h ${m}m until deadline`;
   if (m > 0) return `${m}m ${sec}s until deadline`;
   return `${sec}s until deadline`;
+}
+
+/** Filter roster to only athletes whose gender matches the event. */
+function filterRosterForEvent(roster: Athlete[], event: RelayEvent): Athlete[] {
+  const g = event.gender?.toUpperCase();
+  if (!g || g === 'X' || g === 'B' || g === 'N') return roster;
+  return roster.filter(a => {
+    if (!a.gender) return true; // unknown — show it
+    const ag = a.gender.toUpperCase();
+    if (g === 'M') return ag === 'M';
+    if (g === 'F' || g === 'W') return ag === 'F';
+    return true;
+  });
+}
+
+// ── Countdown ─────────────────────────────────────────────────────────────────
+
+function useCountdown(isoDeadline: string | null): number | null {
+  const [ms, setMs] = useState<number | null>(null);
+  useEffect(() => {
+    if (!isoDeadline) return;
+    const dead = new Date(isoDeadline).getTime();
+    const tick = () => setMs(dead - Date.now());
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [isoDeadline]);
+  return ms;
 }
 
 // ── Inline Athlete Picker ─────────────────────────────────────────────────────
@@ -114,9 +139,7 @@ function AthletePicker({
   const [q, setQ] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  useEffect(() => { inputRef.current?.focus(); }, []);
 
   const filtered = roster.filter(a => {
     if (!q.trim()) return true;
@@ -130,7 +153,6 @@ function AthletePicker({
 
   return (
     <div className="mt-1 mb-2 bg-gray-850 border border-gray-600 rounded-lg overflow-hidden shadow-xl">
-      {/* Search */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-700">
         <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
@@ -150,9 +172,7 @@ function AthletePicker({
         </button>
       </div>
 
-      {/* List */}
       <div className="max-h-52 overflow-y-auto">
-        {/* Clear option — only if slot is filled */}
         {currentId && (
           <button
             onClick={onClear}
@@ -166,7 +186,7 @@ function AthletePicker({
         )}
 
         {filtered.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-gray-600 italic">No athletes match "{q}"</p>
+          <p className="px-4 py-3 text-sm text-gray-600 italic">No athletes match &ldquo;{q}&rdquo;</p>
         ) : (
           filtered.map(a => {
             const isCurrent = a.id === currentId;
@@ -179,14 +199,10 @@ function AthletePicker({
                   ${isCurrent ? 'bg-blue-600/20 text-blue-200' : isTaken ? 'text-gray-500' : 'text-gray-200 hover:bg-gray-700'}
                 `}
               >
-                {/* Bib */}
                 <span className="w-10 shrink-0 font-mono text-xs text-gray-500">
                   {a.bib ? `#${a.bib}` : '—'}
                 </span>
-                {/* Name */}
-                <span className="flex-1">
-                  {a.lastName}, {a.firstName}
-                </span>
+                <span className="flex-1">{a.lastName}, {a.firstName}</span>
                 {isCurrent && <span className="text-xs text-blue-400">current</span>}
                 {isTaken && <span className="text-xs text-gray-600 italic">assigned</span>}
               </button>
@@ -201,25 +217,9 @@ function AthletePicker({
 // ── Leg Row ───────────────────────────────────────────────────────────────────
 
 function LegRow({
-  slot,
-  athlete,
-  isAlt,
-  isPickerOpen,
-  isBeingDragged,
-  isDragTarget,
-  isFloating,
-  floatY,
-  rowTranslate,
-  finalized,
-  rosterMap,
-  assignedIds,
-  roster,
-  onOpenPicker,
-  onClosePicker,
-  onAssign,
-  onClear,
-  onPointerDown,
-  rowRef,
+  slot, athlete, isAlt, isPickerOpen, isBeingDragged, isDragTarget,
+  isFloating, floatY, rowTranslate, finalized, rosterMap, assignedIds,
+  roster, onOpenPicker, onClosePicker, onAssign, onClear, onPointerDown, rowRef,
 }: {
   slot: Slot;
   athlete: Athlete | null;
@@ -244,20 +244,21 @@ function LegRow({
   const label = isAlt ? `Alt ${slot.position - 4}` : `Leg ${slot.position}`;
 
   const rowContent = (
-    <div className={`flex items-center gap-2 px-3 py-2.5 min-h-[42px] ${isFloating ? '' : 'transition-transform duration-150'}`}
+    <div
+      className={`flex items-center gap-2 px-3 py-2.5 min-h-[42px] ${isFloating ? '' : 'transition-transform duration-150'}`}
       style={{ transform: isFloating ? undefined : rowTranslate !== 0 ? `translateY(${rowTranslate}px)` : undefined }}
     >
-      {/* Drag handle — only on filled rows */}
+      {/* Drag handle — select-none prevents text selection during drag */}
       <div className="w-5 shrink-0 flex items-center justify-center">
         {athlete && !finalized ? (
           <div
             onPointerDown={onPointerDown}
-            className="touch-none cursor-grab active:cursor-grabbing text-gray-600 hover:text-gray-400 p-0.5"
+            className="touch-none select-none cursor-grab active:cursor-grabbing text-gray-600 hover:text-gray-400 p-0.5"
             title="Drag to reorder"
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
-              <circle cx="5.5" cy="3.5" r="1.5"/><circle cx="10.5" cy="3.5" r="1.5"/>
-              <circle cx="5.5" cy="8"   r="1.5"/><circle cx="10.5" cy="8"   r="1.5"/>
+              <circle cx="5.5" cy="3.5"  r="1.5"/><circle cx="10.5" cy="3.5"  r="1.5"/>
+              <circle cx="5.5" cy="8"    r="1.5"/><circle cx="10.5" cy="8"    r="1.5"/>
               <circle cx="5.5" cy="12.5" r="1.5"/><circle cx="10.5" cy="12.5" r="1.5"/>
             </svg>
           </div>
@@ -324,16 +325,13 @@ function LegRow({
 
   return (
     <div ref={rowRef}>
-      <div
-        className={`rounded-lg border transition-colors
-          ${isBeingDragged ? 'opacity-0' : ''}
-          ${isDragTarget ? 'border-blue-500/50 bg-gray-700/60' : 'border-gray-700/50 bg-gray-800/60'}
-          ${isPickerOpen ? 'border-blue-500/40' : ''}
-        `}
-      >
+      <div className={`rounded-lg border transition-colors
+        ${isBeingDragged ? 'opacity-0' : ''}
+        ${isDragTarget ? 'border-blue-500/50 bg-gray-700/60' : 'border-gray-700/50 bg-gray-800/60'}
+        ${isPickerOpen ? 'border-blue-500/40' : ''}
+      `}>
         {rowContent}
       </div>
-      {/* Inline picker */}
       {isPickerOpen && (
         <AthletePicker
           roster={roster}
@@ -351,12 +349,7 @@ function LegRow({
 // ── Event Card ────────────────────────────────────────────────────────────────
 
 function EventCard({
-  event,
-  roster,
-  rosterMap,
-  initialState,
-  meetToken,
-  teamToken,
+  event, roster, rosterMap, initialState, meetToken, teamToken, onSaved,
 }: {
   event: RelayEvent;
   roster: Athlete[];
@@ -364,17 +357,18 @@ function EventCard({
   initialState: EventState;
   meetToken: string;
   teamToken: string;
+  onSaved: (finalizedAt: string | null, legs: LegEntry[]) => void;
 }) {
   const [slots, setSlots] = useState<Slot[]>(() => stateToSlots(initialState.legs));
   const [finalized, setFinalized] = useState(!!initialState.finalizedAt);
-  const [pickerOpen, setPickerOpen] = useState<number | null>(null); // position 1-8
+  const [pickerOpen, setPickerOpen] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Drag state
-  const [dragIdx, setDragIdx] = useState<number | null>(null); // index into slots[]
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
   const [floatY, setFloatY] = useState(0);
   const [dragOffsetY, setDragOffsetY] = useState(0);
@@ -383,13 +377,13 @@ function EventCard({
   const isDragging = dragIdx !== null;
 
   // Deadline countdown
-  const deadlineISO = event.scheduledTime
-    ? new Date(new Date(event.scheduledTime).getTime() - (event.deadlineMinutes ?? 30) * 60_000).toISOString()
-    : null;
-  const countdownMs = useCountdown(deadlineISO);
+  const countdownMs = useCountdown(deadlineISO(event));
   const pastDeadline = countdownMs !== null && countdownMs <= 0;
 
-  // Set of currently assigned athlete IDs (for picker "assigned" markers)
+  // Gender-filtered roster for the picker
+  const filteredRoster = filterRosterForEvent(roster, event);
+
+  // Set of currently assigned athlete IDs
   const assignedIds = new Set(slots.map(s => s.athleteId).filter((id): id is string => id !== null));
 
   // ── Pointer drag reorder ──
@@ -411,17 +405,12 @@ function EventCard({
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (dragIdx === null) return;
-    const y = e.clientY - dragOffsetY;
-    setFloatY(y);
-
-    // Find closest row
-    let closest = dragIdx;
-    let closestDist = Infinity;
+    setFloatY(e.clientY - dragOffsetY);
+    let closest = dragIdx, closestDist = Infinity;
     rowRefs.current.forEach((ref, i) => {
       if (!ref) return;
       const rect = ref.getBoundingClientRect();
-      const center = rect.top + rect.height / 2;
-      const dist = Math.abs(e.clientY - center);
+      const dist = Math.abs(e.clientY - (rect.top + rect.height / 2));
       if (dist < closestDist) { closestDist = dist; closest = i; }
     });
     setOverIdx(closest);
@@ -431,7 +420,6 @@ function EventCard({
     if (dragIdx !== null && overIdx !== null && dragIdx !== overIdx) {
       setSlots(prev => {
         const next = [...prev];
-        // Swap the athleteIds; keep positions fixed
         const tmp = next[dragIdx].athleteId;
         next[dragIdx] = { ...next[dragIdx], athleteId: next[overIdx].athleteId };
         next[overIdx] = { ...next[overIdx], athleteId: tmp };
@@ -455,7 +443,6 @@ function EventCard({
   // ── Assign / clear ──
   const handleAssign = (position: number, athleteId: string) => {
     setSlots(prev => prev.map(s => {
-      // Remove from any other slot first
       if (s.athleteId === athleteId && s.position !== position) return { ...s, athleteId: null };
       if (s.position === position) return { ...s, athleteId };
       return s;
@@ -488,13 +475,14 @@ function EventCard({
       setDirty(false);
       setSaveStatus('saved');
       if (finalize) setFinalized(true);
+      onSaved(finalize ? new Date().toISOString() : null, legs);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : String(err));
       setSaveStatus('error');
     } finally {
       setSaving(false);
     }
-  }, [slots, rosterMap, meetToken, teamToken, event]);
+  }, [slots, rosterMap, meetToken, teamToken, event, onSaved]);
 
   const runnerSlots = slots.slice(0, 4);
   const altSlots = slots.slice(4);
@@ -503,6 +491,7 @@ function EventCard({
   return (
     <div
       className={`rounded-xl border overflow-visible ${finalized ? 'border-emerald-700/40' : 'border-gray-700'}`}
+      style={isDragging ? { userSelect: 'none' } : undefined}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
@@ -511,7 +500,6 @@ function EventCard({
       <div className={`px-4 py-3 border-b ${finalized ? 'bg-emerald-900/10 border-emerald-700/30' : 'bg-gray-800 border-gray-700'}`}>
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h3 className="font-semibold text-gray-100">{event.name}</h3>
             <p className="text-xs text-gray-500 mt-0.5">
               {filledRunners}/4 runners filled
               {dirty && <span className="ml-2 text-amber-400">● unsaved changes</span>}
@@ -527,7 +515,7 @@ function EventCard({
                 FINALIZED
               </span>
             )}
-            {deadlineISO && countdownMs !== null && (
+            {deadlineISO(event) && countdownMs !== null && (
               <span className={`text-[11px] ${pastDeadline ? 'text-red-400' : countdownMs < 10 * 60_000 ? 'text-amber-400' : 'text-gray-500'}`}>
                 ⏱ {fmtCountdown(countdownMs)}
               </span>
@@ -557,7 +545,7 @@ function EventCard({
                 finalized={finalized}
                 rosterMap={rosterMap}
                 assignedIds={assignedIds}
-                roster={roster}
+                roster={filteredRoster}
                 onOpenPicker={() => setPickerOpen(slot.position)}
                 onClosePicker={() => setPickerOpen(null)}
                 onAssign={id => handleAssign(slot.position, id)}
@@ -590,7 +578,7 @@ function EventCard({
                   finalized={finalized}
                   rosterMap={rosterMap}
                   assignedIds={assignedIds}
-                  roster={roster}
+                  roster={filteredRoster}
                   onOpenPicker={() => setPickerOpen(slot.position)}
                   onClosePicker={() => setPickerOpen(null)}
                   onAssign={id => handleAssign(slot.position, id)}
@@ -620,9 +608,9 @@ function EventCard({
             </button>
             <button
               onClick={() => {
-                if (window.confirm(`Finalize your ${event.name} lineup?\n\nThis locks your entry. Contact the meet director to make any changes after finalizing.`)) {
-                  submit(true);
-                }
+                if (window.confirm(
+                  `Finalize your ${event.name} lineup?\n\nThis locks your entry. Contact the meet director to make any changes after finalizing.`
+                )) submit(true);
               }}
               disabled={saving || filledRunners === 0}
               className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
@@ -655,7 +643,7 @@ function EventCard({
           finalized={false}
           rosterMap={rosterMap}
           assignedIds={assignedIds}
-          roster={roster}
+          roster={filteredRoster}
           onOpenPicker={() => {}}
           onClosePicker={() => {}}
           onAssign={() => {}}
@@ -665,6 +653,77 @@ function EventCard({
         />
       )}
     </div>
+  );
+}
+
+// ── Event Summary Card (list view) ────────────────────────────────────────────
+
+function EventSummaryCard({
+  event,
+  status,
+  now,
+  onClick,
+}: {
+  event: RelayEvent;
+  status: EntryStatus | undefined;
+  now: number;
+  onClick: () => void;
+}) {
+  const iso = deadlineISO(event);
+  const msLeft = iso ? new Date(iso).getTime() - now : null;
+  const pastDeadline = msLeft !== null && msLeft <= 0;
+
+  const isFinalized = !!status?.finalizedAt;
+  const isSaved = !!status?.saved && !isFinalized;
+
+  const statusLabel = isFinalized ? 'Finalized' : isSaved ? 'Draft saved' : 'Not started';
+  const statusCls = isFinalized
+    ? 'text-emerald-400 bg-emerald-900/20 border-emerald-700/30'
+    : isSaved
+    ? 'text-blue-400 bg-blue-900/20 border-blue-700/30'
+    : 'text-gray-500 bg-gray-800/40 border-gray-700/30';
+
+  const genderLabel: Record<string, string> = { M: 'Men', F: 'Women', W: 'Women', X: 'Mixed', B: 'Mixed' };
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left bg-gray-900 border border-gray-700 rounded-xl px-4 py-3.5 hover:border-gray-500 hover:bg-gray-800/60 active:bg-gray-800 transition-colors"
+    >
+      <div className="flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-semibold text-gray-100 truncate">{event.name}</span>
+            {event.gender && (
+              <span className="text-[10px] font-bold text-gray-600 uppercase shrink-0">
+                {genderLabel[event.gender] ?? event.gender}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${statusCls}`}>
+              {isFinalized && (
+                <svg className="w-2.5 h-2.5 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                </svg>
+              )}
+              {statusLabel}
+            </span>
+            {msLeft !== null && !pastDeadline && !isFinalized && (
+              <span className={`text-[11px] ${msLeft < 10 * 60_000 ? 'text-amber-400' : 'text-gray-600'}`}>
+                ⏱ {fmtCountdown(msLeft)}
+              </span>
+            )}
+            {pastDeadline && !isFinalized && (
+              <span className="text-[11px] text-red-400">⏱ Deadline passed</span>
+            )}
+          </div>
+        </div>
+        <svg className="w-5 h-5 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
+        </svg>
+      </div>
+    </button>
   );
 }
 
@@ -678,14 +737,51 @@ export default function CoachRelayPage() {
   const [session, setSession] = useState<SessionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [entryStatuses, setEntryStatuses] = useState<Record<string, EntryStatus>>({});
 
+  // Single clock tick for list-view countdown timers (avoids N separate intervals)
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Fetch session data
   useEffect(() => {
     fetch(`/api/relay/${meetToken}/${teamToken}`)
       .then(r => r.ok ? r.json() : r.json().then((d: { error?: string }) => Promise.reject(new Error(d.error ?? 'Failed to load'))))
-      .then((data: SessionData) => setSession(data))
+      .then((data: SessionData) => {
+        setSession(data);
+        // Initialise status from any existing entries (incl. pre-populated ones from publish)
+        const statuses: Record<string, EntryStatus> = {};
+        for (const [eventId, entry] of Object.entries(data.existingEntries)) {
+          statuses[eventId] = { saved: true, finalizedAt: entry.finalizedAt };
+        }
+        setEntryStatuses(statuses);
+      })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [meetToken, teamToken]);
+
+  // Called by EventCard after each save/finalize
+  const handleSaved = useCallback((eventId: string, finalizedAt: string | null, legs: LegEntry[]) => {
+    setEntryStatuses(prev => ({ ...prev, [eventId]: { saved: true, finalizedAt } }));
+    // Keep session.existingEntries fresh so re-entering the event shows current state
+    setSession(prev => !prev ? null : {
+      ...prev,
+      existingEntries: {
+        ...prev.existingEntries,
+        [eventId]: { legs, finalizedAt },
+      },
+    });
+    if (finalizedAt) {
+      // Navigate back to event list after finalize (a brief moment to see the badge)
+      setTimeout(() => setSelectedEventId(null), 400);
+    }
+  }, []);
+
+  // ── Loading / error states ──
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen bg-gray-950">
@@ -710,34 +806,77 @@ export default function CoachRelayPage() {
   );
 
   const rosterMap = new Map(session.roster.map(a => [a.id, a]));
+  const selectedEvent = selectedEventId ? session.events.find(e => e.id === selectedEventId) : null;
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
-      {/* Header */}
+
+      {/* ── Sticky header ── */}
       <div className="bg-gray-900 border-b border-gray-800 px-4 py-4 sticky top-0 z-10">
         <div className="max-w-lg mx-auto">
-          <p className="text-xs text-gray-500">{session.meetName}{session.meetDate ? ` · ${session.meetDate}` : ''}</p>
-          <h1 className="text-xl font-bold text-white">{session.teamName}</h1>
-          <p className="text-xs text-gray-500 mt-0.5">Relay Entry — tap ✎ to pick an athlete · drag ⠿ to reorder</p>
+          {selectedEvent ? (
+            /* Event detail header */
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSelectedEventId(null)}
+                className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-400 hover:text-gray-100 shrink-0"
+                aria-label="Back to event list"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
+                </svg>
+              </button>
+              <div className="min-w-0">
+                <p className="text-xs text-gray-500 truncate">{session.teamName}</p>
+                <h1 className="text-lg font-bold text-white truncate">{selectedEvent.name}</h1>
+              </div>
+            </div>
+          ) : (
+            /* Event list header */
+            <>
+              <p className="text-xs text-gray-500">
+                {session.meetName}{session.meetDate ? ` · ${session.meetDate}` : ''}
+              </p>
+              <h1 className="text-xl font-bold text-white">{session.teamName}</h1>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {session.events.length} relay event{session.events.length !== 1 ? 's' : ''} · tap to enter your lineup
+              </p>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Events */}
-      <div className="max-w-lg mx-auto px-4 py-5 space-y-5">
-        {session.events.length === 0 ? (
-          <p className="text-center text-sm text-gray-500 py-16">No relay events found.</p>
+      {/* ── Content ── */}
+      <div className="max-w-lg mx-auto px-4 py-5">
+        {selectedEvent ? (
+          /* Event editor */
+          <EventCard
+            key={selectedEvent.id}
+            event={selectedEvent}
+            roster={session.roster}
+            rosterMap={rosterMap}
+            initialState={session.existingEntries[selectedEvent.id] ?? { legs: [], finalizedAt: null }}
+            meetToken={meetToken}
+            teamToken={teamToken}
+            onSaved={(finalizedAt, legs) => handleSaved(selectedEvent.id, finalizedAt, legs)}
+          />
         ) : (
-          session.events.map(event => (
-            <EventCard
-              key={event.id}
-              event={event}
-              roster={session.roster}
-              rosterMap={rosterMap}
-              initialState={session.existingEntries[event.id] ?? { legs: [], finalizedAt: null }}
-              meetToken={meetToken}
-              teamToken={teamToken}
-            />
-          ))
+          /* Event list */
+          <div className="space-y-3">
+            {session.events.length === 0 ? (
+              <p className="text-center text-sm text-gray-500 py-16">No relay events found.</p>
+            ) : (
+              session.events.map(event => (
+                <EventSummaryCard
+                  key={event.id}
+                  event={event}
+                  status={entryStatuses[event.id]}
+                  now={now}
+                  onClick={() => setSelectedEventId(event.id)}
+                />
+              ))
+            )}
+          </div>
         )}
       </div>
 
