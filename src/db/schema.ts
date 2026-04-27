@@ -60,6 +60,8 @@ export const organizations = pgTable('organizations', {
   athleticNetId: text('athletic_net_id'),
   directAthleticsId: text('direct_athletics_id'),
   milesplitId: text('milesplit_id'),
+  mshsaaId: text('mshsaa_id'),
+  ncaaSlug: text('ncaa_slug'),
 
   // Metadata
   notes: text('notes'),
@@ -73,6 +75,8 @@ export const organizations = pgTable('organizations', {
   index('idx_orgs_type').on(table.organizationType),
   index('idx_orgs_state').on(table.state),
   index('idx_orgs_conference').on(table.conference),
+  uniqueIndex('idx_orgs_mshsaa_id').on(table.mshsaaId),
+  uniqueIndex('idx_orgs_ncaa_slug').on(table.ncaaSlug),
 ]);
 
 // ═══════════════════════════════════════════════════════════
@@ -243,6 +247,77 @@ export const recordHistory = pgTable('record_history', {
 }, (table) => [
   index('idx_record_history_record').on(table.recordId),
   index('idx_record_history_date').on(table.brokenDate),
+]);
+
+// ═══════════════════════════════════════════════════════════
+// Online Relay Entry — Meet Sessions
+// ═══════════════════════════════════════════════════════════
+
+export const meetRelaySessions = pgTable('meet_relay_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  // Token embedded in QR URLs for the meet — possession = auth
+  meetToken: text('meet_token').notNull().unique(),
+
+  meetName: text('meet_name').notNull(),
+  meetDate: text('meet_date'), // ISO date string e.g. "2026-04-26"
+
+  // JSON array: [{id, name, gender, distance, legs}]
+  eventsJson: text('events_json').notNull().default('[]'),
+
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('idx_relay_sessions_token').on(table.meetToken),
+]);
+
+// ═══════════════════════════════════════════════════════════
+// Online Relay Entry — Per-Team Access
+// ═══════════════════════════════════════════════════════════
+
+export const teamRelayAccess = pgTable('team_relay_access', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  meetSessionId: uuid('meet_session_id').notNull().references(() => meetRelaySessions.id, { onDelete: 'cascade' }),
+
+  // Unique per-team token embedded in QR URL
+  teamToken: text('team_token').notNull().unique(),
+
+  // Local desktop team ID (for reference when syncing back)
+  teamId: text('team_id').notNull(),
+  teamName: text('team_name').notNull(),
+
+  // JSON array of athletes from meet DB: [{id, firstName, lastName, bib}]
+  rosterJson: text('roster_json').notNull().default('[]'),
+
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('idx_team_relay_session').on(table.meetSessionId),
+  index('idx_team_relay_token').on(table.teamToken),
+]);
+
+// ═══════════════════════════════════════════════════════════
+// Online Relay Entry — Coach Submissions
+// ═══════════════════════════════════════════════════════════
+
+export const relayOnlineEntries = pgTable('relay_online_entries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  teamAccessId: uuid('team_access_id').notNull().references(() => teamRelayAccess.id, { onDelete: 'cascade' }),
+  meetSessionId: uuid('meet_session_id').notNull(),
+
+  // Local desktop event ID (passed back when syncing)
+  eventId: text('event_id').notNull(),
+  eventName: text('event_name').notNull(),
+
+  // JSON array: [{leg, athleteId, firstName, lastName}]
+  legsJson: text('legs_json').notNull().default('[]'),
+
+  submittedAt: timestamp('submitted_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('idx_relay_entries_team').on(table.teamAccessId),
+  index('idx_relay_entries_session').on(table.meetSessionId),
+  index('idx_relay_entries_event').on(table.eventId),
 ]);
 
 // ═══════════════════════════════════════════════════════════
