@@ -48,7 +48,13 @@ export async function GET(
       .where(eq(relayOnlineEntries.teamAccessId, teamAccess.id));
 
     const existingEntries = Object.fromEntries(
-      entries.map((e) => [e.eventId, JSON.parse(e.legsJson)])
+      entries.map((e) => [
+        e.eventId,
+        {
+          legs: JSON.parse(e.legsJson) as Array<{ leg: number; athleteId: string; firstName: string; lastName: string }>,
+          finalizedAt: e.finalizedAt?.toISOString() ?? null,
+        },
+      ])
     );
 
     return NextResponse.json({

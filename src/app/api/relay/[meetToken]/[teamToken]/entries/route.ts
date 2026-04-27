@@ -24,9 +24,10 @@ export async function POST(
       eventId: string;
       eventName?: string;
       legs: LegPayload[];
+      finalized?: boolean;
     };
 
-    const { eventId, eventName, legs } = body;
+    const { eventId, eventName, legs, finalized } = body;
 
     if (!eventId || !Array.isArray(legs)) {
       return NextResponse.json({ error: 'eventId and legs[] are required' }, { status: 400 });
@@ -86,10 +87,17 @@ export async function POST(
       )
       .limit(1);
 
+    const now = new Date();
+    const finalizedAt = finalized ? now : undefined;
+
     if (existing) {
       await db
         .update(relayOnlineEntries)
-        .set({ legsJson: JSON.stringify(legs), updatedAt: new Date() })
+        .set({
+          legsJson: JSON.stringify(legs),
+          updatedAt: now,
+          ...(finalizedAt !== undefined ? { finalizedAt } : {}),
+        })
         .where(eq(relayOnlineEntries.id, existing.id));
     } else {
       await db.insert(relayOnlineEntries).values({
@@ -98,6 +106,7 @@ export async function POST(
         eventId,
         eventName: resolvedEventName,
         legsJson: JSON.stringify(legs),
+        ...(finalizedAt !== undefined ? { finalizedAt } : {}),
       });
     }
 

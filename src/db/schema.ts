@@ -314,6 +314,9 @@ export const relayOnlineEntries = pgTable('relay_online_entries', {
 
   submittedAt: timestamp('submitted_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+
+  // Set when the coach clicks "Finalize & Lock" — signals entry is confirmed
+  finalizedAt: timestamp('finalized_at', { withTimezone: true }),
 }, (table) => [
   index('idx_relay_entries_team').on(table.teamAccessId),
   index('idx_relay_entries_session').on(table.meetSessionId),
