@@ -23,8 +23,9 @@ export async function GET() {
 
     return NextResponse.json({ keys });
   } catch (error) {
-    console.error('Failed to list API keys:', error);
-    return NextResponse.json({ error: 'Failed to list keys' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('Failed to list API keys:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -49,8 +50,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ key: row }, { status: 201 });
   } catch (error) {
-    console.error('Failed to create API key:', error);
-    return NextResponse.json({ error: 'Failed to create key' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('Failed to create API key:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
