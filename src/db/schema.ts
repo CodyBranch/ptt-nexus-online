@@ -394,3 +394,109 @@ export const syncLogs = pgTable('sync_logs', {
   index('idx_sync_logs_date').on(table.startedAt),
   index('idx_sync_logs_type').on(table.syncType),
 ]);
+
+// ═══════════════════════════════════════════════════════════
+// Cross Country Declarations — Meet Sessions
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * A cross country meet published for coaches to declare into.
+ *
+ * Deliberately its own tables rather than a flag on the relay ones. The two
+ * products ask coaches different questions — relay wants four names in an
+ * order, cross country wants which race each runner is in — and a shared
+ * table would mean every read on either side carrying an "is this the other
+ * kind" branch that nobody would keep straight.
+ */
+export const meetDeclarationSessions = pgTable('meet_declaration_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  // Token embedded in QR URLs for the meet — possession = auth
+  meetToken: text('meet_token').notNull().unique(),
+
+  meetName: text('meet_name').notNull(),
+  meetDate: text('meet_date'), // ISO date string e.g. "2026-10-03"
+
+  // JSON array: [{id, name, gender, distanceLabel, scheduledTime, deadlineMinutes}]
+  racesJson: text('races_json').notNull().default('[]'),
+
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('idx_decl_sessions_token').on(table.meetToken),
+]);
+
+// ═══════════════════════════════════════════════════════════
+// Cross Country Declarations — Per-Team Access
+// ═══════════════════════════════════════════════════════════
+
+export const teamDeclarationAccess = pgTable('team_declaration_access', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  meetSessionId: uuid('meet_session_id').notNull()
+    .references(() => meetDeclarationSessions.id, { onDelete: 'cascade' }),
+
+  // Unique per-team token embedded in the QR URL
+  teamToken: text('team_token').notNull().unique(),
+
+  // Local desktop team ID, passed back when syncing
+  teamId: text('team_id').notNull(),
+  teamName: text('team_name').notNull(),
+
+  /**
+   * The squad as the desktop sees it, and which races each runner may be put
+   * in. JSON array of:
+   *   {id, firstName, lastName, bib, gender, year, eligibleRaceIds: string[]}
+   *
+   * Eligibility is decided on the desktop and sent, rather than worked out
+   * here from gender: the rules that govern it — gender, division, entry caps
+   * — live there, and a second implementation would drift from the first.
+   */
+  rosterJson: text('roster_json').notNull().default('[]'),
+
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('idx_decl_team_session').on(table.meetSessionId),
+  index('idx_decl_team_token').on(table.teamToken),
+]);
+
+// ═══════════════════════════════════════════════════════════
+// Cross Country Declarations — Coach Submissions
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * One row per athlete: the race the coach put them in, or a scratch.
+ *
+ * A row per athlete rather than a blob per race, because that is the shape of
+ * the question — "which race is this runner in" — and because a coach moving
+ * one runner from the Gold race to the Open race is then one row changing
+ * rather than two blobs rewritten, which is what makes the sync back
+ * idempotent and the audit trail readable.
+ */
+export const declarationSubmissions = pgTable('declaration_submissions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  teamAccessId: uuid('team_access_id').notNull()
+    .references(() => teamDeclarationAccess.id, { onDelete: 'cascade' }),
+  meetSessionId: uuid('meet_session_id').notNull(),
+
+  // Local desktop athlete ID
+  athleteId: text('athlete_id').notNull(),
+
+  /**
+   * 'declared' — running, in raceId
+   * 'scratched' — not running
+   * A runner the coach has not answered for has no row at all, which is how
+   * "not yet decided" is told apart from "decided, and the answer is out".
+   */
+  status: text('status').notNull(),
+
+  // The race they are declared in. Null for a scratch.
+  raceId: text('race_id'),
+
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('idx_decl_sub_team').on(table.teamAccessId),
+  index('idx_decl_sub_session').on(table.meetSessionId),
+  uniqueIndex('idx_decl_sub_athlete').on(table.teamAccessId, table.athleteId),
+]);
