@@ -56,11 +56,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json() as {
       meetName: string;
       meetDate?: string;
+      genderTerms?: string;
       races: RacePayload[];
       teams: TeamPayload[];
     };
 
-    const { meetName, meetDate, races, teams } = body;
+    const { meetName, meetDate, genderTerms, races, teams } = body;
 
     if (!meetName || !Array.isArray(races) || races.length === 0
         || !Array.isArray(teams) || teams.length === 0) {
@@ -76,6 +77,7 @@ export async function POST(request: NextRequest) {
       meetToken,
       meetName,
       meetDate: meetDate ?? null,
+      genderTerms: genderTerms === 'men_women' ? 'men_women' : 'boys_girls',
       racesJson: JSON.stringify(races),
     }).returning();
 

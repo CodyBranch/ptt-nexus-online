@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS "meet_declaration_sessions" (
   "meet_name" text NOT NULL,
   "meet_date" text,
   "races_json" text DEFAULT '[]' NOT NULL,
+  -- Boys/Girls or Men/Women, so the coach's form uses the meet's own words.
+  "gender_terms" text DEFAULT 'boys_girls' NOT NULL,
   "created_at" timestamp with time zone DEFAULT now(),
   "updated_at" timestamp with time zone DEFAULT now(),
   CONSTRAINT "meet_declaration_sessions_meet_token_unique" UNIQUE("meet_token")

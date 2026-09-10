@@ -420,6 +420,11 @@ export const meetDeclarationSessions = pgTable('meet_declaration_sessions', {
   // JSON array: [{id, name, gender, distanceLabel, scheduledTime, deadlineMinutes}]
   racesJson: text('races_json').notNull().default('[]'),
 
+  // What this meet calls the two sides of its field: 'boys_girls' or
+  // 'men_women'. Sent by the desktop so the coach's form uses the same words
+  // as everything else the meet prints.
+  genderTerms: text('gender_terms').notNull().default('boys_girls'),
+
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => [

@@ -56,6 +56,8 @@ interface Declaration {
 interface FormData {
   meetName: string;
   meetDate: string | null;
+  /** What this meet calls the two sides of its field. */
+  genderTerms?: 'boys_girls' | 'men_women';
   races: Race[];
   teamName: string;
   roster: RosterAthlete[];
@@ -63,6 +65,22 @@ interface FormData {
 }
 
 type Choice = { kind: 'race'; raceId: string } | { kind: 'scratched' } | { kind: 'none' };
+
+/** 'M' or 'F', or null when the value says nothing. */
+function genderSide(value: string | null | undefined): 'M' | 'F' | null {
+  const v = (value ?? '').trim().toUpperCase();
+  if (!v) return null;
+  // Before the M check: "Mixed" begins with one.
+  if (v === 'X' || v.startsWith('MIXED') || v.startsWith('OPEN')) return null;
+  if (v.startsWith('M') || v === 'B' || v.startsWith('BOY')) return 'M';
+  if (v.startsWith('F') || v === 'W' || v === 'G' || v.startsWith('GIRL') || v.startsWith('WOM')) return 'F';
+  return null;
+}
+
+const GENDER_WORDS = {
+  boys_girls: { M: 'Boys', F: 'Girls' },
+  men_women: { M: 'Men', F: 'Women' },
+} as const;
 
 // ── The deadline ──────────────────────────────────────────────────────────────
 
@@ -101,6 +119,7 @@ export default function DeclarePage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
+  const [side, setSide] = useState<'all' | 'M' | 'F'>('all');
 
   // The countdown has to move, or it is a timestamp wearing a countdown's
   // clothes and a coach will trust it after it has gone stale.
@@ -185,6 +204,27 @@ export default function DeclarePage() {
     };
   }, [choices]);
 
+  const words = GENDER_WORDS[data?.genderTerms === 'men_women' ? 'men_women' : 'boys_girls'];
+
+  /**
+   * Only the sides this squad actually has.
+   *
+   * A school that brought boys only should not be shown a Girls tab that
+   * filters to an empty list — the tab would read as "you have girls to
+   * answer for" and send a coach looking for them.
+   */
+  const sidesPresent = useMemo(() => {
+    if (!data) return [] as Array<'M' | 'F'>;
+    const seen = new Set(data.roster.map((a) => genderSide(a.gender)).filter(Boolean));
+    return (['M', 'F'] as const).filter((g) => seen.has(g));
+  }, [data]);
+
+  const visible = useMemo(() => {
+    if (!data) return [];
+    if (side === 'all') return data.roster;
+    return data.roster.filter((a) => genderSide(a.gender) === side);
+  }, [data, side]);
+
   const soonest = useMemo(() => {
     if (!data) return null;
     const all = data.races.map(deadlineOf).filter((d): d is Date => d != null);
@@ -243,13 +283,38 @@ export default function DeclarePage() {
             </div>
           )}
 
+          {/* Counts are always the WHOLE squad, never the filtered view. A
+              coach who has filtered to the boys and reads "0 to answer" would
+              otherwise walk away with five girls undeclared. */}
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-xs text-gray-400">
             <span><span className="font-bold text-gray-100">{counts.declared}</span> running</span>
             <span><span className="font-bold text-gray-100">{counts.scratched}</span> out</span>
             <span className={counts.undecided > 0 ? 'text-amber-400' : ''}>
               <span className="font-bold">{counts.undecided}</span> to answer
             </span>
+            {side !== 'all' && <span className="text-gray-600">(whole squad)</span>}
           </div>
+
+          {sidesPresent.length > 1 && (
+            <div className="flex gap-1.5 mt-3">
+              {([['all', 'Everyone'], ...sidesPresent.map((g) => [g, words[g]] as const)] as const)
+                .map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setSide(value as 'all' | 'M' | 'F')}
+                    className={`flex-1 min-h-[36px] rounded-lg border px-3 py-1.5 text-xs
+                      touch-manipulation transition-colors ${
+                      side === value
+                        ? 'bg-gray-700 border-gray-500 text-white font-semibold'
+                        : 'bg-gray-800 border-gray-700 text-gray-400 active:bg-gray-700'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -262,7 +327,7 @@ export default function DeclarePage() {
         )}
 
         <ul className="space-y-2.5">
-          {data.roster.map((athlete) => {
+          {visible.map((athlete) => {
             const choice = choices[athlete.id] ?? { kind: 'none' as const };
             const races = data.races.filter((r) => athlete.eligibleRaceIds.includes(r.id));
             const busy = saving[athlete.id];
@@ -338,6 +403,19 @@ export default function DeclarePage() {
             );
           })}
         </ul>
+
+        {side !== 'all' && data.roster.length > visible.length && (
+          <p className="text-xs text-gray-500 text-center mt-4">
+            Showing {visible.length} of {data.roster.length}.{' '}
+            <button
+              type="button"
+              onClick={() => setSide('all')}
+              className="underline text-gray-400"
+            >
+              Show everyone
+            </button>
+          </p>
+        )}
 
         <p className="text-xs text-gray-600 text-center mt-6">
           Every tap saves on its own — there is nothing to submit at the end.

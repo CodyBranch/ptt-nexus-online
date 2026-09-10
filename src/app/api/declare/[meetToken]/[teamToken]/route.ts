@@ -56,6 +56,7 @@ export async function GET(
     return NextResponse.json({
       meetName: session.meetName,
       meetDate: session.meetDate,
+      genderTerms: session.genderTerms,
       races: JSON.parse(session.racesJson),
       teamName: access.teamName,
       roster: JSON.parse(access.rosterJson),
