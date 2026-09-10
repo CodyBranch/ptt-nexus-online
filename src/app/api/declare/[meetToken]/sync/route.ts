@@ -4,6 +4,7 @@ import {
   meetDeclarationSessions,
   teamDeclarationAccess,
   declarationSubmissions,
+  declarationFinalizations,
 } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { checkRelayAuth } from '@/lib/relay-auth';
@@ -36,6 +37,8 @@ export async function GET(
 
     const rows = await db.select().from(declarationSubmissions)
       .where(eq(declarationSubmissions.meetSessionId, session.id));
+    const finals = await db.select().from(declarationFinalizations)
+      .where(eq(declarationFinalizations.meetSessionId, session.id));
 
     const byTeam = new Map<string, typeof rows>();
     for (const r of rows) {
@@ -49,6 +52,7 @@ export async function GET(
       teams: teams.map((t) => ({
         teamId: t.teamId,
         teamName: t.teamName,
+        finalizedRaceIds: finals.filter((f) => f.teamAccessId === t.id).map((f) => f.raceId),
         declarations: (byTeam.get(t.id) ?? []).map((r) => ({
           athleteId: r.athleteId,
           status: r.status,

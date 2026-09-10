@@ -53,6 +53,11 @@ interface Declaration {
   raceId: string | null;
 }
 
+interface Finalization {
+  raceId: string;
+  finalizedAt: string | null;
+}
+
 interface FormData {
   meetName: string;
   meetDate: string | null;
@@ -62,6 +67,7 @@ interface FormData {
   teamName: string;
   roster: RosterAthlete[];
   declarations: Declaration[];
+  finalized?: Finalization[];
 }
 
 type Choice = { kind: 'race'; raceId: string } | { kind: 'scratched' } | { kind: 'none' };
@@ -115,11 +121,14 @@ export default function DeclarePage() {
   const [data, setData] = useState<FormData | null>(null);
   const [choices, setChoices] = useState<Record<string, Choice>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [busy, setBusy] = useState<string | null>(null);
   const [failed, setFailed] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const [side, setSide] = useState<'all' | 'M' | 'F'>('all');
+  /** Races this school has said it is done with. */
+  const [finalized, setFinalized] = useState<Set<string>>(new Set());
 
   // The countdown has to move, or it is a timestamp wearing a countdown's
   // clothes and a coach will trust it after it has gone stale.
@@ -151,6 +160,7 @@ export default function DeclarePage() {
         }
         setData(json);
         setChoices(initial);
+        setFinalized(new Set((json.finalized ?? []).map((f) => f.raceId)));
       } catch {
         if (!cancelled) setError('Could not reach the server.');
       } finally {
@@ -189,6 +199,39 @@ export default function DeclarePage() {
       setSaving((s) => ({ ...s, [athleteId]: false }));
     }
   }, [meetToken, teamToken]);
+
+  /**
+   * Say this school is done with one race, or take that back.
+   *
+   * One race, never the form: a coach is done with the Gold long before they
+   * have decided the Open, and a runner not in the Gold is untouched by
+   * closing it.
+   */
+  const setFinal = async (raceId: string, next: boolean) => {
+    setBusy(`final:${raceId}`);
+    try {
+      const res = await fetch(`/api/declare/${meetToken}/${teamToken}/finalize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raceId, finalized: next }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({})) as { error?: string };
+        setError(json.error ?? 'Could not change that.');
+        return;
+      }
+      setError(null);
+      setFinalized((f) => {
+        const copy = new Set(f);
+        if (next) copy.add(raceId); else copy.delete(raceId);
+        return copy;
+      });
+    } catch {
+      setError('That did not save — you are offline.');
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const choose = (athleteId: string, choice: Choice) => {
     setChoices((c) => ({ ...c, [athleteId]: choice }));
@@ -326,12 +369,62 @@ export default function DeclarePage() {
           </div>
         )}
 
+        {/* One card per race: how many are in it, and whether this school
+            has closed it. Closing one leaves every other race alone. */}
+        <div className="space-y-2 mb-4">
+          {data.races.map((race) => {
+            const inThis = Object.values(choices)
+              .filter((c) => c.kind === 'race' && c.raceId === race.id).length;
+            const isFinal = finalized.has(race.id);
+            const deadline = deadlineOf(race);
+            const past = deadline != null && deadline.getTime() <= now.getTime();
+
+            return (
+              <div
+                key={race.id}
+                className={`rounded-xl border px-4 py-3 ${
+                  isFinal ? 'border-emerald-700/50 bg-emerald-950/20' : 'border-gray-800 bg-gray-900/60'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">{race.name}</p>
+                    <p className="text-xs text-gray-500">
+                      {inThis} runner{inThis === 1 ? '' : 's'} declared
+                      {isFinal && <span className="text-emerald-400"> · finalised</span>}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    // After the deadline only the meet office can reopen it:
+                    // by then the start list has been printed.
+                    disabled={busy === `final:${race.id}` || (isFinal && past)}
+                    onClick={() => setFinal(race.id, !isFinal)}
+                    className={`shrink-0 min-h-[40px] rounded-lg border px-3 py-2 text-xs
+                      touch-manipulation transition-colors disabled:opacity-40 ${
+                      isFinal
+                        ? 'bg-gray-800 border-gray-700 text-gray-300'
+                        : 'bg-emerald-700 border-emerald-600 text-white font-semibold'
+                    }`}
+                  >
+                    {isFinal ? (past ? 'Closed' : 'Reopen') : 'Finalise'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
         <ul className="space-y-2.5">
           {visible.map((athlete) => {
             const choice = choices[athlete.id] ?? { kind: 'none' as const };
             const races = data.races.filter((r) => athlete.eligibleRaceIds.includes(r.id));
-            const busy = saving[athlete.id];
+            const rowBusy = saving[athlete.id];
             const didFail = failed[athlete.id];
+            // Locked only if THIS runner is in a race that has been closed.
+            // A runner left out of the closed race is untouched and can still
+            // be put in a later one, which is the point of closing per race.
+            const lockedIn = choice.kind === 'race' && finalized.has(choice.raceId);
 
             return (
               <li
@@ -353,8 +446,9 @@ export default function DeclarePage() {
                   <span className="text-xs text-gray-500 shrink-0 font-mono">
                     {[athlete.bib ? `#${athlete.bib}` : null, athlete.year]
                       .filter(Boolean).join(' · ')}
-                    {busy && <span className="ml-1 text-blue-400">saving…</span>}
-                    {didFail && !busy && <span className="ml-1 text-red-400 font-bold">not saved</span>}
+                    {rowBusy && <span className="ml-1 text-blue-400">saving…</span>}
+                    {didFail && !rowBusy && <span className="ml-1 text-red-400 font-bold">not saved</span>}
+                    {lockedIn && !rowBusy && <span className="ml-1 text-emerald-400">finalised</span>}
                   </span>
                 </div>
 
@@ -371,7 +465,7 @@ export default function DeclarePage() {
                         <button
                           key={race.id}
                           type="button"
-                          disabled={closed}
+                          disabled={closed || lockedIn || finalized.has(race.id)}
                           aria-pressed={on}
                           onClick={() => choose(athlete.id, { kind: 'race', raceId: race.id })}
                           className={`flex-1 min-w-[8.5rem] min-h-[44px] rounded-lg border px-3 py-2.5 text-sm
@@ -386,7 +480,7 @@ export default function DeclarePage() {
                     })}
                     <button
                       type="button"
-                      disabled={closed}
+                      disabled={closed || lockedIn}
                       aria-pressed={choice.kind === 'scratched'}
                       onClick={() => choose(athlete.id, { kind: 'scratched' })}
                       className={`flex-1 min-w-[8.5rem] min-h-[44px] rounded-lg border px-3 py-2.5 text-sm

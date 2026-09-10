@@ -4,6 +4,7 @@ import {
   meetDeclarationSessions,
   teamDeclarationAccess,
   declarationSubmissions,
+  declarationFinalizations,
 } from '@/db/schema';
 import { and, eq } from 'drizzle-orm';
 
@@ -53,6 +54,9 @@ export async function GET(
     const submissions = await db.select().from(declarationSubmissions)
       .where(eq(declarationSubmissions.teamAccessId, access.id));
 
+    const finalized = await db.select().from(declarationFinalizations)
+      .where(eq(declarationFinalizations.teamAccessId, access.id));
+
     return NextResponse.json({
       meetName: session.meetName,
       meetDate: session.meetDate,
@@ -67,6 +71,10 @@ export async function GET(
         status: s.status,
         raceId: s.raceId,
         updatedAt: s.updatedAt,
+      })),
+      finalized: finalized.map((f) => ({
+        raceId: f.raceId,
+        finalizedAt: f.finalizedAt,
       })),
     });
   } catch (error) {
@@ -103,6 +111,20 @@ export async function POST(
       (JSON.parse(session.racesJson) as Array<{ id: string }>).map((r) => r.id),
     );
 
+    const finalizedRows = await db.select().from(declarationFinalizations)
+      .where(eq(declarationFinalizations.teamAccessId, access.id));
+    const finalizedRaces = new Set(finalizedRows.map((f) => f.raceId));
+
+    // A runner already in a finalized race cannot be moved out of it, and no
+    // new runner can be put into it. Checked here rather than only in the
+    // browser: the lock is the school's word to the meet, and a stale tab is
+    // no reason to take it back.
+    const declaredNow = await db.select().from(declarationSubmissions)
+      .where(eq(declarationSubmissions.teamAccessId, access.id));
+    const currentRaceOf = new Map(
+      declaredNow.filter((r) => r.status === 'declared').map((r) => [r.athleteId, r.raceId]),
+    );
+
     const rejected: string[] = [];
 
     for (const d of incoming) {
@@ -112,6 +134,16 @@ export async function POST(
       if (!athlete) { rejected.push(d.athleteId); continue; }
 
       if (d.status !== 'declared' && d.status !== 'scratched') {
+        rejected.push(d.athleteId);
+        continue;
+      }
+
+      const leaving = currentRaceOf.get(d.athleteId);
+      if (leaving && finalizedRaces.has(leaving)) {
+        rejected.push(d.athleteId);
+        continue;
+      }
+      if (d.status === 'declared' && d.raceId && finalizedRaces.has(d.raceId)) {
         rejected.push(d.athleteId);
         continue;
       }

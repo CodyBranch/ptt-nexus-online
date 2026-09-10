@@ -4,6 +4,7 @@ import {
   meetDeclarationSessions,
   teamDeclarationAccess,
   declarationSubmissions,
+  declarationFinalizations,
 } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { checkRelayAuth } from '@/lib/relay-auth';
@@ -33,6 +34,8 @@ export async function GET(
       .where(eq(teamDeclarationAccess.meetSessionId, session.id));
     const rows = await db.select().from(declarationSubmissions)
       .where(eq(declarationSubmissions.meetSessionId, session.id));
+    const finals = await db.select().from(declarationFinalizations)
+      .where(eq(declarationFinalizations.meetSessionId, session.id));
 
     return NextResponse.json({
       meetName: session.meetName,
@@ -53,6 +56,9 @@ export async function GET(
           scratched: mine.filter((r) => r.status === 'scratched').length,
           // Nobody answered for is a school that has not opened the form at
           // all, which is a different problem from one part way through.
+          // Races this school has said it is done with. The desk chases the
+          // ones nobody has closed, not the ones nobody has opened.
+          finalizedRaceIds: finals.filter((f) => f.teamAccessId === t.id).map((f) => f.raceId),
           started: answered > 0,
           complete: roster.length > 0 && answered >= roster.length,
           lastUpdatedAt: latest ? latest.toISOString() : null,

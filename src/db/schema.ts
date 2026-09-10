@@ -505,3 +505,31 @@ export const declarationSubmissions = pgTable('declaration_submissions', {
   index('idx_decl_sub_session').on(table.meetSessionId),
   uniqueIndex('idx_decl_sub_athlete').on(table.teamAccessId, table.athleteId),
 ]);
+
+// ═══════════════════════════════════════════════════════════
+// Cross Country Declarations — Finalizing a race
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * A school saying it is done with one race.
+ *
+ * Per race rather than per school, because a meet runs several and a coach is
+ * done with the Gold long before they have decided the Open. Finalizing the
+ * Gold locks who is in it; a runner not in it is untouched and can still be
+ * put in a later race, which is the whole reason this is not one switch for
+ * the whole form.
+ */
+export const declarationFinalizations = pgTable('declaration_finalizations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  teamAccessId: uuid('team_access_id').notNull()
+    .references(() => teamDeclarationAccess.id, { onDelete: 'cascade' }),
+  meetSessionId: uuid('meet_session_id').notNull(),
+
+  raceId: text('race_id').notNull(),
+  finalizedAt: timestamp('finalized_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('idx_decl_final_team').on(table.teamAccessId),
+  index('idx_decl_final_session').on(table.meetSessionId),
+  uniqueIndex('idx_decl_final_race').on(table.teamAccessId, table.raceId),
+]);

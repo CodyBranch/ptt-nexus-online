@@ -71,3 +71,28 @@ CREATE INDEX IF NOT EXISTS "idx_decl_sub_session"
 -- idempotent and the sync back unambiguous.
 CREATE UNIQUE INDEX IF NOT EXISTS "idx_decl_sub_athlete"
   ON "declaration_submissions" USING btree ("team_access_id","athlete_id");
+
+-- A school saying it is done with one race. Per race, not per school: a coach
+-- is done with the Gold long before they have decided the Open, and a runner
+-- not in the finalized race stays free for a later one.
+CREATE TABLE IF NOT EXISTS "declaration_finalizations" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  "team_access_id" uuid NOT NULL,
+  "meet_session_id" uuid NOT NULL,
+  "race_id" text NOT NULL,
+  "finalized_at" timestamp with time zone DEFAULT now()
+);
+
+DO $$ BEGIN
+  ALTER TABLE "declaration_finalizations"
+    ADD CONSTRAINT "declaration_finalizations_team_access_id_fk"
+    FOREIGN KEY ("team_access_id")
+    REFERENCES "public"."team_declaration_access"("id") ON DELETE cascade;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+CREATE INDEX IF NOT EXISTS "idx_decl_final_team"
+  ON "declaration_finalizations" USING btree ("team_access_id");
+CREATE INDEX IF NOT EXISTS "idx_decl_final_session"
+  ON "declaration_finalizations" USING btree ("meet_session_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_decl_final_race"
+  ON "declaration_finalizations" USING btree ("team_access_id","race_id");
