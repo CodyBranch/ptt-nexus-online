@@ -7,7 +7,7 @@ export async function signInAction(_prev: unknown, formData: FormData) {
   const password = String(formData.get('password') ?? '');
   const result = await signIn(password);
   if (!result.ok) return { error: result.error ?? 'Could not sign in' };
-  redirect('/');
+  redirect('/dashboard');
 }
 
 export async function signOutAction() {

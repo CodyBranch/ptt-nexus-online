@@ -1,5 +1,9 @@
+import type { Metadata } from 'next';
 import LoginForm from './LoginForm';
 import { adminConfigured } from '@/lib/admin-auth';
+
+// Says nothing about what is behind it.
+export const metadata: Metadata = { title: 'Sign in' };
 
 export const dynamic = 'force-dynamic';
 
@@ -7,10 +11,8 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        <h1 className="text-xl font-bold text-gray-100">PTT Nexus Online</h1>
-        <p className="text-sm text-gray-500 mt-1 mb-6">
-          Sign in to change anything in the shared database.
-        </p>
+        <h1 className="text-xl font-bold text-gray-100">PrimeTime Timing</h1>
+        <p className="text-sm text-gray-500 mt-1 mb-6">Staff sign in.</p>
         {adminConfigured()
           ? <LoginForm />
           : (

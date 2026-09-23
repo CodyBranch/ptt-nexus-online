@@ -2,8 +2,11 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'PTT Nexus Online',
-  description: 'Cloud platform for PTT Nexus meet management — organizations, records, and sync',
+  title: 'PrimeTime Timing',
+  description: 'Race timing and results.',
+  // Nothing under here wants finding in a search: the public page has nothing
+  // worth indexing and everything else is behind a sign-in.
+  robots: { index: false, follow: false },
 };
 
 /**

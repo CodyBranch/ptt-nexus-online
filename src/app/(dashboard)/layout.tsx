@@ -1,6 +1,11 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { isAdmin } from '@/lib/admin-auth';
+
+export const metadata: Metadata = {
+  title: 'Nexus Online',
+};
 
 /**
  * Everything under here changes the shared database, so everything under here
