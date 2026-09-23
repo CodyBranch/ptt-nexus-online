@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/client';
-import { organizations } from '@/db/schema';
+import { organizations, orgTags, organizationTags } from '@/db/schema';
 import { eq, ilike, or, and, sql, SQL } from 'drizzle-orm';
 import { checkRelayAuth } from '@/lib/relay-auth';
 
@@ -14,6 +14,10 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const state = searchParams.get('state');
     const conference = searchParams.get('conference');
+    // Repeatable: ?tag=college&tag=ncaa-di narrows to schools carrying both.
+    // A tag stands for itself and everything under it, so asking for 'college'
+    // gets every conference beneath it without naming them.
+    const tags = searchParams.getAll('tag').filter(Boolean);
     const limit = Math.min(Number(searchParams.get('limit') ?? 50), 200);
     const offset = Number(searchParams.get('offset') ?? 0);
 
@@ -34,6 +38,21 @@ export async function GET(request: NextRequest) {
     if (type) conditions.push(eq(organizations.organizationType, type));
     if (state) conditions.push(eq(organizations.state, state));
     if (conference) conditions.push(ilike(organizations.conference, `%${conference}%`));
+
+    for (const slug of tags) {
+      conditions.push(sql`EXISTS (
+        SELECT 1 FROM ${organizationTags} ot
+        WHERE ot.organization_id = ${organizations.id}
+          AND ot.tag_id IN (
+            WITH RECURSIVE below AS (
+              SELECT id FROM ${orgTags} WHERE slug = ${slug}
+              UNION ALL
+              SELECT t.id FROM ${orgTags} t JOIN below b ON t.parent_id = b.id
+            )
+            SELECT id FROM below
+          )
+      )`);
+    }
 
     const where = and(...conditions);
 

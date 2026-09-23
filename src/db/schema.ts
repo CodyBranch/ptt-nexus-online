@@ -591,3 +591,67 @@ export const organizationSubmissions = pgTable('organization_submissions', {
   index('idx_org_subs_status').on(table.status),
   index('idx_org_subs_seen').on(table.lastSeenAt),
 ]);
+
+// ═══════════════════════════════════════════════════════════
+// Organisation tags
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * How a school is classified, as things you can filter by.
+ *
+ * A school is not one level, it is a stack of them — College, NCAA DI, SEC;
+ * High School, MSHSAA, Class 1 — and which one you want depends on what you
+ * are doing. Seeding a meet wants the conference; a state championship wants
+ * the class; org matching wants the level and nothing else.
+ *
+ * Most of this was already on the organisation as fixed columns:
+ * organization_type, ncaa_division, conference, state_association. Those
+ * stay, because a great deal reads them. Tags sit alongside and are
+ * backfilled from them, and they add the thing the columns had no room for —
+ * a state's own classes, which is where "Class 1" was meant to go and had
+ * nowhere.
+ *
+ * A controlled list rather than free text on the team. Free tags on two
+ * thousand schools become "SEC", "S.E.C." and "Southeastern Conference" by
+ * the end of one season, which is the same problem the org database exists
+ * to solve.
+ */
+export const orgTags = pgTable('org_tags', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  /** level | governing_body | conference | class | region */
+  kind: text('kind').notNull(),
+  /** As it is shown: "NCAA DI", "MSHSAA", "Class 1". */
+  name: text('name').notNull(),
+  /** Lower case and hyphenated, for the API to take as a filter. */
+  slug: text('slug').notNull(),
+
+  /**
+   * What it sits under: a conference under its governing body, a governing
+   * body under a level. Null for a level, which is the top.
+   *
+   * Nested rather than flat because the tags are only meaningful in their
+   * chain — "Class 1" says nothing without MSHSAA over it, and there is a
+   * Division I in several governing bodies.
+   */
+  parentId: uuid('parent_id'),
+
+  sortOrder: integer('sort_order').default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  uniqueIndex('idx_org_tags_slug').on(table.slug),
+  index('idx_org_tags_kind').on(table.kind),
+  index('idx_org_tags_parent').on(table.parentId),
+]);
+
+/** Which tags a school carries. A school has as many as it has. */
+export const organizationTags = pgTable('organization_tags', {
+  organizationId: uuid('organization_id').notNull()
+    .references(() => organizations.id, { onDelete: 'cascade' }),
+  tagId: uuid('tag_id').notNull()
+    .references(() => orgTags.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  uniqueIndex('idx_org_tags_pair').on(table.organizationId, table.tagId),
+  index('idx_org_tags_by_tag').on(table.tagId),
+]);
