@@ -4,6 +4,7 @@ import { db } from '@/db/client';
 import { recordSets, records, recordHistory, organizations, eventDefinitions } from '@/db/schema';
 import { eq, ilike, or, sql, and, SQL, desc } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { requireAdmin } from '@/lib/admin-auth';
 
 // ═══════════════════════════════════════════════════════════
 // Record Sets
@@ -77,6 +78,7 @@ export async function createRecordSet(data: {
   isPublic?: boolean;
   notes?: string;
 }) {
+  await requireAdmin();
   const result = await db
     .insert(recordSets)
     .values({
@@ -112,6 +114,7 @@ export async function updateRecordSet(
     notes: string;
   }>
 ) {
+  await requireAdmin();
   await db
     .update(recordSets)
     .set({
@@ -125,6 +128,7 @@ export async function updateRecordSet(
 }
 
 export async function deleteRecordSet(id: string) {
+  await requireAdmin();
   await db
     .update(recordSets)
     .set({ isActive: false, updatedAt: new Date() })
@@ -183,6 +187,7 @@ export async function createRecord(data: {
   notes?: string;
   source?: string;
 }) {
+  await requireAdmin();
   const result = await db
     .insert(records)
     .values({
@@ -224,6 +229,7 @@ export async function updateRecord(
     verified: boolean;
   }>
 ) {
+  await requireAdmin();
   await db
     .update(records)
     .set({
@@ -240,6 +246,7 @@ export async function updateRecord(
 }
 
 export async function deleteRecord(id: string) {
+  await requireAdmin();
   // Get record set ID for revalidation before deleting
   const rec = await db.select({ recordSetId: records.recordSetId }).from(records).where(eq(records.id, id)).limit(1);
 

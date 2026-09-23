@@ -4,6 +4,7 @@ import { db } from '@/db/client';
 import { organizations } from '@/db/schema';
 import { eq, ilike, or, sql, and, SQL } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { requireAdmin } from '@/lib/admin-auth';
 
 export async function getOrganizations(params?: {
   q?: string;
@@ -104,6 +105,7 @@ export async function createOrganization(data: {
   milesplitId?: string;
   notes?: string;
 }) {
+  await requireAdmin();
   const result = await db
     .insert(organizations)
     .values({
@@ -175,6 +177,7 @@ export async function updateOrganization(
     notes: string;
   }>
 ) {
+  await requireAdmin();
   await db
     .update(organizations)
     .set({
@@ -188,6 +191,7 @@ export async function updateOrganization(
 }
 
 export async function deleteOrganization(id: string) {
+  await requireAdmin();
   // Soft delete
   await db
     .update(organizations)
