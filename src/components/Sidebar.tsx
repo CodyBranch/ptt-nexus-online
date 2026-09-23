@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOutAction } from '@/app/login/actions';
@@ -67,6 +68,15 @@ const navItems: NavItem[] = [
     ),
   },
   {
+    href: '/people',
+    label: 'People',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+      </svg>
+    ),
+  },
+  {
     href: '/settings',
     label: 'Settings',
     icon: (
@@ -83,12 +93,21 @@ export default function Sidebar() {
 
   return (
     <aside className="w-60 bg-gray-900 border-r border-gray-800 flex flex-col h-screen fixed left-0 top-0">
-      {/* Logo */}
-      <div className="px-5 py-4 border-b border-gray-800">
-        <h1 className="text-lg font-bold tracking-tight">
-          <span className="text-blue-400">PrimeTime</span>{' '}
-          <span className="text-gray-200">Nexus</span>
-        </h1>
+      {/* The company's own mark, not a rendering of its name in type. */}
+      <div className="px-5 py-5 border-b border-gray-800">
+        <Link href="/dashboard" className="block">
+          <Image
+            src="/PRIMETIME.png"
+            alt="PrimeTime Timing"
+            width={1586}
+            height={250}
+            priority
+            className="w-full h-auto"
+          />
+          <span className="block mt-2 text-[11px] uppercase tracking-[0.2em] text-gray-500">
+            Nexus Online
+          </span>
+        </Link>
       </div>
 
       {/* Navigation */}
@@ -115,7 +134,7 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="px-5 py-3 border-t border-gray-800 flex items-center justify-between">
-        <span className="text-xs text-gray-600">PrimeTime Nexus v0.1</span>
+        <span className="text-xs text-gray-600">Nexus Online v0.1</span>
         <form action={signOutAction}>
           <button type="submit" className="text-xs text-gray-600 hover:text-gray-300 transition-colors">
             Sign out

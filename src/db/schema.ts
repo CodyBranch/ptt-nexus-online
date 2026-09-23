@@ -655,3 +655,50 @@ export const organizationTags = pgTable('organization_tags', {
   uniqueIndex('idx_org_tags_pair').on(table.organizationId, table.tagId),
   index('idx_org_tags_by_tag').on(table.tagId),
 ]);
+
+// ═══════════════════════════════════════════════════════════
+// Admin users
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Who may sign in to the dashboard.
+ *
+ * A shared password got the door shut quickly, but it cannot be taken off one
+ * person: the only way to remove somebody is to change it for everybody and
+ * tell the rest. So each person gets their own, and revoking is switching one
+ * row off.
+ *
+ * Passwords are stored as scrypt hashes with a per-user salt — never the
+ * password, and never a bare hash that the same password would produce twice.
+ *
+ * The ADMIN_PASSWORD environment variable stays as a way in when no user can
+ * sign in: the first deploy before anybody exists, and the day somebody
+ * revokes the last account by mistake. It is a bootstrap, not an account, and
+ * the settings page says so.
+ */
+export const adminUsers = pgTable('admin_users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  email: text('email').notNull(),
+  name: text('name'),
+  /** scrypt, as salt:hash — both hex. */
+  passwordHash: text('password_hash').notNull(),
+
+  /**
+   * 'admin' may manage users; 'editor' may change data but not people.
+   *
+   * Two is enough for the size of this. The check is one place, so a third
+   * is a row in a table rather than a rewrite.
+   */
+  role: text('role').notNull().default('editor'),
+
+  /** Off rather than deleted, so who did what still reads back. */
+  isActive: boolean('is_active').notNull().default(true),
+
+  lastSignInAt: timestamp('last_sign_in_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  createdBy: uuid('created_by'),
+}, (table) => [
+  uniqueIndex('idx_admin_users_email').on(table.email),
+  index('idx_admin_users_active').on(table.isActive),
+]);

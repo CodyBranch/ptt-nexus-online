@@ -9,11 +9,17 @@ export default function LoginForm() {
   return (
     <form action={action} className="space-y-3">
       <input
+        type="email"
+        name="email"
+        autoComplete="username"
+        placeholder="Email address"
+        className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-sm text-gray-200"
+      />
+      <input
         type="password"
         name="password"
-        autoFocus
         autoComplete="current-password"
-        placeholder="Admin password"
+        placeholder="Password"
         className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-sm text-gray-200"
       />
       {state?.error && (

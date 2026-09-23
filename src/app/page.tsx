@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import type { Metadata } from 'next';
 
 /**
@@ -24,16 +25,14 @@ export default function HomePage() {
     <main className="min-h-screen flex flex-col">
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="w-full max-w-lg text-center">
-          <div className="inline-flex items-center gap-3 mb-8">
-            {/* The company's mark: chevrons running forward, as on the app. */}
-            <svg viewBox="0 0 24 24" className="w-8 h-8 text-red-500" fill="currentColor" aria-hidden>
-              <path d="M2 3.5L10.5 12 2 20.5l3.2 0L13.7 12 5.2 3.5z" />
-              <path d="M9.5 3.5L18 12l-8.5 8.5 3.2 0L21.2 12 12.7 3.5z" opacity=".6" />
-            </svg>
-            <span className="text-2xl font-semibold tracking-tight text-gray-100">
-              PrimeTime Timing
-            </span>
-          </div>
+          <Image
+            src="/PRIMETIME.png"
+            alt="PrimeTime Timing"
+            width={1586}
+            height={250}
+            priority
+            className="w-full max-w-xs mx-auto h-auto mb-10"
+          />
 
           <p className="text-gray-400 leading-relaxed">
             Race timing, scoring and live results for cross country and track meets.
