@@ -533,3 +533,61 @@ export const declarationFinalizations = pgTable('declaration_finalizations', {
   index('idx_decl_final_session').on(table.meetSessionId),
   uniqueIndex('idx_decl_final_race').on(table.teamAccessId, table.raceId),
 ]);
+
+// ═══════════════════════════════════════════════════════════
+// Organisation submissions
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * A school a meet met that the org database does not have.
+ *
+ * Org matching turns up teams with no organisation behind them, and the
+ * operator is mid-meet with no time to fill in a school's colours, city and
+ * conference. So the team is pushed here instead: what the meet knew, which
+ * meet it came from, and nothing else.
+ *
+ * Deliberately not the organizations table. Race-day entry files carry
+ * misspellings, one-off "Unattached" rows and a school entered twice under
+ * two names, and every one of those would otherwise become a permanent row
+ * in the data that feeds every results page. Somebody approves them, and
+ * approval is what creates the organisation.
+ *
+ * A school pushed twice is one row: the unique index is on the normalised
+ * name and level, so fourteen races at one meet — or the same school at the
+ * next meet — do not make fourteen things to review.
+ */
+export const organizationSubmissions = pgTable('organization_submissions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  // What the meet knew.
+  name: text('name').notNull(),
+  /** Lower case, punctuation stripped — what "seen this one already" means. */
+  nameKey: text('name_key').notNull(),
+  abbreviation: text('abbreviation'),
+  organizationType: text('organization_type').notNull(),
+  city: text('city'),
+  state: text('state'),
+
+  // Where it came from, so a reviewer can go and look.
+  meetName: text('meet_name'),
+  meetDate: date('meet_date'),
+  /** Entries under this name at the meet it came from — a squad or a stray. */
+  athleteCount: integer('athlete_count'),
+
+  /** pending | approved | rejected */
+  status: text('status').notNull().default('pending'),
+  /** The organisation an approval created, so the decision is traceable. */
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'set null' }),
+  /** Why it was turned down — a misspelling of a school already in here, say. */
+  reviewNote: text('review_note'),
+
+  /** How many times it has been pushed, across every meet. */
+  timesSeen: integer('times_seen').notNull().default(1),
+  firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).defaultNow(),
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).defaultNow(),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+}, (table) => [
+  uniqueIndex('idx_org_subs_key').on(table.nameKey, table.organizationType),
+  index('idx_org_subs_status').on(table.status),
+  index('idx_org_subs_seen').on(table.lastSeenAt),
+]);

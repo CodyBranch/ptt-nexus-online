@@ -2,11 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { organizations } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { checkRelayAuth } from '@/lib/relay-auth';
+
+// Every handler in this file reaches the shared organisation database, which
+// is where the colours and badges on every results page come from. None of
+// them checked the key: the list endpoint next door did, and this file was
+// written without it, so one organisation could be read, rewritten or deleted
+// by anyone who knew the URL.
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!await checkRelayAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const rows = await db.select().from(organizations).where(eq(organizations.id, id)).limit(1);
@@ -26,6 +36,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!await checkRelayAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const data = await request.json();
@@ -46,6 +59,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!await checkRelayAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { id } = await params;
 

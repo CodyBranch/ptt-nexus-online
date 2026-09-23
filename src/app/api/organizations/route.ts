@@ -55,6 +55,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (!await checkRelayAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const data = await request.json();
 
@@ -85,6 +88,8 @@ export async function POST(request: NextRequest) {
         country: data.country || 'USA',
         primaryColor: data.primaryColor || null,
         secondaryColor: data.secondaryColor || null,
+        logoUrl: data.logoUrl || null,
+        logoDarkUrl: data.logoDarkUrl || null,
         headCoach: data.headCoach || null,
         assistantCoach: data.assistantCoach || null,
         athleticDirector: data.athleticDirector || null,
