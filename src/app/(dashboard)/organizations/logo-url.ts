@@ -12,13 +12,27 @@
  *
  * Both are worth showing as what they are rather than rendering and hoping.
  */
+/**
+ * MSHSAA's placeholder, matched the way the desktop matches it.
+ *
+ * This has to be the SAME rule as logo-cache.ts in the desktop app, because
+ * that one decides whether a badge is ever downloaded and this one only
+ * decides what the admin is told. A looser rule here warns about real logos;
+ * a tighter one tells an admin a URL is fine while the laptop quietly refuses
+ * it, which is worse — they would see nothing wrong and change nothing.
+ *
+ * So: the FILENAME, with the hyphen optional, and a query string allowed
+ * after it. A plain substring test flagged 'no-logo-academy/badge.png' and
+ * cleared 'NoLogo.png', getting it wrong in both directions.
+ */
+const PLACEHOLDER = /(^|\/)No-?Logo\.[a-z]+($|\?)/i;
 export type LogoUrlKind = 'empty' | 'relative' | 'placeholder' | 'ok';
 
 export function classifyLogoUrl(url: string | null | undefined): LogoUrlKind {
   const trimmed = (url ?? '').trim();
   if (!trimmed) return 'empty';
   if (!/^https?:\/\//i.test(trimmed)) return 'relative';
-  if (/no-logo/i.test(trimmed)) return 'placeholder';
+  if (PLACEHOLDER.test(trimmed)) return 'placeholder';
   return 'ok';
 }
 
