@@ -60,6 +60,24 @@ function slugify(s: string): string {
   return s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+/**
+ * The slug a tag gets, by kind.
+ *
+ * Matching what the migration builds, exactly, so a tag added by hand is the
+ * same tag rather than a second one beside it. A level and a governing body
+ * are unique on their own — there is one NCAA DI. A conference is prefixed
+ * because "Independent" is a conference name and could be anything else too.
+ * A class is prefixed with its association, because Class 1 means nothing on
+ * its own and every state has one.
+ */
+function slugFor(kind: string, name: string, parentSlug: string | null): string {
+  const base = slugify(name);
+  if (!base) return '';
+  if (kind === 'conference') return `conf-${base}`;
+  if (kind === 'class' || kind === 'region') return parentSlug ? `${parentSlug}-${base}` : base;
+  return base;
+}
+
 export async function createTag(input: {
   kind: string; name: string; parentId?: string | null; sortOrder?: number;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -68,14 +86,13 @@ export async function createTag(input: {
   const name = input.name.trim();
   if (!kind || !name) return { ok: false, error: 'A tag needs a kind and a name' };
 
-  // Slugged under its parent, so "Class 1" under MSHSAA and "Class 1" under
-  // another association are two tags rather than a collision.
-  let slug = slugify(name);
+  let parentSlug: string | null = null;
   if (input.parentId) {
     const parent = await db.select({ slug: orgTags.slug }).from(orgTags)
       .where(eq(orgTags.id, input.parentId)).limit(1);
-    if (parent[0]) slug = `${parent[0].slug}-${slug}`;
+    parentSlug = parent[0]?.slug ?? null;
   }
+  const slug = slugFor(kind, name, parentSlug);
   if (!slug) return { ok: false, error: 'Nothing usable to make a slug from' };
 
   const clash = await db.select({ id: orgTags.id }).from(orgTags)
