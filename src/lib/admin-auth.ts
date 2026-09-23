@@ -190,18 +190,32 @@ export async function signIn(
   const address = email.trim().toLowerCase();
 
   if (address) {
-    const [user] = await db.select().from(adminUsers)
-      .where(eq(adminUsers.email, address)).limit(1);
+    try {
+      const [user] = await db.select().from(adminUsers)
+        .where(eq(adminUsers.email, address)).limit(1);
 
-    // The same answer whether the address is unknown, the password is wrong
-    // or the account is switched off. Which of those it is, is not something
-    // somebody guessing should be told.
-    if (user && user.isActive && verifyPassword(password, user.passwordHash)) {
-      await db.update(adminUsers)
-        .set({ lastSignInAt: new Date() })
-        .where(eq(adminUsers.id, user.id));
-      setCookie(user.id);
-      return { ok: true };
+      // The same answer whether the address is unknown, the password is wrong
+      // or the account is switched off. Which of those it is, is not something
+      // somebody guessing should be told.
+      if (user && user.isActive && verifyPassword(password, user.passwordHash)) {
+        await db.update(adminUsers)
+          .set({ lastSignInAt: new Date() })
+          .where(eq(adminUsers.id, user.id));
+        setCookie(user.id);
+        return { ok: true };
+      }
+    } catch (err) {
+      // The database being unreachable is not a wrong password, and saying so
+      // is the difference between somebody retyping their password for ten
+      // minutes and somebody going to look at the logs. A sign-in page that
+      // answers with "a server-side exception has occurred" has told whoever
+      // is standing there nothing at all.
+      console.error('Sign-in could not reach the database:', err);
+      return {
+        ok: false,
+        error: 'The database did not answer. This is not your password — try again shortly, '
+          + 'and if it persists the connection pool or the database itself needs looking at.',
+      };
     }
   }
 
