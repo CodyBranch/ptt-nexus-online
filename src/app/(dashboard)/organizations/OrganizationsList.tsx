@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteOrganization } from './actions';
 import { ORGANIZATION_TYPES, US_STATES } from '@/types';
+import { classifyLogoUrl, LOGO_URL_WARNINGS } from './logo-url';
 
 interface Organization {
   id: string;
@@ -124,6 +125,7 @@ export default function OrganizationsList({
           <thead>
             <tr className="text-left text-xs text-gray-500 uppercase tracking-wider border-b border-gray-800">
               <th className="px-4 py-3 w-10"></th>
+              <th className="px-4 py-3 w-14">Logo</th>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3 w-20">Abbr</th>
               <th className="px-4 py-3">Type</th>
@@ -135,7 +137,7 @@ export default function OrganizationsList({
           <tbody>
             {organizations.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-gray-600">
+                <td colSpan={8} className="px-4 py-12 text-center text-gray-600">
                   {total === 0 ? (
                     <div>
                       <p className="text-lg mb-2">No organizations yet</p>
@@ -164,6 +166,9 @@ export default function OrganizationsList({
                     ) : (
                       <div className="w-6 h-6 rounded-full bg-gray-700" />
                     )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <LogoThumb url={org.logoUrl} abbreviation={org.abbreviation} />
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-gray-200">{org.name}</div>
@@ -271,6 +276,60 @@ export default function OrganizationsList({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * The row's logo, or a stand-in that says why there isn't one.
+ *
+ * A missing logo is a blank the eye slides past, so every row gets a box: the
+ * image where there is one, the abbreviation where there is not, and a
+ * coloured ring where the URL is stored but unusable — relative, placeholder,
+ * or simply not loading. Hover gives the reason.
+ */
+function LogoThumb({ url, abbreviation }: { url: string | null; abbreviation: string }) {
+  // Keyed on the URL, not a bare flag: a row keeps its component instance when
+  // the logo is edited, and a fixed URL should stop looking broken.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const kind = classifyLogoUrl(url);
+  const broken = kind === 'ok' && failedUrl === url;
+
+  if (kind === 'ok' && !broken) {
+    return (
+      <div
+        className="w-9 h-9 rounded border border-gray-700 flex items-center justify-center overflow-hidden"
+        style={{
+          backgroundColor: '#1f2937',
+          backgroundImage:
+            'linear-gradient(45deg, #374151 25%, transparent 25%), linear-gradient(-45deg, #374151 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #374151 75%), linear-gradient(-45deg, transparent 75%, #374151 75%)',
+          backgroundSize: '8px 8px',
+          backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0',
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary external hosts */}
+        <img src={url ?? ''} alt="" className="max-w-full max-h-full object-contain"
+          onError={() => setFailedUrl(url)} />
+      </div>
+    );
+  }
+
+  const title =
+    kind === 'relative' ? LOGO_URL_WARNINGS.relative
+    : kind === 'placeholder' ? LOGO_URL_WARNINGS.placeholder
+    : broken ? "Logo URL is set but didn't load"
+    : 'No logo';
+  const ring =
+    kind === 'placeholder' ? 'border-amber-500/50 text-amber-500/70'
+    : kind === 'empty' ? 'border-gray-700 text-gray-500'
+    : 'border-red-500/50 text-red-400/80';
+
+  return (
+    <div
+      title={title}
+      className={`w-9 h-9 rounded border bg-gray-800 flex items-center justify-center text-[10px] font-semibold uppercase ${ring}`}
+    >
+      {abbreviation.slice(0, 3) || '—'}
     </div>
   );
 }

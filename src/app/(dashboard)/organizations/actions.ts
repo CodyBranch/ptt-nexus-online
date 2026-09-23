@@ -93,6 +93,9 @@ export async function createOrganization(data: {
   country?: string;
   primaryColor?: string;
   secondaryColor?: string;
+  logoUrl?: string | null;
+  logoDarkUrl?: string | null;
+  wordmarkUrl?: string | null;
   headCoach?: string;
   assistantCoach?: string;
   athleticDirector?: string;
@@ -126,6 +129,9 @@ export async function createOrganization(data: {
       country: data.country || 'USA',
       primaryColor: data.primaryColor || null,
       secondaryColor: data.secondaryColor || null,
+      logoUrl: data.logoUrl || null,
+      logoDarkUrl: data.logoDarkUrl || null,
+      wordmarkUrl: data.wordmarkUrl || null,
       headCoach: data.headCoach || null,
       assistantCoach: data.assistantCoach || null,
       athleticDirector: data.athleticDirector || null,
@@ -164,6 +170,13 @@ export async function updateOrganization(
     country: string;
     primaryColor: string;
     secondaryColor: string;
+    // Nullable where the rest of this set is not: .set() drops undefined
+    // fields, which is what keeps an unsent field from being wiped — but it
+    // also means an emptied box has to arrive as an explicit null to clear a
+    // logo URL that should never have been there.
+    logoUrl: string | null;
+    logoDarkUrl: string | null;
+    wordmarkUrl: string | null;
     headCoach: string;
     assistantCoach: string;
     athleticDirector: string;

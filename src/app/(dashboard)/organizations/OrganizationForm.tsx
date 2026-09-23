@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createOrganization, updateOrganization } from './actions';
 import { ORGANIZATION_TYPES, NCAA_DIVISIONS, US_STATES } from '@/types';
 import type { OrganizationRow } from '@/types';
+import { classifyLogoUrl, LOGO_URL_WARNINGS } from './logo-url';
 
 interface Props {
   organization?: OrganizationRow | null;
@@ -34,6 +35,9 @@ export default function OrganizationForm({ organization }: Props) {
   const [country, setCountry] = useState(organization?.country ?? 'USA');
   const [primaryColor, setPrimaryColor] = useState(organization?.primaryColor ?? '#3b82f6');
   const [secondaryColor, setSecondaryColor] = useState(organization?.secondaryColor ?? '#000000');
+  const [logoUrl, setLogoUrl] = useState(organization?.logoUrl ?? '');
+  const [logoDarkUrl, setLogoDarkUrl] = useState(organization?.logoDarkUrl ?? '');
+  const [wordmarkUrl, setWordmarkUrl] = useState(organization?.wordmarkUrl ?? '');
   const [headCoach, setHeadCoach] = useState(organization?.headCoach ?? '');
   const [assistantCoach, setAssistantCoach] = useState(organization?.assistantCoach ?? '');
   const [athleticDirector, setAthleticDirector] = useState(organization?.athleticDirector ?? '');
@@ -74,6 +78,12 @@ export default function OrganizationForm({ organization }: Props) {
       country: country.trim() || undefined,
       primaryColor: primaryColor || undefined,
       secondaryColor: secondaryColor || undefined,
+      // null, not undefined: the update action skips undefined fields, so
+      // `|| undefined` (right for the colours, which always hold a value) would
+      // make emptying a logo box a no-op. Clearing a bad URL has to stick.
+      logoUrl: logoUrl.trim() || null,
+      logoDarkUrl: logoDarkUrl.trim() || null,
+      wordmarkUrl: wordmarkUrl.trim() || null,
       headCoach: headCoach.trim() || undefined,
       assistantCoach: assistantCoach.trim() || undefined,
       athleticDirector: athleticDirector.trim() || undefined,
@@ -257,7 +267,18 @@ export default function OrganizationForm({ organization }: Props) {
             </div>
           </div>
         </div>
-        <p className="text-xs text-gray-600 mt-3">Logo upload will be available once Supabase Storage is configured.</p>
+        <div className="mt-6 space-y-4">
+          <LogoField label="Logo URL" value={logoUrl} onChange={setLogoUrl}
+            placeholder="https://example.org/logo.png" inputClass={inputClass} labelClass={labelClass} />
+          <LogoField label="Logo URL (dark backgrounds)" value={logoDarkUrl} onChange={setLogoDarkUrl}
+            placeholder="https://example.org/logo-white.png" inputClass={inputClass} labelClass={labelClass} />
+          <LogoField label="Wordmark URL" value={wordmarkUrl} onChange={setWordmarkUrl}
+            placeholder="https://example.org/wordmark.svg" inputClass={inputClass} labelClass={labelClass} />
+        </div>
+        <p className="text-xs text-gray-600 mt-4">
+          Paste the address of an image that is already hosted somewhere. Whatever is saved here is
+          what the timing laptop downloads and draws, so if the preview is wrong here it is wrong there.
+        </p>
       </div>
 
       {/* Advanced sections (toggle) */}
@@ -367,5 +388,87 @@ export default function OrganizationForm({ organization }: Props) {
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * A logo URL, with the image it points at shown beside it.
+ *
+ * The preview sits on a checkerboard so a transparent PNG reads as transparent
+ * rather than as a white box, and a URL that fails to load says so instead of
+ * quietly leaving a gap — a logo that is broken should look broken here, which
+ * is the whole point of being able to see it before the laptop does.
+ */
+function LogoField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  inputClass,
+  labelClass,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  inputClass: string;
+  labelClass: string;
+}) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const url = value.trim();
+  const kind = classifyLogoUrl(url);
+  const broken = kind === 'ok' && failedUrl === url;
+
+  return (
+    <div className="flex items-start gap-3">
+      <div
+        className="shrink-0 w-20 h-20 rounded-lg border border-gray-700 flex items-center justify-center overflow-hidden"
+        style={{
+          backgroundColor: '#1f2937',
+          backgroundImage:
+            'linear-gradient(45deg, #374151 25%, transparent 25%), linear-gradient(-45deg, #374151 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #374151 75%), linear-gradient(-45deg, transparent 75%, #374151 75%)',
+          backgroundSize: '12px 12px',
+          backgroundPosition: '0 0, 0 6px, 6px -6px, -6px 0',
+        }}
+      >
+        {kind === 'empty' ? (
+          <span className="text-[10px] text-gray-500 text-center px-1">No image</span>
+        ) : kind === 'relative' ? (
+          <span className="text-[10px] text-red-400 text-center px-1">Can&apos;t load</span>
+        ) : broken ? (
+          <span className="text-[10px] text-red-400 text-center px-1">Won&apos;t load</span>
+        ) : (
+          // Arbitrary external hosts, and the point is to render exactly what
+          // the URL gives back — next/image would proxy and re-encode it.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={url}
+            alt=""
+            className="max-w-full max-h-full object-contain"
+            onError={() => setFailedUrl(url)}
+            onLoad={() => setFailedUrl((f) => (f === url ? null : f))}
+          />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <label className={labelClass}>{label}</label>
+        {/* text, not url: an existing relative path would otherwise trip the
+            browser's own validation and block the whole form behind a bubble
+            that explains nothing. The warning below says it better. */}
+        <input type="text" value={value} onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder} className={inputClass} />
+        {kind === 'relative' && (
+          <p className="mt-1 text-xs text-red-400">{LOGO_URL_WARNINGS.relative}</p>
+        )}
+        {kind === 'placeholder' && (
+          <p className="mt-1 text-xs text-amber-400">{LOGO_URL_WARNINGS.placeholder}</p>
+        )}
+        {broken && (
+          <p className="mt-1 text-xs text-red-400">
+            Couldn&apos;t load this URL — the address is well formed but nothing came back.
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
