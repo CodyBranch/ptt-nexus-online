@@ -6,49 +6,67 @@ import { createOrganization, updateOrganization } from './actions';
 import { ORGANIZATION_TYPES, NCAA_DIVISIONS, US_STATES } from '@/types';
 import type { OrganizationRow } from '@/types';
 import { classifyLogoUrl, LOGO_URL_WARNINGS } from './logo-url';
+import { uploadOrgLogo } from './upload-logo';
+import { resolveSubmission } from '../submissions/actions';
 
 interface Props {
   organization?: OrganizationRow | null;
+  /**
+   * Values to start from when creating, rather than editing.
+   *
+   * Approving a submission used to run through a form of its own that
+   * collected twelve fields, against the thirty-one here. The school arrived
+   * in the database as a stub and somebody had to come back and finish it,
+   * which is how a school ends up with no colours and no badge.
+   *
+   * Rather than a second form growing toward this one, the review flow sends
+   * people here with the submission already filled in. One form, two ways in.
+   */
+  defaults?: Partial<OrganizationRow> | null;
+  /** The submission this is being created from; closed out on save. */
+  submissionId?: string | null;
 }
 
-export default function OrganizationForm({ organization }: Props) {
+export default function OrganizationForm({ organization, defaults, submissionId }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
   const isEdit = !!organization;
+  // The record being edited wins; a submission only fills what is blank.
+  const start = organization ?? defaults ?? null;
 
   // Form state
-  const [name, setName] = useState(organization?.name ?? '');
-  const [abbreviation, setAbbreviation] = useState(organization?.abbreviation ?? '');
-  const [shortName, setShortName] = useState(organization?.shortName ?? '');
-  const [mascot, setMascot] = useState(organization?.mascot ?? '');
-  const [organizationType, setOrganizationType] = useState(organization?.organizationType ?? 'high_school');
-  const [genderDesignation, setGenderDesignation] = useState(organization?.genderDesignation ?? '');
-  const [ncaaDivision, setNcaaDivision] = useState(organization?.ncaaDivision ?? '');
-  const [naiaMember, setNaiaMember] = useState(organization?.naiaMember ?? false);
-  const [jucoMember, setJucoMember] = useState(organization?.jucoMember ?? false);
-  const [conference, setConference] = useState(organization?.conference ?? '');
-  const [subConference, setSubConference] = useState(organization?.subConference ?? '');
-  const [stateAssociation, setStateAssociation] = useState(organization?.stateAssociation ?? '');
-  const [city, setCity] = useState(organization?.city ?? '');
-  const [state, setState] = useState(organization?.state ?? '');
-  const [country, setCountry] = useState(organization?.country ?? 'USA');
-  const [primaryColor, setPrimaryColor] = useState(organization?.primaryColor ?? '#3b82f6');
-  const [secondaryColor, setSecondaryColor] = useState(organization?.secondaryColor ?? '#000000');
-  const [logoUrl, setLogoUrl] = useState(organization?.logoUrl ?? '');
-  const [logoDarkUrl, setLogoDarkUrl] = useState(organization?.logoDarkUrl ?? '');
-  const [wordmarkUrl, setWordmarkUrl] = useState(organization?.wordmarkUrl ?? '');
-  const [headCoach, setHeadCoach] = useState(organization?.headCoach ?? '');
-  const [assistantCoach, setAssistantCoach] = useState(organization?.assistantCoach ?? '');
-  const [athleticDirector, setAthleticDirector] = useState(organization?.athleticDirector ?? '');
-  const [contactEmail, setContactEmail] = useState(organization?.contactEmail ?? '');
-  const [contactPhone, setContactPhone] = useState(organization?.contactPhone ?? '');
-  const [website, setWebsite] = useState(organization?.website ?? '');
-  const [tfrrsId, setTfrrsId] = useState(organization?.tfrrsId ?? '');
-  const [athleticNetId, setAthleticNetId] = useState(organization?.athleticNetId ?? '');
-  const [directAthleticsId, setDirectAthleticsId] = useState(organization?.directAthleticsId ?? '');
-  const [milesplitId, setMilesplitId] = useState(organization?.milesplitId ?? '');
-  const [notes, setNotes] = useState(organization?.notes ?? '');
+  const [name, setName] = useState(start?.name ?? '');
+  const [abbreviation, setAbbreviation] = useState(start?.abbreviation ?? '');
+  const [shortName, setShortName] = useState(start?.shortName ?? '');
+  const [mascot, setMascot] = useState(start?.mascot ?? '');
+  const [organizationType, setOrganizationType] = useState(start?.organizationType ?? 'high_school');
+  const [genderDesignation, setGenderDesignation] = useState(start?.genderDesignation ?? '');
+  const [ncaaDivision, setNcaaDivision] = useState(start?.ncaaDivision ?? '');
+  const [naiaMember, setNaiaMember] = useState(start?.naiaMember ?? false);
+  const [jucoMember, setJucoMember] = useState(start?.jucoMember ?? false);
+  const [conference, setConference] = useState(start?.conference ?? '');
+  const [subConference, setSubConference] = useState(start?.subConference ?? '');
+  const [stateAssociation, setStateAssociation] = useState(start?.stateAssociation ?? '');
+  const [city, setCity] = useState(start?.city ?? '');
+  const [state, setState] = useState(start?.state ?? '');
+  const [country, setCountry] = useState(start?.country ?? 'USA');
+  const [primaryColor, setPrimaryColor] = useState(start?.primaryColor ?? '#3b82f6');
+  const [secondaryColor, setSecondaryColor] = useState(start?.secondaryColor ?? '#000000');
+  const [logoUrl, setLogoUrl] = useState(start?.logoUrl ?? '');
+  const [logoDarkUrl, setLogoDarkUrl] = useState(start?.logoDarkUrl ?? '');
+  const [wordmarkUrl, setWordmarkUrl] = useState(start?.wordmarkUrl ?? '');
+  const [headCoach, setHeadCoach] = useState(start?.headCoach ?? '');
+  const [assistantCoach, setAssistantCoach] = useState(start?.assistantCoach ?? '');
+  const [athleticDirector, setAthleticDirector] = useState(start?.athleticDirector ?? '');
+  const [contactEmail, setContactEmail] = useState(start?.contactEmail ?? '');
+  const [contactPhone, setContactPhone] = useState(start?.contactPhone ?? '');
+  const [website, setWebsite] = useState(start?.website ?? '');
+  const [tfrrsId, setTfrrsId] = useState(start?.tfrrsId ?? '');
+  const [athleticNetId, setAthleticNetId] = useState(start?.athleticNetId ?? '');
+  const [directAthleticsId, setDirectAthleticsId] = useState(start?.directAthleticsId ?? '');
+  const [milesplitId, setMilesplitId] = useState(start?.milesplitId ?? '');
+  const [notes, setNotes] = useState(start?.notes ?? '');
 
   const [showAdvanced, setShowAdvanced] = useState(isEdit);
 
@@ -101,10 +119,25 @@ export default function OrganizationForm({ organization }: Props) {
       try {
         if (isEdit && organization) {
           await updateOrganization(organization.id, data);
+          router.push('/organizations');
         } else {
-          await createOrganization(data);
+          const created = await createOrganization(data);
+          // Built from a submission: close that submission out against the
+          // school that answered it, then go back to the queue rather than
+          // the organisation list, because there are almost certainly more.
+          if (submissionId && created?.id) {
+            const res = await resolveSubmission(submissionId, created.id);
+            if (!res.ok) {
+              // The school was created either way; say what did not happen
+              // rather than implying the whole save failed.
+              setError(`Saved, but the submission could not be closed: ${res.error}`);
+              return;
+            }
+            router.push('/submissions');
+          } else {
+            router.push('/organizations');
+          }
         }
-        router.push('/organizations');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Something went wrong');
       }
@@ -268,15 +301,15 @@ export default function OrganizationForm({ organization }: Props) {
           </div>
         </div>
         <div className="mt-6 space-y-4">
-          <LogoField label="Logo URL" value={logoUrl} onChange={setLogoUrl}
+          <LogoField label="Logo" value={logoUrl} onChange={setLogoUrl} variant="light" orgName={name}
             placeholder="https://example.org/logo.png" inputClass={inputClass} labelClass={labelClass} />
-          <LogoField label="Logo URL (dark backgrounds)" value={logoDarkUrl} onChange={setLogoDarkUrl}
+          <LogoField label="Logo for dark backgrounds" value={logoDarkUrl} onChange={setLogoDarkUrl} variant="dark" orgName={name}
             placeholder="https://example.org/logo-white.png" inputClass={inputClass} labelClass={labelClass} />
-          <LogoField label="Wordmark URL" value={wordmarkUrl} onChange={setWordmarkUrl}
+          <LogoField label="Wordmark" value={wordmarkUrl} onChange={setWordmarkUrl} variant="wordmark" orgName={name}
             placeholder="https://example.org/wordmark.svg" inputClass={inputClass} labelClass={labelClass} />
         </div>
         <p className="text-xs text-gray-600 mt-4">
-          Paste the address of an image that is already hosted somewhere. Whatever is saved here is
+          Upload a file, or paste the address of an image hosted somewhere else. Whatever is saved here is
           what the timing laptop downloads and draws, so if the preview is wrong here it is wrong there.
         </p>
       </div>
@@ -406,6 +439,8 @@ function LogoField({
   placeholder,
   inputClass,
   labelClass,
+  variant,
+  orgName,
 }: {
   label: string;
   value: string;
@@ -413,8 +448,34 @@ function LogoField({
   placeholder: string;
   inputClass: string;
   labelClass: string;
+  variant: "light" | "dark" | "wordmark";
+  orgName: string;
 }) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  async function upload(file: File) {
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const body = new FormData();
+      body.set("file", file);
+      body.set("variant", variant);
+      body.set("orgName", orgName || "logo");
+      const res = await uploadOrgLogo(body);
+      if (!res.ok) { setUploadError(res.error); return; }
+      // Fill the box rather than saving straight away. The address is not
+      // committed until the form is, so an upload can still be undone by
+      // leaving without saving - and the preview beside it is the check.
+      onChange(res.url);
+      setFailedUrl(null);
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "The upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
   const url = value.trim();
   const kind = classifyLogoUrl(url);
   const broken = kind === 'ok' && failedUrl === url;
@@ -468,6 +529,40 @@ function LogoField({
             Couldn&apos;t load this URL — the address is well formed but nothing came back.
           </p>
         )}
+
+        <div className="mt-2 flex items-center gap-3 flex-wrap">
+          <label className={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${
+            uploading
+              ? "border-gray-800 text-gray-600 cursor-wait"
+              : "border-gray-700 text-gray-300 hover:bg-gray-800 cursor-pointer"
+          }`}>
+            {uploading ? "Uploading…" : "Upload a file"}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+              className="hidden"
+              disabled={uploading}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                // Cleared so that choosing the same file twice, after a
+                // failure, still fires a change event.
+                e.target.value = "";
+                if (f) void upload(f);
+              }}
+            />
+          </label>
+          {value.trim() && !uploading && (
+            <button type="button" onClick={() => { onChange(""); setUploadError(null); }}
+              className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+              Clear
+            </button>
+          )}
+          <span className="text-[11px] text-gray-600">
+            PNG, JPEG, WebP, SVG or GIF, up to 2 MB. Stored with us, so it keeps working
+            if the original site moves it.
+          </span>
+        </div>
+        {uploadError && <p className="mt-1 text-xs text-red-400">{uploadError}</p>}
       </div>
     </div>
   );

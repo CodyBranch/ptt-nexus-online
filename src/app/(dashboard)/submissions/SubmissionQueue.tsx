@@ -187,11 +187,22 @@ export default function SubmissionQueue({ rows, status }: { rows: Submission[]; 
                   </label>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <button onClick={() => approve(s.id)} disabled={busy || !fields.name?.trim()}
                     className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 rounded text-sm font-semibold">
-                    {busy ? 'Working…' : 'Create the organisation'}
+                    {busy ? 'Working…' : 'Create from these fields'}
                   </button>
+                  {/* The same school, through the form every other
+                      organisation is created with. What is typed above comes
+                      along, and the remaining twenty-odd fields - colours, a
+                      logo to upload, coaches, conference, the external ids -
+                      are there to fill in while somebody is looking at it.
+                      Creating a stub and meaning to come back is how a school
+                      ends up in the database with no colours and no badge. */}
+                  <a href={`/organizations/new?submission=${s.id}`}
+                    className="px-4 py-2 border border-blue-600/60 text-blue-300 hover:bg-blue-950/40 rounded text-sm font-semibold transition-colors">
+                    Open the full form
+                  </a>
                   <span className="text-gray-700">or</span>
                   <input value={rejectNote} onChange={(e) => setRejectNote(e.target.value)}
                     placeholder="Why not — e.g. misspelling of Battle High School"

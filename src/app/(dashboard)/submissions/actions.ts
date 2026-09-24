@@ -58,6 +58,40 @@ export async function nearMatches(name: string, limit = 5) {
     .limit(limit);
 }
 
+/**
+ * Close a submission out against an organisation that already exists.
+ *
+ * `approveSubmission` creates the row itself from the thirteen fields it
+ * accepts, which is why a school approved that way arrived as a stub. The
+ * review queue now sends people to the full organisation form instead, and
+ * this is what runs when they save it: the school is already created, so all
+ * that is left is to mark the submission dealt with and remember which
+ * organisation answered it.
+ *
+ * Also the way to resolve a submission for a school that turns out to be
+ * already in the database under another name - point it at the existing row
+ * rather than creating a duplicate.
+ */
+export async function resolveSubmission(
+  submissionId: string,
+  organizationId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdmin();
+
+  const rows = await db.select().from(organizationSubmissions)
+    .where(eq(organizationSubmissions.id, submissionId)).limit(1);
+  const sub = rows[0];
+  if (!sub) return { ok: false, error: 'That submission is gone' };
+  if (sub.status !== 'pending') return { ok: false, error: `Already ${sub.status}` };
+
+  await db.update(organizationSubmissions)
+    .set({ status: 'approved', organizationId, reviewedAt: new Date() })
+    .where(eq(organizationSubmissions.id, submissionId));
+
+  revalidatePath('/submissions');
+  revalidatePath('/organizations');
+  return { ok: true };
+}
 export async function approveSubmission(
   id: string,
   fields: {
