@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { organizations, orgTags, organizationTags } from '@/db/schema';
-import { eq, ilike, or, and, sql, SQL } from 'drizzle-orm';
+import { eq, ilike, or, and, sql, inArray, SQL } from 'drizzle-orm';
 import { checkRelayAuth } from '@/lib/relay-auth';
 
 export async function GET(request: NextRequest) {
@@ -21,7 +21,26 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Number(searchParams.get('limit') ?? 50), 200);
     const offset = Number(searchParams.get('offset') ?? 0);
 
+    // ?ids=a,b,c - fetch specific organisations, for a client refreshing what
+    // it already holds. The desktop copies an org's branding into its own meet
+    // file at match time; when a logo is re-pointed centrally, that copy is
+    // stale and the only way back is to ask for those orgs by id. Searching
+    // for each one by name would be a couple of hundred round trips to answer
+    // a question with an exact key.
+    const ids = (searchParams.get('ids') ?? '')
+      .split(',').map((s) => s.trim())
+      .filter((s) => /^[0-9a-f-]{36}$/i.test(s))
+      .slice(0, 500);
+
     const conditions: SQL[] = [eq(organizations.isActive, true)];
+
+    // An explicit list answers with exactly those rows; the other filters are
+    // for browsing and do not apply.
+    if (ids.length) {
+      const rows = await db.select().from(organizations)
+        .where(and(eq(organizations.isActive, true), inArray(organizations.id, ids)));
+      return NextResponse.json({ data: rows, total: rows.length });
+    }
 
     if (q) {
       const search = `%${q}%`;
