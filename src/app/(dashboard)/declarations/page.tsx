@@ -7,6 +7,7 @@ import {
 } from '@/db/schema';
 import { desc, sql } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/admin-auth';
+import AutoRefresh from '@/components/AutoRefresh';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +43,10 @@ export default async function DeclarationsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-1">Declarations</h1>
+      <div className="flex items-baseline justify-between gap-4 mb-1">
+        <h1 className="text-2xl font-bold">Declarations</h1>
+        <AutoRefresh />
+      </div>
       <p className="text-sm text-gray-500 mb-6">
         Cross country meets published for coaches to declare and scratch their runners online.
       </p>

@@ -10,6 +10,7 @@ import {
 import { eq } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/admin-auth';
 import { closesAtOf, meetTimeZone, meetTime, type DeadlineRace } from '@/lib/declare-deadline';
+import AutoRefresh from '@/components/AutoRefresh';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,7 +64,10 @@ export default async function DeclarationMeetPage({ params }: { params: Promise<
 
   return (
     <div>
-      <Link href="/declarations" className="text-sm text-gray-500 hover:text-gray-300">&larr; Declarations</Link>
+      <div className="flex items-center justify-between gap-4">
+        <Link href="/declarations" className="text-sm text-gray-500 hover:text-gray-300">&larr; Declarations</Link>
+        <AutoRefresh />
+      </div>
       <h1 className="text-2xl font-bold mt-2">{session.meetName}</h1>
       <p className="text-sm text-gray-500 mb-6">
         {session.meetDate ?? 'No date'} · published {when(session.createdAt ? new Date(session.createdAt) : null)}
