@@ -588,16 +588,24 @@ export default function DeclarePage() {
                           disabled={lockedIn || finalized.has(race.id) || raceClosed(race.id)}
                           aria-pressed={on}
                           onClick={() => choose(athlete.id, { kind: 'race', raceId: race.id })}
-                          className={`flex-1 min-w-[8.5rem] min-h-[44px] rounded-lg border px-3 py-2.5 text-sm
+                          // One weight and one layout in every state: a bold
+                          // "Men's Black Open 8k" wrapped to two lines when
+                          // chosen and the whole row jumped. Chosen shows by
+                          // colour and ring; "entered" is a corner tag.
+                          className={`relative flex-1 min-w-[8.5rem] min-h-[44px] rounded-lg border px-3 py-2.5 text-sm font-medium
                             touch-manipulation transition-colors disabled:opacity-40
                             ${on
-                              ? 'bg-blue-600 border-blue-500 text-white font-semibold'
+                              ? 'bg-blue-600 border-blue-500 text-white ring-2 ring-blue-400/60'
                               : entered
                                 ? 'bg-gray-800 border-dashed border-blue-400/70 text-gray-100'
                                 : 'bg-gray-800 border-gray-700 text-gray-300 active:bg-gray-700 hover:border-gray-500'}`}
                         >
                           {race.name}
-                          {entered && <span className="block text-[10px] font-normal text-blue-300">entered · tap to confirm</span>}
+                          {entered && (
+                            <span className="absolute top-0.5 right-1.5 text-[9px] font-medium uppercase tracking-wide text-blue-300">
+                              entered
+                            </span>
+                          )}
                         </button>
                       );
                     })}
@@ -606,10 +614,10 @@ export default function DeclarePage() {
                       disabled={lockedIn || (choice.kind === 'none' && nothingOpen)}
                       aria-pressed={choice.kind === 'scratched'}
                       onClick={() => choose(athlete.id, { kind: 'scratched' })}
-                      className={`flex-1 min-w-[8.5rem] min-h-[44px] rounded-lg border px-3 py-2.5 text-sm
+                      className={`flex-1 min-w-[8.5rem] min-h-[44px] rounded-lg border px-3 py-2.5 text-sm font-medium
                         touch-manipulation transition-colors disabled:opacity-40
                         ${choice.kind === 'scratched'
-                          ? 'bg-red-900/70 border-red-600 text-red-100 font-semibold'
+                          ? 'bg-red-900/70 border-red-600 text-red-100 ring-2 ring-red-500/50'
                           : 'bg-gray-800 border-gray-700 text-gray-300 active:bg-gray-700 hover:border-gray-500'}`}
                     >
                       Not running
