@@ -281,15 +281,6 @@ export default function DeclarePage() {
     }
   };
 
-  const counts = useMemo(() => {
-    const values = Object.values(choices);
-    return {
-      declared: values.filter((c) => c.kind === 'race').length,
-      scratched: values.filter((c) => c.kind === 'scratched').length,
-      undecided: values.filter((c) => c.kind === 'none').length,
-    };
-  }, [choices]);
-
   const words = GENDER_WORDS[data?.genderTerms === 'men_women' ? 'men_women' : 'boys_girls'];
 
   /**
@@ -311,6 +302,27 @@ export default function DeclarePage() {
     return data.roster.filter((a) => genderSide(a.gender) === side);
   }, [data, side]);
 
+  // The counts are for the side being looked at: filtered to the men, the
+  // coach sees the men's numbers. The other side's unanswered runners are
+  // still said (below) — a coach who filtered to the boys and read "0 to
+  // answer" must not walk away with five girls undeclared.
+  const counts = useMemo(() => {
+    const tally = (ids: string[]) => {
+      const values = ids.map((id) => choices[id] ?? { kind: 'none' as const });
+      return {
+        declared: values.filter((c) => c.kind === 'race').length,
+        scratched: values.filter((c) => c.kind === 'scratched').length,
+        undecided: values.filter((c) => c.kind === 'none').length,
+      };
+    };
+    const shown = new Set(visible.map((a) => a.id));
+    return {
+      ...tally(visible.map((a) => a.id)),
+      otherUndecided: side === 'all' ? 0
+        : tally((data?.roster ?? []).filter((a) => !shown.has(a.id)).map((a) => a.id)).undecided,
+    };
+  }, [choices, visible, data, side]);
+
   // The next race to close, and the ones already closed. Each race closes on
   // its own — the girls' cutoff passing leaves the boys' races open.
   // Only the races this school was placed in. A meet has races a school is
@@ -324,15 +336,20 @@ export default function DeclarePage() {
   const tz = useMemo(() => meetTimeZone(data?.races ?? []), [data]);
   const whenText = useCallback((d: Date) => meetTime(d, tz), [tz]);
 
+  // The races on the side being looked at (and any open to both sides).
+  const sideRaces = useMemo(() => (side === 'all' ? schoolRaces
+    : schoolRaces.filter((r) => { const g = genderSide(r.gender); return g === side || g == null; })),
+  [schoolRaces, side]);
+
   const { soonest, closedCount } = useMemo(() => {
     if (!data) return { soonest: null as Date | null, closedCount: 0 };
-    const all = schoolRaces.map(deadlineOf).filter((d): d is Date => d != null);
+    const all = sideRaces.map(deadlineOf).filter((d): d is Date => d != null);
     const ahead = all.filter((d) => d.getTime() > now.getTime());
     return {
       soonest: ahead.length ? ahead.reduce((a, b) => (a < b ? a : b)) : null,
       closedCount: all.length - ahead.length,
     };
-  }, [data, schoolRaces, now]);
+  }, [data, sideRaces, now]);
   const raceClosed = useCallback((raceId: string | null | undefined) => {
     const race = data?.races.find((r) => r.id === raceId);
     return race ? isClosed(race, now) : false;
@@ -358,7 +375,7 @@ export default function DeclarePage() {
 
   if (!data) return null;
 
-  const allClosed = soonest == null && closedCount > 0 && closedCount === schoolRaces.length;
+  const allClosed = soonest == null && closedCount > 0 && closedCount === sideRaces.length;
   const urgent = soonest != null && soonest.getTime() - now.getTime() < 30 * 60_000;
 
   return (
@@ -371,7 +388,7 @@ export default function DeclarePage() {
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between gap-3 mb-1.5">
             <p className="text-xs text-gray-500 truncate">
-              {data.meetName}{data.meetDate ? ` · ${data.meetDate}` : ''}
+              {data.meetName}
             </p>
             <Image src="/PRIMETIME.png" alt="PrimeTime Timing" width={1586} height={250} priority
               className="h-4 w-auto shrink-0 opacity-90" />
@@ -397,16 +414,20 @@ export default function DeclarePage() {
             </div>
           )}
 
-          {/* Counts are always the WHOLE squad, never the filtered view. A
-              coach who has filtered to the boys and reads "0 to answer" would
-              otherwise walk away with five girls undeclared. */}
+          {/* Counts for the side being looked at, with the other side's
+              unanswered runners still named, so a coach filtered to the boys
+              cannot walk away with five girls undeclared. */}
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-xs text-gray-400">
             <span><span className="font-bold text-gray-100">{counts.declared}</span> running</span>
             <span><span className="font-bold text-gray-100">{counts.scratched}</span> out</span>
             <span className={counts.undecided > 0 ? 'text-amber-400' : ''}>
               <span className="font-bold">{counts.undecided}</span> to answer
             </span>
-            {side !== 'all' && <span className="text-gray-600">(whole squad)</span>}
+            {side !== 'all' && counts.otherUndecided > 0 && (
+              <span className="text-amber-400/80">
+                · {counts.otherUndecided} {words[side === 'M' ? 'F' : 'M'].toLowerCase()} to answer
+              </span>
+            )}
           </div>
 
           {sidesPresent.length > 1 && (
@@ -443,7 +464,7 @@ export default function DeclarePage() {
         {/* One card per race: how many are in it, and whether this school
             has closed it. Closing one leaves every other race alone. */}
         <div className="space-y-2 mb-4">
-          {schoolRaces.map((race) => {
+          {sideRaces.map((race) => {
             const inThis = Object.values(choices)
               .filter((c) => c.kind === 'race' && c.raceId === race.id).length;
             const isFinal = finalized.has(race.id);
