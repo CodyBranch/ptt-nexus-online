@@ -493,7 +493,7 @@ export default function DeclarePage() {
                     <p className="text-sm font-semibold truncate">{race.name}</p>
                     <p className="text-xs text-gray-500">
                       {inThis} runner{inThis === 1 ? '' : 's'} declared
-                      {isFinal && <span className="text-emerald-400"> · finalised</span>}
+                      {isFinal && <span className="text-emerald-400"> · finalized</span>}
                       {deadline && (past
                         ? <span className="text-red-400"> · closed</span>
                         : <span> · closes {whenText(deadline)}</span>)}
@@ -512,7 +512,7 @@ export default function DeclarePage() {
                         : 'bg-emerald-700 border-emerald-600 text-white font-semibold'
                     }`}
                   >
-                    {past ? 'Closed' : isFinal ? 'Reopen' : 'Finalise'}
+                    {past ? 'Closed' : isFinal ? 'Reopen' : 'Finalize'}
                   </button>
                 </div>
                 {(() => {
@@ -578,7 +578,7 @@ export default function DeclarePage() {
                     {rowBusy && <span className="ml-1 text-blue-400">saving…</span>}
                     {didFail && !rowBusy && <span className="ml-1 text-red-400 font-bold">not saved</span>}
                     {lockedIn && !rowBusy && (choice.kind === 'race' && finalized.has(choice.raceId)
-                      ? <span className="ml-1 text-emerald-400">finalised</span>
+                      ? <span className="ml-1 text-emerald-400">finalized</span>
                       : <span className="ml-1 text-red-400">closed</span>)}
                   </span>
                 </div>

@@ -137,7 +137,7 @@ export default async function DeclarationMeetPage({ params }: { params: Promise<
                     : <span className={mine.length >= roster.length ? 'text-green-400' : 'text-gray-300'}>{mine.length} of {roster.length} answered</span>}
                 </span>
                 <span className="text-sm text-gray-400 tabular-nums">{declared} running · {scratched} out</span>
-                {done.length > 0 && <span className="text-xs text-green-400">finalised: {done.join(', ')}</span>}
+                {done.length > 0 && <span className="text-xs text-green-400">finalized: {done.join(', ')}</span>}
                 <span className="text-xs text-gray-600 ml-auto">{last ? `last ${when(last)}` : ''}</span>
               </summary>
               <div className="px-4 pb-4">
