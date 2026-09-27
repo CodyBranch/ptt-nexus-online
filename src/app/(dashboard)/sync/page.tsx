@@ -17,8 +17,10 @@ export const dynamic = 'force-dynamic';
  * here now, so an empty state means empty rather than unwired.
  */
 
-function ago(d: Date | null): string {
-  if (!d) return 'never';
+function ago(value: Date | string | null): string {
+  if (!value) return 'never';
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return 'never';
   const s = Math.max(0, Math.round((Date.now() - d.getTime()) / 1000));
   if (s < 60) return 'just now';
   const m = Math.round(s / 60);
@@ -41,7 +43,7 @@ export default async function SyncPage() {
   const [keys] = await db
     .select({
       active: sql<number>`count(*)::int`,
-      lastUsedAt: sql<Date | null>`max(${desktopApiKeys.lastUsedAt})`,
+      lastUsedAt: sql<Date | null>`max(${desktopApiKeys.lastUsedAt})`.mapWith(desktopApiKeys.lastUsedAt),
     })
     .from(desktopApiKeys)
     .where(eq(desktopApiKeys.isActive, true));

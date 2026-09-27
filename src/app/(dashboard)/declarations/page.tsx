@@ -34,7 +34,7 @@ export default async function DeclarationsPage() {
     answered: sql<number>`count(*)::int`,
     declared: sql<number>`count(*) filter (where ${declarationSubmissions.status} = 'declared')::int`,
     scratched: sql<number>`count(*) filter (where ${declarationSubmissions.status} = 'scratched')::int`,
-    lastAt: sql<Date | null>`max(${declarationSubmissions.updatedAt})`,
+    lastAt: sql<Date | null>`max(${declarationSubmissions.updatedAt})`.mapWith(declarationSubmissions.updatedAt),
   }).from(declarationSubmissions).groupBy(declarationSubmissions.meetSessionId);
 
   const teamsOf = new Map(teamCounts.map((r) => [r.sessionId, r]));

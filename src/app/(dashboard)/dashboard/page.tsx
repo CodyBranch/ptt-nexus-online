@@ -30,7 +30,10 @@ function Stat({ label, value, hint, href }: {
   return href ? <a href={href} className="block">{body}</a> : body;
 }
 
-function timeAgo(d: Date): string {
+function timeAgo(value: Date | string): string {
+  // A raw sql aggregate arrives as a string, not a Date; either will do.
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return 'at an unknown time';
   const s = Math.max(0, Math.round((Date.now() - d.getTime()) / 1000));
   if (s < 60) return 'just now';
   const m = Math.round(s / 60);

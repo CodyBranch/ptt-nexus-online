@@ -91,7 +91,9 @@ export async function getDashboardData(): Promise<DashboardData> {
   const [keyCount] = await db
     .select({
       active: sql<number>`count(*)::int`,
-      lastUsedAt: sql<Date | null>`max(${desktopApiKeys.lastUsedAt})`,
+      // Decoded as the column is: raw sql comes back from the driver as a
+      // string, and the page's "time ago" called .getTime() on it.
+      lastUsedAt: sql<Date | null>`max(${desktopApiKeys.lastUsedAt})`.mapWith(desktopApiKeys.lastUsedAt),
     })
     .from(desktopApiKeys)
     .where(eq(desktopApiKeys.isActive, true));
