@@ -416,16 +416,16 @@ export default function DeclarePage() {
                     type="button"
                     // After the deadline only the meet office can reopen it:
                     // by then the start list has been printed.
-                    disabled={busy === `final:${race.id}` || (isFinal && past)}
+                    disabled={busy === `final:${race.id}` || past}
                     onClick={() => setFinal(race.id, !isFinal)}
                     className={`shrink-0 min-h-[40px] rounded-lg border px-3 py-2 text-xs
                       touch-manipulation transition-colors disabled:opacity-40 ${
-                      isFinal
+                      isFinal || past
                         ? 'bg-gray-800 border-gray-700 text-gray-300'
                         : 'bg-emerald-700 border-emerald-600 text-white font-semibold'
                     }`}
                   >
-                    {isFinal ? (past ? 'Closed' : 'Reopen') : 'Finalise'}
+                    {past ? 'Closed' : isFinal ? 'Reopen' : 'Finalise'}
                   </button>
                 </div>
               </div>
@@ -470,7 +470,9 @@ export default function DeclarePage() {
                       .filter(Boolean).join(' · ')}
                     {rowBusy && <span className="ml-1 text-blue-400">saving…</span>}
                     {didFail && !rowBusy && <span className="ml-1 text-red-400 font-bold">not saved</span>}
-                    {lockedIn && !rowBusy && <span className="ml-1 text-emerald-400">finalised</span>}
+                    {lockedIn && !rowBusy && (choice.kind === 'race' && finalized.has(choice.raceId)
+                      ? <span className="ml-1 text-emerald-400">finalised</span>
+                      : <span className="ml-1 text-red-400">closed</span>)}
                   </span>
                 </div>
 
