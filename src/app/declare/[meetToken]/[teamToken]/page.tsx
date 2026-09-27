@@ -51,6 +51,13 @@ interface RosterAthlete {
   gender?: string;
   year?: string;
   eligibleRaceIds: string[];
+  /**
+   * What the meet has on file: 'entered' with the race they were entered in,
+   * not yet confirmed by anybody. Marked on the form, never counted as an
+   * answer — confirming is the coach's.
+   */
+  status?: 'declared' | 'scratched' | 'entered';
+  raceId?: string | null;
 }
 
 interface Declaration {
@@ -238,6 +245,40 @@ export default function DeclarePage() {
   const choose = (athleteId: string, choice: Choice) => {
     setChoices((c) => ({ ...c, [athleteId]: choice }));
     void save(athleteId, choice);
+  };
+
+  /**
+   * Everybody still to answer for who the meet has entered in this race,
+   * confirmed in it with one tap. A coach with no changes is done in one
+   * tap a race; one with changes makes those first and confirms the rest.
+   */
+  const enteredIn = useCallback((raceId: string) => (data?.roster ?? []).filter((a) =>
+    a.status === 'entered' && a.raceId === raceId && a.eligibleRaceIds.includes(raceId)
+    && (choices[a.id]?.kind ?? 'none') === 'none'), [data, choices]);
+
+  const confirmEntered = async (raceId: string) => {
+    const who = enteredIn(raceId).map((a) => a.id);
+    if (who.length === 0) return;
+    setBusy(`confirm:${raceId}`);
+    setChoices((c) => ({ ...c, ...Object.fromEntries(who.map((id) => [id, { kind: 'race', raceId } as Choice])) }));
+    setSaving((s) => ({ ...s, ...Object.fromEntries(who.map((id) => [id, true])) }));
+    try {
+      const res = await fetch(`/api/declare/${meetToken}/${teamToken}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ declarations: who.map((athleteId) => ({ athleteId, status: 'declared', raceId })) }),
+      });
+      const json = await res.json().catch(() => ({})) as { rejected?: string[] };
+      const refused = new Set(res.ok ? (json.rejected ?? []) : who);
+      setFailed((f) => ({ ...f, ...Object.fromEntries(who.map((id) => [id, refused.has(id)])) }));
+      setError(refused.size ? `${refused.size} of those were not accepted. They are marked below.` : null);
+    } catch {
+      setFailed((f) => ({ ...f, ...Object.fromEntries(who.map((id) => [id, true])) }));
+      setError('Those did not save — you are offline. They are marked below.');
+    } finally {
+      setSaving((s) => ({ ...s, ...Object.fromEntries(who.map((id) => [id, false])) }));
+      setBusy(null);
+    }
   };
 
   const counts = useMemo(() => {
@@ -443,6 +484,22 @@ export default function DeclarePage() {
                     {past ? 'Closed' : isFinal ? 'Reopen' : 'Finalise'}
                   </button>
                 </div>
+                {(() => {
+                  const waiting = enteredIn(race.id).length;
+                  if (waiting === 0 || past || isFinal) return null;
+                  return (
+                    <button
+                      type="button"
+                      disabled={busy === `confirm:${race.id}`}
+                      onClick={() => void confirmEntered(race.id)}
+                      className="mt-2.5 w-full min-h-[40px] rounded-lg border border-blue-500/50 bg-blue-500/10 px-3 py-2 text-xs
+                        font-semibold text-blue-200 touch-manipulation active:bg-blue-500/20 disabled:opacity-40"
+                    >
+                      {busy === `confirm:${race.id}` ? 'Confirming…'
+                        : `Confirm ${waiting} entered runner${waiting === 1 ? '' : 's'} as running`}
+                    </button>
+                  );
+                })()}
               </div>
             );
           })}
@@ -500,6 +557,9 @@ export default function DeclarePage() {
                   <div className="flex flex-wrap gap-2 mt-3">
                     {races.map((race) => {
                       const on = choice.kind === 'race' && choice.raceId === race.id;
+                      // The race the meet has them entered in, while nobody
+                      // has confirmed it: marked, not chosen.
+                      const entered = choice.kind === 'none' && athlete.status === 'entered' && athlete.raceId === race.id;
                       return (
                         <button
                           key={race.id}
@@ -511,9 +571,12 @@ export default function DeclarePage() {
                             touch-manipulation transition-colors disabled:opacity-40
                             ${on
                               ? 'bg-blue-600 border-blue-500 text-white font-semibold'
-                              : 'bg-gray-800 border-gray-700 text-gray-300 active:bg-gray-700 hover:border-gray-500'}`}
+                              : entered
+                                ? 'bg-gray-800 border-dashed border-blue-400/70 text-gray-100'
+                                : 'bg-gray-800 border-gray-700 text-gray-300 active:bg-gray-700 hover:border-gray-500'}`}
                         >
                           {race.name}
+                          {entered && <span className="block text-[10px] font-normal text-blue-300">entered · tap to confirm</span>}
                         </button>
                       );
                     })}
