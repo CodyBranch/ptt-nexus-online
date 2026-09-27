@@ -6,6 +6,7 @@ import {
   declarationFinalizations,
 } from '@/db/schema';
 import { and, eq } from 'drizzle-orm';
+import { closesAtOf, schoolRaceIds, type DeadlineRace } from '@/lib/declare-deadline';
 
 /**
  * A school saying it is done with one race — or taking that back.
@@ -17,14 +18,9 @@ import { and, eq } from 'drizzle-orm';
  * because by then the start list has been printed.
  */
 
-interface Race { id: string; scheduledTime?: string; deadlineMinutes?: number }
-
-function deadlineOf(race: Race): Date | null {
-  if (!race.scheduledTime) return null;
-  const start = new Date(race.scheduledTime);
-  if (Number.isNaN(start.getTime())) return null;
-  return new Date(start.getTime() - (race.deadlineMinutes ?? 30) * 60_000);
-}
+// The same closing rule the form and the declarations use (lib/declare-deadline):
+// this route had its own copy of the old one, which ignored per-race cutoffs.
+const deadlineOf = (race: DeadlineRace): Date | null => closesAtOf(race);
 
 export async function POST(
   request: NextRequest,
@@ -47,10 +43,14 @@ export async function POST(
     const { raceId, finalized } = await request.json() as
       { raceId?: string; finalized?: boolean };
 
-    const races = JSON.parse(session.racesJson) as Race[];
+    const races = JSON.parse(session.racesJson) as DeadlineRace[];
     const race = races.find((r) => r.id === raceId);
     if (!raceId || !race) {
       return NextResponse.json({ error: 'That race is not in this meet' }, { status: 400 });
+    }
+    // Nor one this school was never placed in.
+    if (!schoolRaceIds(JSON.parse(access.rosterJson) as Array<{ eligibleRaceIds?: string[] }>).has(raceId)) {
+      return NextResponse.json({ error: 'Your school is not in that race' }, { status: 400 });
     }
 
     if (finalized === false) {

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { closesAtOf, isClosed } from '@/lib/declare-deadline';
+import { closesAtOf, isClosed, meetTimeZone, meetTime, schoolRaceIds } from '@/lib/declare-deadline';
+import Image from 'next/image';
 import { useParams } from 'next/navigation';
 
 /**
@@ -38,6 +39,8 @@ interface Race {
   deadlineMinutes?: number;
   /** The closing moment the desk worked out; null: it never closes. */
   closesAt?: string | null;
+  /** The meet's time zone. */
+  timeZone?: string;
 }
 
 interface RosterAthlete {
@@ -96,10 +99,7 @@ const GENDER_WORDS = {
 /** When declarations close for a race. The same rule the server enforces. */
 const deadlineOf = (race: Race): Date | null => closesAtOf(race);
 
-/** "Fri 8:00 PM" — when a race closes, in the coach's own clock. */
-function whenText(d: Date): string {
-  return d.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
-}
+
 
 /** "1h 12m", "4m 20s", "closed" — readable at a glance and at arm's length. */
 function untilText(deadline: Date, now: Date): string {
@@ -272,15 +272,26 @@ export default function DeclarePage() {
 
   // The next race to close, and the ones already closed. Each race closes on
   // its own — the girls' cutoff passing leaves the boys' races open.
+  // Only the races this school was placed in. A meet has races a school is
+  // not part of — the Elite race for a Blue school — and they are no business
+  // of this form: not a card, not a choice, not a cutoff to count down to.
+  const schoolRaces = useMemo(() => {
+    if (!data) return [] as Race[];
+    const open = schoolRaceIds(data.roster);
+    return data.races.filter((r) => open.has(r.id));
+  }, [data]);
+  const tz = useMemo(() => meetTimeZone(data?.races ?? []), [data]);
+  const whenText = useCallback((d: Date) => meetTime(d, tz), [tz]);
+
   const { soonest, closedCount } = useMemo(() => {
     if (!data) return { soonest: null as Date | null, closedCount: 0 };
-    const all = data.races.map(deadlineOf).filter((d): d is Date => d != null);
+    const all = schoolRaces.map(deadlineOf).filter((d): d is Date => d != null);
     const ahead = all.filter((d) => d.getTime() > now.getTime());
     return {
       soonest: ahead.length ? ahead.reduce((a, b) => (a < b ? a : b)) : null,
       closedCount: all.length - ahead.length,
     };
-  }, [data, now]);
+  }, [data, schoolRaces, now]);
   const raceClosed = useCallback((raceId: string | null | undefined) => {
     const race = data?.races.find((r) => r.id === raceId);
     return race ? isClosed(race, now) : false;
@@ -306,7 +317,7 @@ export default function DeclarePage() {
 
   if (!data) return null;
 
-  const allClosed = soonest == null && closedCount > 0 && closedCount === data.races.length;
+  const allClosed = soonest == null && closedCount > 0 && closedCount === schoolRaces.length;
   const urgent = soonest != null && soonest.getTime() - now.getTime() < 30 * 60_000;
 
   return (
@@ -317,9 +328,13 @@ export default function DeclarePage() {
           otherwise scroll away and stay away. */}
       <div className="bg-gray-900 border-b border-gray-800 px-4 py-4 sticky top-0 z-10 pt-[max(1rem,env(safe-area-inset-top))]">
         <div className="max-w-lg mx-auto">
-          <p className="text-xs text-gray-500 truncate">
-            {data.meetName}{data.meetDate ? ` · ${data.meetDate}` : ''}
-          </p>
+          <div className="flex items-center justify-between gap-3 mb-1.5">
+            <p className="text-xs text-gray-500 truncate">
+              {data.meetName}{data.meetDate ? ` · ${data.meetDate}` : ''}
+            </p>
+            <Image src="/PRIMETIME.png" alt="PrimeTime Timing" width={1586} height={250} priority
+              className="h-4 w-auto shrink-0 opacity-90" />
+          </div>
           <h1 className="text-xl font-bold text-white truncate">{data.teamName}</h1>
 
           {(soonest || closedCount > 0) && (
@@ -387,7 +402,7 @@ export default function DeclarePage() {
         {/* One card per race: how many are in it, and whether this school
             has closed it. Closing one leaves every other race alone. */}
         <div className="space-y-2 mb-4">
-          {data.races.map((race) => {
+          {schoolRaces.map((race) => {
             const inThis = Object.values(choices)
               .filter((c) => c.kind === 'race' && c.raceId === race.id).length;
             const isFinal = finalized.has(race.id);

@@ -171,8 +171,8 @@ export async function POST(
         if (!raceId || !raceIds.has(raceId)) { rejected.push(d.athleteId); continue; }
         // The desktop decides which races a runner may be put in; a choice
         // outside that list is refused here rather than sent home to fail.
-        const eligible = athlete.eligibleRaceIds ?? [];
-        if (eligible.length > 0 && !eligible.includes(raceId)) {
+        // An empty list means no race here is open to this runner, not "any".
+        if (Array.isArray(athlete.eligibleRaceIds) && !athlete.eligibleRaceIds.includes(raceId)) {
           rejected.push(d.athleteId);
           continue;
         }

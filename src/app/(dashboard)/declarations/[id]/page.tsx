@@ -9,7 +9,7 @@ import {
 } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/admin-auth';
-import { closesAtOf, type DeadlineRace } from '@/lib/declare-deadline';
+import { closesAtOf, meetTimeZone, meetTime, type DeadlineRace } from '@/lib/declare-deadline';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,9 +32,6 @@ const side = (g: string | undefined | null): 'M' | 'F' | 'X' => {
   return 'X';
 };
 
-function when(d: Date | null): string {
-  return d ? d.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
-}
 
 export default async function DeclarationMeetPage({ params }: { params: Promise<{ id: string }> }) {
   await requireAdmin();
@@ -45,6 +42,10 @@ export default async function DeclarationMeetPage({ params }: { params: Promise<
   if (!session) notFound();
 
   const races = JSON.parse(session.racesJson) as Race[];
+  // On the meet's clock — this page is rendered on a server in UTC, which is
+  // nobody's meet. The zone is named beside every time.
+  const tz = meetTimeZone(races);
+  const when = (d: Date | null): string => (d ? meetTime(d, tz, { month: 'short', day: 'numeric' }) : '—');
   const raceName = new Map(races.map((r) => [r.id, r.name]));
   const teams = (await db.select().from(teamDeclarationAccess)
     .where(eq(teamDeclarationAccess.meetSessionId, session.id)))

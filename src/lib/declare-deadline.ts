@@ -16,6 +16,8 @@
 
 export interface DeadlineRace {
   id: string;
+  /** The meet's time zone (IANA). Every time is shown on the meet's clock. */
+  timeZone?: string;
   /** ISO instant the race goes off. */
   scheduledTime?: string;
   /** Older desks: minutes before the start. */
@@ -34,6 +36,30 @@ export function closesAtOf(race: DeadlineRace): Date | null {
   const start = new Date(race.scheduledTime);
   if (Number.isNaN(start.getTime())) return null;
   return new Date(start.getTime() - (race.deadlineMinutes ?? 30) * 60_000);
+}
+
+/** The meet's time zone, from any race that carries it. */
+export function meetTimeZone(races: DeadlineRace[]): string | undefined {
+  const tz = races.find((r) => r.timeZone)?.timeZone;
+  if (!tz) return undefined;
+  try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return tz; } catch { return undefined; }
+}
+
+/**
+ * A moment as the meet's clock shows it, with the zone named: "Fri 8:00 PM
+ * CDT". A coach whose phone is set to another zone still reads the meet's
+ * time, and the zone name says whose it is.
+ */
+export function meetTime(d: Date, tz: string | undefined, opts: Intl.DateTimeFormatOptions = {}): string {
+  return d.toLocaleString('en-US', {
+    weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+    ...(tz ? { timeZone: tz } : {}), ...opts,
+  });
+}
+
+/** Races this school may put runners in: every race open to someone on its roster. */
+export function schoolRaceIds(roster: Array<{ eligibleRaceIds?: string[] }>): Set<string> {
+  return new Set(roster.flatMap((a) => a.eligibleRaceIds ?? []));
 }
 
 export function isClosed(race: DeadlineRace | undefined, now: Date = new Date()): boolean {
