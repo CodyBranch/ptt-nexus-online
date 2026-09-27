@@ -7,6 +7,7 @@ import {
   declarationFinalizations,
 } from '@/db/schema';
 import { and, eq } from 'drizzle-orm';
+import { isClosed, type DeadlineRace } from '@/lib/declare-deadline';
 
 /**
  * The coach's own endpoint.
@@ -107,9 +108,10 @@ export async function POST(
       id: string; eligibleRaceIds?: string[];
     }>;
     const byId = new Map(roster.map((a) => [a.id, a]));
-    const raceIds = new Set(
-      (JSON.parse(session.racesJson) as Array<{ id: string }>).map((r) => r.id),
-    );
+    const raceList = JSON.parse(session.racesJson) as DeadlineRace[];
+    const raceIds = new Set(raceList.map((r) => r.id));
+    const raceById = new Map(raceList.map((r) => [r.id, r]));
+    const now = new Date();
 
     const finalizedRows = await db.select().from(declarationFinalizations)
       .where(eq(declarationFinalizations.teamAccessId, access.id));
@@ -146,6 +148,21 @@ export async function POST(
       if (d.status === 'declared' && d.raceId && finalizedRaces.has(d.raceId)) {
         rejected.push(d.athleteId);
         continue;
+      }
+      // Past a race's cutoff its start list is set: nobody in, nobody out.
+      // The form greys these out; a tab left open past the cutoff is why the
+      // rule is also here. The meet office can still change it at the desk.
+      if (leaving && isClosed(raceById.get(leaving), now)) {
+        rejected.push(d.athleteId);
+        continue;
+      }
+      if (d.status === 'declared' && d.raceId && isClosed(raceById.get(d.raceId), now)) {
+        rejected.push(d.athleteId);
+        continue;
+      }
+      if (d.status === 'scratched' && !leaving) {
+        const open = (athlete.eligibleRaceIds ?? [...raceIds]).some((id) => !isClosed(raceById.get(id), now));
+        if (!open) { rejected.push(d.athleteId); continue; }
       }
 
       let raceId: string | null = null;

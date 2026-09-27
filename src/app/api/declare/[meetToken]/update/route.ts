@@ -18,6 +18,8 @@ interface RacePayload {
   distanceLabel?: string;
   scheduledTime?: string;
   deadlineMinutes?: number;
+  /** When declarations close for this race (ISO), worked out by the desk; null never. */
+  closesAt?: string | null;
 }
 
 interface RosterAthlete {

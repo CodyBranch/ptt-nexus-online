@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { closesAtOf, isClosed } from '@/lib/declare-deadline';
 import { useParams } from 'next/navigation';
 
 /**
@@ -35,6 +36,8 @@ interface Race {
   distanceLabel?: string;
   scheduledTime?: string;
   deadlineMinutes?: number;
+  /** The closing moment the desk worked out; null: it never closes. */
+  closesAt?: string | null;
 }
 
 interface RosterAthlete {
@@ -90,13 +93,12 @@ const GENDER_WORDS = {
 
 // ── The deadline ──────────────────────────────────────────────────────────────
 
-/** When declarations close for a race: its start, less the notice required. */
-function deadlineOf(race: Race): Date | null {
-  if (!race.scheduledTime) return null;
-  const start = new Date(race.scheduledTime);
-  if (Number.isNaN(start.getTime())) return null;
-  const minutes = race.deadlineMinutes ?? 30;
-  return new Date(start.getTime() - minutes * 60_000);
+/** When declarations close for a race. The same rule the server enforces. */
+const deadlineOf = (race: Race): Date | null => closesAtOf(race);
+
+/** "Fri 8:00 PM" — when a race closes, in the coach's own clock. */
+function whenText(d: Date): string {
+  return d.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
 }
 
 /** "1h 12m", "4m 20s", "closed" — readable at a glance and at arm's length. */
@@ -268,12 +270,21 @@ export default function DeclarePage() {
     return data.roster.filter((a) => genderSide(a.gender) === side);
   }, [data, side]);
 
-  const soonest = useMemo(() => {
-    if (!data) return null;
+  // The next race to close, and the ones already closed. Each race closes on
+  // its own — the girls' cutoff passing leaves the boys' races open.
+  const { soonest, closedCount } = useMemo(() => {
+    if (!data) return { soonest: null as Date | null, closedCount: 0 };
     const all = data.races.map(deadlineOf).filter((d): d is Date => d != null);
-    if (all.length === 0) return null;
-    return all.reduce((a, b) => (a < b ? a : b));
-  }, [data]);
+    const ahead = all.filter((d) => d.getTime() > now.getTime());
+    return {
+      soonest: ahead.length ? ahead.reduce((a, b) => (a < b ? a : b)) : null,
+      closedCount: all.length - ahead.length,
+    };
+  }, [data, now]);
+  const raceClosed = useCallback((raceId: string | null | undefined) => {
+    const race = data?.races.find((r) => r.id === raceId);
+    return race ? isClosed(race, now) : false;
+  }, [data, now]);
 
   if (loading) {
     return (
@@ -295,9 +306,8 @@ export default function DeclarePage() {
 
   if (!data) return null;
 
-  const closed = soonest != null && soonest.getTime() <= now.getTime();
-  const urgent = soonest != null && !closed
-    && soonest.getTime() - now.getTime() < 30 * 60_000;
+  const allClosed = soonest == null && closedCount > 0 && closedCount === data.races.length;
+  const urgent = soonest != null && soonest.getTime() - now.getTime() < 30 * 60_000;
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -312,17 +322,22 @@ export default function DeclarePage() {
           </p>
           <h1 className="text-xl font-bold text-white truncate">{data.teamName}</h1>
 
-          {soonest && (
+          {(soonest || closedCount > 0) && (
             <div className={`mt-2.5 rounded-lg border px-3 py-2 text-sm ${
-              closed
+              allClosed
                 ? 'bg-red-500/10 border-red-500/30 text-red-300'
                 : urgent
                   ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
                   : 'bg-blue-500/10 border-blue-500/30 text-blue-300'
             }`}>
-              {closed
+              {allClosed
                 ? 'Declarations have closed — call the meet office'
-                : <>Closes in <span className="font-bold tabular-nums">{untilText(soonest, now)}</span></>}
+                : soonest && <>Next race closes in <span className="font-bold tabular-nums">{untilText(soonest, now)}</span></>}
+              {!allClosed && closedCount > 0 && (
+                <span className="block text-xs opacity-80">
+                  {closedCount} race{closedCount === 1 ? ' has' : 's have'} closed — call the meet office to change {closedCount === 1 ? 'it' : 'them'}
+                </span>
+              )}
             </div>
           )}
 
@@ -392,6 +407,9 @@ export default function DeclarePage() {
                     <p className="text-xs text-gray-500">
                       {inThis} runner{inThis === 1 ? '' : 's'} declared
                       {isFinal && <span className="text-emerald-400"> · finalised</span>}
+                      {deadline && (past
+                        ? <span className="text-red-400"> · closed</span>
+                        : <span> · closes {whenText(deadline)}</span>)}
                     </p>
                   </div>
                   <button
@@ -424,7 +442,11 @@ export default function DeclarePage() {
             // Locked only if THIS runner is in a race that has been closed.
             // A runner left out of the closed race is untouched and can still
             // be put in a later one, which is the point of closing per race.
-            const lockedIn = choice.kind === 'race' && finalized.has(choice.raceId);
+            // Or if their race has passed its cutoff: its start list is set.
+            const lockedIn = choice.kind === 'race'
+              && (finalized.has(choice.raceId) || raceClosed(choice.raceId));
+            // Every race open to them has closed: nothing left to choose.
+            const nothingOpen = races.length > 0 && races.every((r) => raceClosed(r.id));
 
             return (
               <li
@@ -465,7 +487,7 @@ export default function DeclarePage() {
                         <button
                           key={race.id}
                           type="button"
-                          disabled={closed || lockedIn || finalized.has(race.id)}
+                          disabled={lockedIn || finalized.has(race.id) || raceClosed(race.id)}
                           aria-pressed={on}
                           onClick={() => choose(athlete.id, { kind: 'race', raceId: race.id })}
                           className={`flex-1 min-w-[8.5rem] min-h-[44px] rounded-lg border px-3 py-2.5 text-sm
@@ -480,7 +502,7 @@ export default function DeclarePage() {
                     })}
                     <button
                       type="button"
-                      disabled={closed || lockedIn}
+                      disabled={lockedIn || (choice.kind === 'none' && nothingOpen)}
                       aria-pressed={choice.kind === 'scratched'}
                       onClick={() => choose(athlete.id, { kind: 'scratched' })}
                       className={`flex-1 min-w-[8.5rem] min-h-[44px] rounded-lg border px-3 py-2.5 text-sm
