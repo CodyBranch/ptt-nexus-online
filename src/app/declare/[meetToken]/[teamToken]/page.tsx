@@ -96,6 +96,16 @@ function genderSide(value: string | null | undefined): 'M' | 'F' | null {
   return null;
 }
 
+/**
+ * A race's name without the side of the field in front — "Gold Invite 8k"
+ * for "Men's Gold Invite 8k". On a runner's own card the side goes without
+ * saying, and the full name wrapped two buttons to two lines on a phone.
+ */
+function shortRaceName(name: string): string {
+  const short = name.replace(/^(men['’]?s?|women['’]?s?|boys['’]?|girls['’]?)\s+/i, '').trim();
+  return short || name;
+}
+
 const GENDER_WORDS = {
   boys_girls: { M: 'Boys', F: 'Girls' },
   men_women: { M: 'Men', F: 'Women' },
@@ -530,6 +540,10 @@ export default function DeclarePage() {
           {visible.map((athlete) => {
             const choice = choices[athlete.id] ?? { kind: 'none' as const };
             const races = data.races.filter((r) => athlete.eligibleRaceIds.includes(r.id));
+            // Short names on the buttons, unless two would read the same.
+            const shortNames = races.map((r) => shortRaceName(r.name));
+            const labelOf = new Set(shortNames).size === shortNames.length
+              ? (r: Race) => shortRaceName(r.name) : (r: Race) => r.name;
             const rowBusy = saving[athlete.id];
             const didFail = failed[athlete.id];
             // Locked only if THIS runner is in a race that has been closed.
@@ -592,7 +606,9 @@ export default function DeclarePage() {
                           // "Men's Black Open 8k" wrapped to two lines when
                           // chosen and the whole row jumped. Chosen shows by
                           // colour and ring; "entered" is a corner tag.
+                          title={race.name}
                           className={`relative flex-1 min-w-[8.5rem] min-h-[44px] rounded-lg border px-3 py-2.5 text-sm font-medium
+                            whitespace-nowrap overflow-hidden text-ellipsis
                             touch-manipulation transition-colors disabled:opacity-40
                             ${on
                               ? 'bg-blue-600 border-blue-500 text-white ring-2 ring-blue-400/60'
@@ -600,7 +616,7 @@ export default function DeclarePage() {
                                 ? 'bg-gray-800 border-dashed border-blue-400/70 text-gray-100'
                                 : 'bg-gray-800 border-gray-700 text-gray-300 active:bg-gray-700 hover:border-gray-500'}`}
                         >
-                          {race.name}
+                          {labelOf(race)}
                           {entered && (
                             <span className="absolute top-0.5 right-1.5 text-[9px] font-medium uppercase tracking-wide text-blue-300">
                               entered
