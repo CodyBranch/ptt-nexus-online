@@ -15,16 +15,24 @@ interface RecordSetData {
   gender: string | null;
   season: string | null;
   organizationId: string | null;
+  venueId?: string | null;
+  meetSeriesId?: string | null;
   eligibilityRules: unknown;
   isPublic: boolean | null;
   notes: string | null;
 }
 
-interface Props {
-  recordSet?: RecordSetData | null;
+interface AnchorOptions {
+  venues: Array<{ id: string; name: string; state: string | null }>;
+  meetSeries: Array<{ id: string; name: string; venueId: string | null }>;
 }
 
-export default function RecordSetForm({ recordSet }: Props) {
+interface Props {
+  recordSet?: RecordSetData | null;
+  anchors: AnchorOptions;
+}
+
+export default function RecordSetForm({ recordSet, anchors }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
@@ -38,6 +46,11 @@ export default function RecordSetForm({ recordSet }: Props) {
   const [season, setSeason] = useState(recordSet?.season ?? '');
   const [isPublic, setIsPublic] = useState(recordSet?.isPublic ?? true);
   const [notes, setNotes] = useState(recordSet?.notes ?? '');
+  // What the set belongs to: a venue (course and facility records) or a meet
+  // series (meet and race records). One or the other, or neither.
+  const [anchor, setAnchor] = useState(
+    recordSet?.venueId ? `venue:${recordSet.venueId}` : recordSet?.meetSeriesId ? `series:${recordSet.meetSeriesId}` : ''
+  );
 
   // Eligibility rules — simplified for now (will build visual builder later)
   const existingRules = (recordSet?.eligibilityRules as RecordCondition[]) ?? [];
@@ -71,6 +84,8 @@ export default function RecordSetForm({ recordSet }: Props) {
       gender: gender || undefined,
       season: season || undefined,
       eligibilityRules: parsedRules,
+      venueId: anchor.startsWith('venue:') ? anchor.slice(6) : null,
+      meetSeriesId: anchor.startsWith('series:') ? anchor.slice(7) : null,
       isPublic,
       notes: notes.trim() || undefined,
     };
@@ -150,6 +165,29 @@ export default function RecordSetForm({ recordSet }: Props) {
               <option value="outdoor">Outdoor</option>
             </select>
           </div>
+        </div>
+        <div className="mt-4">
+          <label className={labelClass}>Belongs to</label>
+          <select value={anchor} onChange={(e) => setAnchor(e.target.value)} className={inputClass}>
+            <option value="">Nothing in particular (state, conference, school, national)</option>
+            {anchors.venues.length > 0 && (
+              <optgroup label="A venue: its course or facility records">
+                {anchors.venues.map((v) => (
+                  <option key={v.id} value={`venue:${v.id}`}>{v.name}{v.state ? `, ${v.state}` : ''}</option>
+                ))}
+              </optgroup>
+            )}
+            {anchors.meetSeries.length > 0 && (
+              <optgroup label="A meet series: its meet and race records">
+                {anchors.meetSeries.map((m) => (
+                  <option key={m.id} value={`series:${m.id}`}>{m.name}</option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+          <p className="mt-1 text-xs text-gray-600">
+            Venues and meet series are added under <a href="/venues" className="text-blue-400 hover:text-blue-300">Venues</a>, or by a desk saving a course.
+          </p>
         </div>
         <div className="mt-4">
           <label className="flex items-center gap-2 text-sm text-gray-400">

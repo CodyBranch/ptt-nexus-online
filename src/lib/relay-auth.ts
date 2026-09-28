@@ -22,15 +22,24 @@ import { and, eq } from 'drizzle-orm';
 const LAST_USED_STALE_MS = 5 * 60 * 1000;
 
 export async function checkRelayAuth(request: NextRequest): Promise<boolean> {
+  return (await relayAuthKey(request)) !== null;
+}
+
+/**
+ * The same check, saying which key it was: the record history logs which
+ * desk made a change. `keyId` is null for the RELAY_API_KEY override, which
+ * is not a row. Null overall = not allowed.
+ */
+export async function relayAuthKey(request: NextRequest): Promise<{ keyId: string | null } | null> {
   const auth = request.headers.get('authorization') ?? '';
-  if (!auth.startsWith('Bearer ')) return false;
+  if (!auth.startsWith('Bearer ')) return null;
 
   const provided = auth.slice(7).trim();
-  if (!provided) return false;
+  if (!provided) return null;
 
   // 1. Env var master override (allows dev without a DB key)
   const envKey = process.env.RELAY_API_KEY;
-  if (envKey && provided === envKey) return true;
+  if (envKey && provided === envKey) return { keyId: null };
 
   // 2. DB lookup — find an active key matching the provided token
   try {
@@ -42,13 +51,13 @@ export async function checkRelayAuth(request: NextRequest): Promise<boolean> {
 
     if (rows.length > 0) {
       await touch(rows[0].id, rows[0].lastUsedAt);
-      return true;
+      return { keyId: rows[0].id };
     }
   } catch {
     // DB error — fall through to deny
   }
 
-  return false;
+  return null;
 }
 
 /**

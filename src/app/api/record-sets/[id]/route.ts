@@ -6,7 +6,7 @@ import { checkRelayAuth } from '@/lib/relay-auth';
 
 const EDITABLE = [
   'name', 'abbreviation', 'description', 'scope', 'gender', 'season',
-  'organizationId', 'eligibilityRules', 'isActive', 'isPublic', 'notes',
+  'organizationId', 'venueId', 'meetSeriesId', 'eligibilityRules', 'isActive', 'isPublic', 'notes',
 ] as const;
 
 export async function GET(

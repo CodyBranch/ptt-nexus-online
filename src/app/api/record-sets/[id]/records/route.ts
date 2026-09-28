@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { records } from '@/db/schema';
 import { eq, and, SQL } from 'drizzle-orm';
-import { checkRelayAuth } from '@/lib/relay-auth';
+import { checkRelayAuth, relayAuthKey } from '@/lib/relay-auth';
+import { validateFields, findByKey, writeRecord, logChange, type RecordFields } from '@/lib/record-changes';
 
 export async function GET(
   request: NextRequest,
@@ -39,7 +40,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!await checkRelayAuth(request)) {
+  const auth = await relayAuthKey(request);
+  if (!auth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -54,27 +56,19 @@ export async function POST(
       );
     }
 
-    const result = await db
-      .insert(records)
-      .values({
-        recordSetId: id,
-        eventCode: data.eventCode,
-        gender: data.gender,
-        mark: data.mark,
-        markSortable: data.markSortable,
-        athleteName: data.athleteName || null,
-        teamName: data.teamName || null,
-        organizationId: data.organizationId || null,
-        meetName: data.meetName || null,
-        recordDate: data.recordDate || null,
-        location: data.location || null,
-        wind: data.wind ?? null,
-        notes: data.notes || null,
-        source: data.source || 'api',
-      })
-      .returning();
+    // Logged like every other change, so it can be reverted.
+    const fields: RecordFields = { ...data, recordSetId: id, source: data.source || 'api' };
+    const result = await db.transaction(async (tx) => {
+      const bad = await validateFields(tx, fields);
+      if (bad) return { status: 400, body: { error: bad } };
+      const holder = await findByKey(tx, fields);
+      if (holder) return { status: 409, body: { error: 'A record already holds that event, course and level', record: holder } };
+      const after = await writeRecord(tx, null, fields);
+      await logChange(tx, 'created', null, after, { changedBy: 'api', desktopKeyId: auth.keyId, source: 'desktop_sync' });
+      return { status: 201, body: after };
+    });
 
-    return NextResponse.json(result[0], { status: 201 });
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error('Record create error:', error);
     return NextResponse.json({ error: 'Failed to create record' }, { status: 500 });

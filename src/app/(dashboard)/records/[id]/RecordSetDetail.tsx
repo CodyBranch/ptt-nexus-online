@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useTransition, useMemo, useRef, useEffect } from 'react';
-import { createRecord, deleteRecord } from '../actions';
+import { createRecord, deleteRecord, revertRecordChange, type HistoryEntry } from '../actions';
+import { RECORD_LEVELS } from '@/types';
 
 // ═══════════════════════════════════════════════════════════
 // Mark-to-sortable conversion utilities
@@ -112,6 +113,18 @@ interface RecordView {
   wind: number | null;
   verified: boolean | null;
   source: string | null;
+  courseId: string | null;
+  level: string | null;
+  divisionKey: string | null;
+  holderNo: number;
+  carriedFromCourseId: string | null;
+}
+
+interface CourseOption {
+  id: string;
+  name: string;
+  distanceMeters: number;
+  isActive: boolean;
 }
 
 interface EventDef {
@@ -131,14 +144,61 @@ interface Props {
   recordSetId: string;
   initialRecords: RecordView[];
   eventDefinitions: EventDef[];
+  /** The venue's courses, when the set belongs to a venue or its series. */
+  courses: CourseOption[];
+  history: HistoryEntry[];
+}
+
+function levelLabel(level: string | null): string {
+  return RECORD_LEVELS.find((l) => l.value === level)?.label ?? 'Any level';
+}
+
+const KIND_LABEL: Record<string, string> = {
+  created: 'Added',
+  broken: 'Broken',
+  edited: 'Edited',
+  deleted: 'Deleted',
+  reverted: 'Reverted',
+  carried_over: 'Carried over',
+};
+
+/** What an edit changed, in words: "team, splits". */
+function changedFields(h: HistoryEntry): string {
+  if (!h.before || !h.after) return '';
+  const b = h.before, a = h.after;
+  const names: Array<[string, boolean]> = [
+    ['mark', b.mark !== a.mark],
+    ['athlete', b.athleteName !== a.athleteName],
+    ['team', b.teamName !== a.teamName],
+    ['meet', b.meetName !== a.meetName],
+    ['date', b.recordDate !== a.recordDate],
+    ['wind', b.wind !== a.wind],
+    ['course', b.courseId !== a.courseId],
+    ['level', b.level !== a.level],
+    ['race', b.divisionKey !== a.divisionKey],
+    ['notes', b.notes !== a.notes],
+    ['splits', JSON.stringify(b.splits) !== JSON.stringify(a.splits)],
+  ];
+  return names.filter(([, changed]) => changed).map(([n]) => n).join(', ');
+}
+
+function whenLabel(iso: string | null): string {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
 // ═══════════════════════════════════════════════════════════
 // Component
 // ═══════════════════════════════════════════════════════════
 
-export default function RecordSetDetail({ recordSetId, initialRecords, eventDefinitions }: Props) {
+export default function RecordSetDetail({ recordSetId, initialRecords, eventDefinitions, courses, history }: Props) {
   const [isPending, startTransition] = useTransition();
+  const [revertId, setRevertId] = useState<string | null>(null);
+  const [revertError, setRevertError] = useState('');
+  const [courseId, setCourseId] = useState('');
+  const [level, setLevel] = useState('');
+  const [divisionKey, setDivisionKey] = useState('');
+  const courseName = useMemo(() => new Map(courses.map((c) => [c.id, c.name])), [courses]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [genderFilter, setGenderFilter] = useState<string>('');
@@ -305,6 +365,9 @@ export default function RecordSetDetail({ recordSetId, initialRecords, eventDefi
           meetName: meetName.trim() || undefined,
           recordDate: recordDate || undefined,
           wind: wind ? parseFloat(wind) : undefined,
+          courseId: courseId || null,
+          level: level || null,
+          divisionKey: divisionKey.trim() || null,
         });
         // Reset form
         setEventCode('');
@@ -316,6 +379,9 @@ export default function RecordSetDetail({ recordSetId, initialRecords, eventDefi
         setMeetName('');
         setRecordDate('');
         setWind('');
+        setCourseId('');
+        setLevel('');
+        setDivisionKey('');
         setShowAddForm(false);
       } catch (err) {
         setAddError(err instanceof Error ? err.message : 'Failed to add record');
@@ -333,6 +399,7 @@ export default function RecordSetDetail({ recordSetId, initialRecords, eventDefi
       case 'RELAY': return 'Relays';
       case 'FIELD': return 'Field Events';
       case 'COMBINED': return 'Combined Events';
+      case 'XC': return 'Cross Country';
       default: return cat;
     }
   }
@@ -340,7 +407,7 @@ export default function RecordSetDetail({ recordSetId, initialRecords, eventDefi
   // Group filtered events by category for better UX
   const groupedEvents = useMemo(() => {
     const groups: { category: string; label: string; events: EventDef[] }[] = [];
-    const categoryOrder = ['STRAIGHT', 'RUN', 'RELAY', 'FIELD', 'COMBINED'];
+    const categoryOrder = ['XC', 'STRAIGHT', 'RUN', 'RELAY', 'FIELD', 'COMBINED'];
     const catMap = new Map<string, EventDef[]>();
 
     for (const ev of filteredEvents) {
@@ -559,6 +626,33 @@ export default function RecordSetDetail({ recordSetId, initialRecords, eventDefi
             </div>
           </div>
 
+          <div className="grid grid-cols-4 gap-3 mb-3">
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">Level</label>
+              <select value={level} onChange={(e) => setLevel(e.target.value)} className={inputClass}>
+                <option value="">Any level</option>
+                {RECORD_LEVELS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+              </select>
+            </div>
+            {courses.length > 0 ? (
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Course</label>
+                <select value={courseId} onChange={(e) => setCourseId(e.target.value)} className={inputClass}>
+                  <option value="">No course</option>
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}{c.isActive ? '' : ' (retired)'}</option>
+                  ))}
+                </select>
+              </div>
+            ) : <div />}
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">Race (division)</label>
+              <input type="text" value={divisionKey} onChange={(e) => setDivisionKey(e.target.value)}
+                placeholder="Gold, Open… or blank" className={inputClass} />
+            </div>
+            <div />
+          </div>
+
           <div className="grid grid-cols-4 gap-3">
             {showWind ? (
               <div>
@@ -617,6 +711,32 @@ export default function RecordSetDetail({ recordSetId, initialRecords, eventDefi
                         <span className="text-[10px] text-gray-600 ml-1.5">{record.eventCode}</span>
                       )}
                     </div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {record.courseId && (
+                        <span className="px-1.5 py-0.5 text-[10px] rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                          {courseName.get(record.courseId) ?? 'Course'}
+                        </span>
+                      )}
+                      {record.level && (
+                        <span className="px-1.5 py-0.5 text-[10px] rounded bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                          {levelLabel(record.level)}
+                        </span>
+                      )}
+                      {record.divisionKey && (
+                        <span className="px-1.5 py-0.5 text-[10px] rounded bg-gray-800 text-gray-300 border border-gray-700">
+                          {record.divisionKey}
+                        </span>
+                      )}
+                      {record.holderNo > 1 && (
+                        <span className="px-1.5 py-0.5 text-[10px] rounded bg-gray-800 text-gray-400 border border-gray-700">tie</span>
+                      )}
+                      {record.carriedFromCourseId && (
+                        <span className="px-1.5 py-0.5 text-[10px] rounded bg-amber-500/10 text-amber-300 border border-amber-500/20"
+                          title={`Set on ${courseName.get(record.carriedFromCourseId) ?? 'the previous layout'}`}>
+                          previous layout
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-400">{record.gender}</td>
                   <td className="px-4 py-3">
@@ -644,13 +764,119 @@ export default function RecordSetDetail({ recordSetId, initialRecords, eventDefi
         </table>
       </div>
 
+      {/* History */}
+      <div className="mt-8">
+        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-1">History</h2>
+        <p className="text-xs text-gray-500 mb-3">
+          Every change, newest first, whether it came from a desk or from here. Revert puts the record back as it was before that change.
+        </p>
+        {revertError && (
+          <div className="px-3 py-2 mb-3 bg-red-500/10 border border-red-500/20 rounded text-sm text-red-400">{revertError}</div>
+        )}
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          {history.length === 0 ? (
+            <div className="px-4 py-8 text-center text-sm text-gray-600">No changes yet.</div>
+          ) : (
+            <ul className="divide-y divide-gray-800/60">
+              {history.map((h) => {
+                const rec = h.after ?? h.before;
+                const event = rec ? (eventNameMap.get(rec.eventCode) ?? rec.eventCode) : 'Record';
+                const where = rec
+                  ? [rec.gender === 'M' ? 'Men' : rec.gender === 'F' ? 'Women' : rec.gender,
+                     rec.courseId ? courseName.get(rec.courseId) : null,
+                     rec.level ? levelLabel(rec.level) : null,
+                     rec.divisionKey].filter(Boolean).join(' · ')
+                  : '';
+                const kind = KIND_LABEL[h.changeKind ?? ''] ?? (h.changeKind || 'Changed');
+                return (
+                  <li key={h.id} className="px-4 py-3 flex items-start gap-4">
+                    <div className="w-28 shrink-0">
+                      <span className={`inline-block px-2 py-0.5 text-[11px] rounded-full border whitespace-nowrap ${
+                        h.changeKind === 'deleted' ? 'bg-red-500/10 text-red-300 border-red-500/20'
+                          : h.changeKind === 'reverted' ? 'bg-amber-500/10 text-amber-300 border-amber-500/20'
+                          : h.changeKind === 'broken' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
+                          : 'bg-gray-800 text-gray-300 border-gray-700'}`}>
+                        {kind}
+                      </span>
+                      <div className="text-[11px] text-gray-600 mt-1">{whenLabel(h.createdAt)}</div>
+                    </div>
+                    <div className="flex-1 min-w-0 text-sm">
+                      <div className="text-gray-200">
+                        <span className="font-medium">{event}</span>
+                        {where && <span className="text-gray-500"> · {where}</span>}
+                      </div>
+                      <div className="text-gray-400 mt-0.5 font-mono text-xs">
+                        {h.before ? `${h.before.mark} ${h.before.athleteName ?? ''}`.trim() : '(none)'}
+                        <span className="text-gray-600 mx-2">→</span>
+                        {h.after ? `${h.after.mark} ${h.after.athleteName ?? ''}`.trim() : '(removed)'}
+                      </div>
+                      <div className="text-[11px] text-gray-600 mt-0.5">
+                        {h.changedBy ?? h.source ?? ''}
+                        {h.before && h.after && changedFields(h) && (
+                          <span className="text-gray-500"> · changed {changedFields(h)}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="shrink-0">
+                      {h.legacy ? (
+                        <span className="text-[11px] text-gray-600" title="Written before full history was kept">—</span>
+                      ) : (
+                        <button
+                          onClick={() => { setRevertError(''); setRevertId(h.id); }}
+                          className="px-2.5 py-1 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 rounded-lg"
+                        >
+                          Revert
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {/* Revert confirmation */}
+      {revertId && (() => {
+        const h = history.find((x) => x.id === revertId);
+        return (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-sm w-full mx-4">
+              <h3 className="text-lg font-semibold mb-2">Revert this change?</h3>
+              <p className="text-sm text-gray-400 mb-6">
+                {h?.before
+                  ? `The record goes back to ${h.before.mark}${h.before.athleteName ? ` (${h.before.athleteName})` : ''}. Desks get it on their next pull, and the revert itself can be reverted.`
+                  : 'This record was added by that change, so reverting removes it. The removal can be reverted too.'}
+              </p>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setRevertId(null)} className="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
+                  Cancel
+                </button>
+                <button
+                  disabled={isPending}
+                  onClick={() => startTransition(async () => {
+                    const r = await revertRecordChange(revertId, recordSetId);
+                    if (!r.ok) setRevertError(r.error ?? 'Could not revert');
+                    setRevertId(null);
+                  })}
+                  className="px-4 py-2 text-sm bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {isPending ? 'Reverting…' : 'Revert'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Delete confirmation */}
       {deleteId && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-sm w-full mx-4">
             <h3 className="text-lg font-semibold mb-2">Delete Record?</h3>
             <p className="text-sm text-gray-400 mb-6">
-              This will permanently remove this record entry.
+              It stays in the history below, where it can be put back.
             </p>
             <div className="flex justify-end gap-3">
               <button

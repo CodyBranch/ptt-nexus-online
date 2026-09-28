@@ -14,12 +14,16 @@ export async function GET(request: NextRequest) {
     const scope = searchParams.get('scope');
     const season = searchParams.get('season');
     const active = searchParams.get('active');
+    const venueId = searchParams.get('venue_id');
+    const meetSeriesId = searchParams.get('meet_series_id');
 
     const conditions: SQL[] = [];
 
     if (scope) conditions.push(eq(recordSets.scope, scope));
     if (season) conditions.push(eq(recordSets.season, season));
     if (active !== 'false') conditions.push(eq(recordSets.isActive, true));
+    if (venueId) conditions.push(eq(recordSets.venueId, venueId));
+    if (meetSeriesId) conditions.push(eq(recordSets.meetSeriesId, meetSeriesId));
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -33,12 +37,14 @@ export async function GET(request: NextRequest) {
         gender: recordSets.gender,
         season: recordSets.season,
         organizationId: recordSets.organizationId,
+        venueId: recordSets.venueId,
+        meetSeriesId: recordSets.meetSeriesId,
         eligibilityRules: recordSets.eligibilityRules,
         isActive: recordSets.isActive,
         isPublic: recordSets.isPublic,
         createdAt: recordSets.createdAt,
         updatedAt: recordSets.updatedAt,
-        recordCount: sql<number>`(SELECT count(*) FROM records WHERE records.record_set_id = record_sets.id)`,
+        recordCount: sql<number>`(SELECT count(*) FROM records WHERE records.record_set_id = record_sets.id)`.mapWith(Number),
       })
       .from(recordSets)
       .where(where)
@@ -76,6 +82,8 @@ export async function POST(request: NextRequest) {
         gender: data.gender || null,
         season: data.season || null,
         organizationId: data.organizationId || null,
+        venueId: data.venueId || null,
+        meetSeriesId: data.meetSeriesId || null,
         eligibilityRules: data.eligibilityRules ?? [],
         isPublic: data.isPublic ?? true,
         notes: data.notes || null,

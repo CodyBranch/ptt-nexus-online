@@ -9,7 +9,9 @@ import {
   date,
   jsonb,
   uniqueIndex,
+  unique,
   index,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
 // ═══════════════════════════════════════════════════════════
@@ -128,6 +130,66 @@ export const eventDefinitions = pgTable('event_definitions', {
 ]);
 
 // ═══════════════════════════════════════════════════════════
+// Venues, courses, meet series
+// supabase/migrations/records_venues_courses.sql
+// ═══════════════════════════════════════════════════════════
+
+/** The place: a cross country park, a track facility. */
+export const venues = pgTable('venues', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  city: text('city'),
+  state: text('state'),
+  country: text('country').default('USA'),
+  organizationId: uuid('organization_id').references(() => organizations.id),
+  setting: text('setting'), // 'outdoor' | 'indoor' | null
+  notes: text('notes'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+/**
+ * One course layout at a venue. A reroute is a new row pointing at the one it
+ * replaced; the old row is retired, not edited, so records set on it still
+ * say which layout they were set on.
+ */
+export const courses = pgTable('courses', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  venueId: uuid('venue_id').notNull().references(() => venues.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  distanceMeters: real('distance_meters').notNull(),
+  kml: text('kml'),
+  profileJson: jsonb('profile_json'),
+  totalGainMeters: real('total_gain_meters'),
+  totalLossMeters: real('total_loss_meters'),
+  difficultyJson: jsonb('difficulty_json').notNull().default([]),
+  splitPointsJson: jsonb('split_points_json').notNull().default([]),
+  notes: text('notes'),
+  revision: integer('revision').notNull().default(1),
+  replacesCourseId: uuid('replaces_course_id').references((): AnyPgColumn => courses.id),
+  isActive: boolean('is_active').default(true),
+  updatedByKeyId: uuid('updated_by_key_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('idx_courses_venue').on(table.venueId),
+]);
+
+/** A meet as it comes round each year; what meet records belong to. */
+export const meetSeries = pgTable('meet_series', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  venueId: uuid('venue_id').references(() => venues.id),
+  organizationId: uuid('organization_id').references(() => organizations.id),
+  level: text('level'), // RecordLevel | null
+  notes: text('notes'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+// ═══════════════════════════════════════════════════════════
 // Record Sets
 // ═══════════════════════════════════════════════════════════
 
@@ -149,6 +211,12 @@ export const recordSets = pgTable('record_sets', {
   // Owning organization
   organizationId: uuid('organization_id').references(() => organizations.id),
 
+  // What the set is anchored to: a venue (venue and course records, track
+  // facility records) or a meet series (meet and race records). Both null for
+  // state, conference, school and national sets.
+  venueId: uuid('venue_id').references(() => venues.id),
+  meetSeriesId: uuid('meet_series_id').references(() => meetSeries.id),
+
   // Eligibility rules (JSON array of conditions, AND logic)
   eligibilityRules: jsonb('eligibility_rules').default([]),
 
@@ -163,6 +231,8 @@ export const recordSets = pgTable('record_sets', {
   index('idx_record_sets_scope').on(table.scope),
   index('idx_record_sets_org').on(table.organizationId),
   index('idx_record_sets_active').on(table.isActive),
+  index('idx_record_sets_venue').on(table.venueId),
+  index('idx_record_sets_series').on(table.meetSeriesId),
 ]);
 
 // ═══════════════════════════════════════════════════════════
@@ -176,6 +246,15 @@ export const records = pgTable('records', {
   // What event
   eventCode: text('event_code').notNull(),
   gender: text('gender').notNull(), // 'M' or 'F'
+
+  // Where and at what level. A venue record is pinned to a course; a college
+  // 5K is never a high school 5K record, so the level is part of the key.
+  courseId: uuid('course_id').references(() => courses.id),
+  level: text('level'), // RecordLevel | null (any level)
+  divisionKey: text('division_key'), // a race inside a meet series: 'Gold', 'Open'
+  holderNo: integer('holder_no').notNull().default(1), // 2, 3… for a tie
+  carriedFromCourseId: uuid('carried_from_course_id').references(() => courses.id),
+  revision: integer('revision').notNull().default(1),
 
   // The record itself
   mark: text('mark').notNull(), // display string: "9.58", "2:01.45", "8.95m"
@@ -209,11 +288,29 @@ export const records = pgTable('records', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => [
-  uniqueIndex('idx_records_unique').on(table.recordSetId, table.eventCode, table.gender),
+  unique('records_key_unique')
+    .on(table.recordSetId, table.eventCode, table.gender, table.courseId, table.level, table.divisionKey, table.holderNo)
+    .nullsNotDistinct(),
   index('idx_records_set').on(table.recordSetId),
+  index('idx_records_course').on(table.courseId),
+  index('idx_records_updated').on(table.updatedAt),
   index('idx_records_event').on(table.eventCode),
   index('idx_records_gender').on(table.gender),
   index('idx_records_org').on(table.organizationId),
+]);
+
+// ═══════════════════════════════════════════════════════════
+// Record Splits — the holder's splits, keyed by distance
+// ═══════════════════════════════════════════════════════════
+
+export const recordSplits = pgTable('record_splits', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  recordId: uuid('record_id').notNull().references(() => records.id, { onDelete: 'cascade' }),
+  distanceMeters: real('distance_meters').notNull(),
+  label: text('label'),
+  seconds: real('seconds').notNull(),
+}, (table) => [
+  uniqueIndex('idx_record_splits_key').on(table.recordId, table.distanceMeters),
 ]);
 
 // ═══════════════════════════════════════════════════════════
@@ -222,11 +319,23 @@ export const records = pgTable('records', {
 
 export const recordHistory = pgTable('record_history', {
   id: uuid('id').primaryKey().defaultRandom(),
-  recordId: uuid('record_id').notNull().references(() => records.id, { onDelete: 'cascade' }),
+  // Kept when the record is deleted, so the delete can be reverted.
+  recordId: uuid('record_id').references(() => records.id, { onDelete: 'set null' }),
+  recordSetId: uuid('record_set_id'),
+
+  // 'created' | 'broken' | 'edited' | 'deleted' | 'reverted' | 'carried_over'
+  changeKind: text('change_kind'),
+  // The whole record, splits included, before and after. Null before = it
+  // was created; null after = it was deleted. Reverting puts `before` back.
+  beforeJson: jsonb('before_json'),
+  afterJson: jsonb('after_json'),
+  revertedFromId: uuid('reverted_from_id').references((): AnyPgColumn => recordHistory.id),
+  desktopKeyId: uuid('desktop_key_id'),
+  changedBy: text('changed_by'),
 
   // Previous values
-  previousMark: text('previous_mark').notNull(),
-  previousMarkSortable: real('previous_mark_sortable').notNull(),
+  previousMark: text('previous_mark'),
+  previousMarkSortable: real('previous_mark_sortable'),
   previousAthleteName: text('previous_athlete_name'),
   previousTeamName: text('previous_team_name'),
   previousMeetName: text('previous_meet_name'),
@@ -234,7 +343,7 @@ export const recordHistory = pgTable('record_history', {
   previousWind: real('previous_wind'),
 
   // What replaced it
-  newMark: text('new_mark').notNull(),
+  newMark: text('new_mark'),
   newAthleteName: text('new_athlete_name'),
   brokenAtMeet: text('broken_at_meet'),
   brokenDate: date('broken_date'),
@@ -247,6 +356,7 @@ export const recordHistory = pgTable('record_history', {
 }, (table) => [
   index('idx_record_history_record').on(table.recordId),
   index('idx_record_history_date').on(table.brokenDate),
+  index('idx_record_history_set').on(table.recordSetId, table.createdAt),
 ]);
 
 // ═══════════════════════════════════════════════════════════

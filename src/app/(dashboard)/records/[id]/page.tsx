@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getRecordSet, getRecords, getEventDefinitions } from '../actions';
+import { getRecordSet, getRecords, getEventDefinitions, getRecordSetHistory, getSetCourses, getSetAnchor } from '../actions';
 import RecordSetDetail from './RecordSetDetail';
 import { RECORD_SCOPES } from '@/types';
 
@@ -22,11 +22,14 @@ export default async function RecordSetPage({ params }: PageProps) {
   }
 
   // Fetch records and event definitions in parallel
-  const [records, eventDefs] = await Promise.all([
+  const [records, eventDefs, history, setCourses, anchor] = await Promise.all([
     getRecords(id),
     getEventDefinitions(
       recordSet.season ? { venueFilter: recordSet.season } : undefined
     ),
+    getRecordSetHistory(id),
+    getSetCourses(id),
+    getSetAnchor(id),
   ]);
 
   return (
@@ -46,6 +49,14 @@ export default async function RecordSetPage({ params }: PageProps) {
             <span>{recordSet.gender === 'M' ? 'Men' : recordSet.gender === 'F' ? 'Women' : 'Both'}</span>
             <span className="text-gray-700">|</span>
             <span>{recordSet.season === 'indoor' ? 'Indoor' : recordSet.season === 'outdoor' ? 'Outdoor' : 'Both seasons'}</span>
+            {anchor && (
+              <>
+                <span className="text-gray-700">|</span>
+                <a href={anchor.href} className="text-blue-400 hover:text-blue-300">
+                  {anchor.kind === 'venue' ? 'Venue' : 'Meet series'}: {anchor.name}
+                </a>
+              </>
+            )}
           </div>
           {recordSet.description && (
             <p className="text-sm text-gray-500 mt-2">{recordSet.description}</p>
@@ -61,7 +72,13 @@ export default async function RecordSetPage({ params }: PageProps) {
         </div>
       </div>
 
-      <RecordSetDetail recordSetId={id} initialRecords={records} eventDefinitions={eventDefs} />
+      <RecordSetDetail
+        recordSetId={id}
+        initialRecords={records}
+        eventDefinitions={eventDefs}
+        courses={setCourses.map((c) => ({ ...c, isActive: c.isActive !== false }))}
+        history={history}
+      />
     </div>
   );
 }

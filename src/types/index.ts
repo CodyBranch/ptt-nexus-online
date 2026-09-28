@@ -46,6 +46,25 @@ export type RecordScope =
   | 'school'
   | 'custom';
 
+/**
+ * The level a record was set at. Part of a record's key: a college 5K is
+ * never a high school 5K record, even on the same course in the same set.
+ * Null on a record means any level (the older track sets).
+ */
+export type RecordLevel = 'high_school' | 'college' | 'middle_school' | 'youth' | 'open';
+
+export const RECORD_LEVELS: { value: RecordLevel; label: string }[] = [
+  { value: 'high_school', label: 'High school' },
+  { value: 'college', label: 'College' },
+  { value: 'middle_school', label: 'Middle school' },
+  { value: 'youth', label: 'Youth' },
+  { value: 'open', label: 'Open' },
+];
+
+export function isRecordLevel(v: unknown): v is RecordLevel {
+  return typeof v === 'string' && RECORD_LEVELS.some((l) => l.value === v);
+}
+
 export const RECORD_SCOPES: { value: RecordScope; label: string }[] = [
   { value: 'world', label: 'World' },
   { value: 'national', label: 'National' },

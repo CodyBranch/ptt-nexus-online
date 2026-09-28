@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
         id: recordSets.id,
         name: recordSets.name,
         abbreviation: recordSets.abbreviation,
-        recordCount: sql<number>`(SELECT count(*) FROM records WHERE records.record_set_id = record_sets.id)`,
+        recordCount: sql<number>`(SELECT count(*) FROM records WHERE records.record_set_id = record_sets.id)`.mapWith(Number),
         lastUpdated: recordSets.updatedAt,
       })
       .from(recordSets)
