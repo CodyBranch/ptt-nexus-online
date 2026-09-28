@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { records, recordHistory, syncLogs } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { checkRelayAuth } from '@/lib/relay-auth';
 
 export async function POST(request: NextRequest) {
+  if (!await checkRelayAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const {

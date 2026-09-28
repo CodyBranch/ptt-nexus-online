@@ -1,9 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { recordSets, records, organizations, syncLogs } from '@/db/schema';
 import { sql, eq, desc } from 'drizzle-orm';
+import { checkRelayAuth } from '@/lib/relay-auth';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!await checkRelayAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     // Get active record sets with counts
     const sets = await db

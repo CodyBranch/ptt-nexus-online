@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { eventDefinitions } from '@/db/schema';
 import { eq, SQL, and } from 'drizzle-orm';
+import { checkRelayAuth } from '@/lib/relay-auth';
 
 export async function GET(request: NextRequest) {
+  if (!await checkRelayAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const venue = searchParams.get('venue');

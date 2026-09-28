@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { recordSets } from '@/db/schema';
 import { eq, and, sql, SQL } from 'drizzle-orm';
+import { checkRelayAuth } from '@/lib/relay-auth';
 
 export async function GET(request: NextRequest) {
+  if (!await checkRelayAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const scope = searchParams.get('scope');
@@ -47,6 +52,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (!await checkRelayAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const data = await request.json();
 
