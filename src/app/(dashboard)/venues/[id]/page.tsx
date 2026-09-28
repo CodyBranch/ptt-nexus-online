@@ -53,7 +53,7 @@ export default async function VenuePage({ params }: PageProps) {
               ) : courses.map((c) => (
                 <tr key={c.id} className={`border-b border-gray-800/50 ${c.isActive ? '' : 'opacity-60'}`}>
                   <td className="px-4 py-3 text-sm">
-                    <span className="font-medium text-gray-200">{c.name}</span>
+                    <a href={`/venues/${venue.id}/courses/${c.id}`} className="font-medium text-blue-400 hover:text-blue-300">{c.name}</a>
                     {!c.isActive && <span className="ml-2 px-1.5 py-0.5 text-[10px] rounded bg-gray-800 text-gray-400 border border-gray-700">retired</span>}
                     {c.replacesCourseId && (
                       <div className="text-[11px] text-gray-500 mt-0.5">Replaces {courseName.get(c.replacesCourseId) ?? 'an earlier layout'}</div>
@@ -63,7 +63,7 @@ export default async function VenuePage({ params }: PageProps) {
                   <td className="px-4 py-3 text-xs text-gray-400">
                     {[c.hasMap ? 'map' : null,
                       c.splitPointCount ? `${c.splitPointCount} split point${c.splitPointCount === 1 ? '' : 's'}` : null,
-                      c.difficultySegmentCount ? `${c.difficultySegmentCount} difficulty segment${c.difficultySegmentCount === 1 ? '' : 's'}` : null,
+                      c.difficultySegmentCount ? `rated in ${c.difficultySegmentCount} stretch${c.difficultySegmentCount === 1 ? '' : 'es'}` : 'not rated',
                     ].filter(Boolean).join(' · ') || '-'}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-400 text-right tabular-nums">{c.revision}</td>

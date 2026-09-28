@@ -1,11 +1,11 @@
 'use server';
 
 import { db } from '@/db/client';
-import { venues, meetSeries } from '@/db/schema';
+import { venues, meetSeries, courses } from '@/db/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/admin-auth';
-import { venueDetail, cleanLevel } from '@/lib/venue-courses';
+import { venueDetail, cleanLevel, courseOut, courseRatingHistory, restoreCourseRatings } from '@/lib/venue-courses';
 
 export async function getVenues() {
   return db
@@ -70,4 +70,35 @@ export async function createMeetSeries(data: { name: string; venueId: string; le
   if (same) throw new Error('That meet series is already at this venue');
   await db.insert(meetSeries).values({ name, venueId: data.venueId, level: cleanLevel(data.level) });
   revalidatePath(`/venues/${data.venueId}`);
+}
+
+/** A course with its ratings, split points and every set of ratings it has had. */
+export async function getCourseDetail(courseId: string) {
+  const [row] = await db.select().from(courses).where(eq(courses.id, courseId)).limit(1);
+  if (!row) return null;
+  const [venue] = await db.select({ name: venues.name }).from(venues).where(eq(venues.id, row.venueId)).limit(1);
+  const replaces = row.replacesCourseId
+    ? (await db.select({ id: courses.id, name: courses.name }).from(courses).where(eq(courses.id, row.replacesCourseId)).limit(1))[0] ?? null
+    : null;
+  const [replacedBy] = await db.select({ id: courses.id, name: courses.name }).from(courses).where(eq(courses.replacesCourseId, courseId)).limit(1);
+  const out = courseOut(row);
+  return {
+    course: {
+      ...out,
+      difficulty: (out.difficulty as Array<{ fromMeters: number; toMeters: number; difficulty: number; gainMeters?: number | null; lossMeters?: number | null; surface?: string | null; notes?: string | null }>),
+      splitPoints: (out.splitPoints as Array<{ label: string; distanceMeters: number }>),
+    },
+    venueName: venue?.name ?? 'Venue',
+    replaces,
+    replacedBy: replacedBy ?? null,
+    ratingLog: await courseRatingHistory(courseId),
+  };
+}
+
+export async function restoreRatings(logId: string, courseId: string, venueId: string) {
+  const session = await requireAdmin();
+  const r = await restoreCourseRatings(logId, session.email);
+  revalidatePath(`/venues/${venueId}/courses/${courseId}`);
+  revalidatePath(`/venues/${venueId}`);
+  return r;
 }

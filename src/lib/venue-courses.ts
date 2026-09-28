@@ -1,6 +1,6 @@
 import { db } from '@/db/client';
-import { venues, courses, meetSeries, records, recordSets } from '@/db/schema';
-import { and, eq, sql } from 'drizzle-orm';
+import { venues, courses, meetSeries, records, recordSets, courseRatingLog } from '@/db/schema';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { loadSnapshot, writeRecord, fieldsOf, logChange, findByKey } from '@/lib/record-changes';
 import { isRecordLevel } from '@/types';
 
@@ -32,9 +32,114 @@ export interface CourseInput {
   difficulty?: unknown[];
   splitPoints?: Array<{ label: string; distanceMeters: number }>;
   notes?: string | null;
+  /** The meet the desk had open, for the ratings log. */
+  meetName?: string | null;
 }
 
 export type CourseRow = typeof courses.$inferSelect;
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+// ── Ratings ─────────────────────────────────────────────────────────────────
+
+export interface RatingSegment {
+  fromMeters: number;
+  toMeters: number;
+  difficulty: number;
+  gainMeters?: number | null;
+  lossMeters?: number | null;
+  surface?: string | null;
+  notes?: string | null;
+}
+
+/** Only what a rating is: stretches in order, each with a number. */
+export function cleanRatings(v: unknown): RatingSegment[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .filter((r): r is RatingSegment => !!r && Number.isFinite(r.fromMeters) && Number.isFinite(r.toMeters)
+      && Number.isFinite(r.difficulty) && r.toMeters > r.fromMeters)
+    .map((r) => ({
+      fromMeters: r.fromMeters, toMeters: r.toMeters, difficulty: r.difficulty,
+      gainMeters: r.gainMeters ?? null, lossMeters: r.lossMeters ?? null,
+      surface: r.surface ?? null, notes: r.notes ?? null,
+    }))
+    .sort((a, b) => a.fromMeters - b.fromMeters);
+}
+
+function sameRatings(a: unknown, b: unknown): boolean {
+  return JSON.stringify(cleanRatings(a)) === JSON.stringify(cleanRatings(b));
+}
+
+async function logRatings(tx: Tx, courseId: string, ratings: RatingSegment[], meta: {
+  kind?: 'saved' | 'restored'; meetName?: string | null; changedBy: string; keyId?: string | null; restoredFromId?: string | null;
+}): Promise<void> {
+  await tx.insert(courseRatingLog).values({
+    courseId,
+    difficultyJson: ratings,
+    segmentCount: ratings.length,
+    changeKind: meta.kind ?? 'saved',
+    meetName: meta.meetName ?? null,
+    changedBy: meta.changedBy,
+    desktopKeyId: meta.keyId ?? null,
+    restoredFromId: meta.restoredFromId ?? null,
+  });
+}
+
+export type RatingsResult =
+  | { status: 'saved' | 'unchanged'; revision: number; previousRevision: number }
+  | { status: 'error'; message: string; httpStatus: number };
+
+/**
+ * A desk's new ratings for a course, on their own. Ratings change as the
+ * history grows and are not a reason to ask about reroutes; the last one
+ * sent is the course's, and every earlier one stays in the log.
+ */
+export async function setCourseRatings(courseId: string, ratings: unknown, meta: {
+  meetName?: string | null; changedBy: string; keyId?: string | null;
+}): Promise<RatingsResult> {
+  const clean = cleanRatings(ratings);
+  return db.transaction(async (tx) => {
+    const [c] = await tx.select().from(courses).where(eq(courses.id, courseId)).limit(1);
+    if (!c) return { status: 'error' as const, message: 'That course is not on Nexus Online', httpStatus: 404 };
+    if (sameRatings(c.difficultyJson, clean)) return { status: 'unchanged' as const, revision: c.revision, previousRevision: c.revision };
+    const [row] = await tx.update(courses)
+      .set({ difficultyJson: clean, revision: c.revision + 1, updatedByKeyId: meta.keyId ?? null, updatedAt: new Date() })
+      .where(eq(courses.id, courseId)).returning({ revision: courses.revision });
+    await logRatings(tx, courseId, clean, meta);
+    return { status: 'saved' as const, revision: row.revision, previousRevision: c.revision };
+  });
+}
+
+export async function courseRatingHistory(courseId: string) {
+  const rows = await db.select().from(courseRatingLog)
+    .where(eq(courseRatingLog.courseId, courseId))
+    .orderBy(desc(courseRatingLog.createdAt))
+    .limit(100);
+  return rows.map((r) => ({
+    id: r.id,
+    ratings: cleanRatings(r.difficultyJson),
+    segmentCount: r.segmentCount,
+    changeKind: r.changeKind,
+    meetName: r.meetName,
+    changedBy: r.changedBy,
+    restoredFromId: r.restoredFromId,
+    createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : null,
+  }));
+}
+
+/** Put a course's ratings back to an earlier set from its log. Logged too. */
+export async function restoreCourseRatings(logId: string, changedBy: string): Promise<{ ok: boolean; error?: string; courseId?: string }> {
+  return db.transaction(async (tx) => {
+    const [entry] = await tx.select().from(courseRatingLog).where(eq(courseRatingLog.id, logId)).limit(1);
+    if (!entry) return { ok: false, error: 'That set of ratings is not in the log' };
+    const [c] = await tx.select().from(courses).where(eq(courses.id, entry.courseId)).limit(1);
+    if (!c) return { ok: false, error: 'That course is gone' };
+    const ratings = cleanRatings(entry.difficultyJson);
+    if (sameRatings(c.difficultyJson, ratings)) return { ok: false, error: 'These are the ratings it has now' };
+    await tx.update(courses).set({ difficultyJson: ratings, revision: c.revision + 1, updatedAt: new Date() }).where(eq(courses.id, c.id));
+    await logRatings(tx, c.id, ratings, { kind: 'restored', changedBy, restoredFromId: entry.id });
+    return { ok: true, courseId: c.id };
+  });
+}
 
 export function courseOut(c: CourseRow) {
   return {
@@ -111,15 +216,18 @@ export async function pushCourse(input: CourseInput, keyId: string | null, chang
       profileJson: input.profile ?? null,
       totalGainMeters: input.totalGainMeters ?? null,
       totalLossMeters: input.totalLossMeters ?? null,
-      difficultyJson: Array.isArray(input.difficulty) ? input.difficulty : [],
+      difficultyJson: cleanRatings(input.difficulty),
       splitPointsJson: cleanSplitPoints(input.splitPoints),
       notes: input.notes?.trim() || null,
       updatedByKeyId: keyId,
       updatedAt: new Date(),
     };
 
+    const ratingsMeta = { meetName: input.meetName ?? null, changedBy, keyId };
+
     if (!input.courseId) {
       const [row] = await tx.insert(courses).values(fields).returning();
+      if (fields.difficultyJson.length) await logRatings(tx, row.id, fields.difficultyJson, ratingsMeta);
       return { status: 'created' as const, course: courseOut(row), carried: 0 };
     }
 
@@ -132,11 +240,13 @@ export async function pushCourse(input: CourseInput, keyId: string | null, chang
         return { status: 'conflict' as const, course: courseOut(old), message: 'Someone changed this course on Nexus Online since this desk pulled it' };
       }
       const [row] = await tx.update(courses).set({ ...fields, revision: old.revision + 1 }).where(eq(courses.id, old.id)).returning();
+      if (!sameRatings(old.difficultyJson, fields.difficultyJson)) await logRatings(tx, row.id, fields.difficultyJson, ratingsMeta);
       return { status: 'updated' as const, course: courseOut(row), carried: 0 };
     }
 
     // A reroute: a new course, and the old one retired rather than edited.
     const [row] = await tx.insert(courses).values({ ...fields, replacesCourseId: old.id }).returning();
+    if (fields.difficultyJson.length) await logRatings(tx, row.id, fields.difficultyJson, ratingsMeta);
     await tx.update(courses).set({ isActive: false, updatedAt: new Date() }).where(eq(courses.id, old.id));
 
     let carried = 0;

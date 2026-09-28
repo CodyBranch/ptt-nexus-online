@@ -176,6 +176,25 @@ export const courses = pgTable('courses', {
   index('idx_courses_venue').on(table.venueId),
 ]);
 
+/**
+ * Every set of difficulty ratings a course has had: when, from which meet,
+ * and whether it was put back from an earlier one. Any can be restored.
+ */
+export const courseRatingLog = pgTable('course_rating_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  courseId: uuid('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  difficultyJson: jsonb('difficulty_json').notNull().default([]),
+  segmentCount: integer('segment_count').notNull().default(0),
+  changeKind: text('change_kind').notNull().default('saved'), // 'saved' | 'restored'
+  meetName: text('meet_name'),
+  changedBy: text('changed_by'),
+  desktopKeyId: uuid('desktop_key_id'),
+  restoredFromId: uuid('restored_from_id').references((): AnyPgColumn => courseRatingLog.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('idx_course_rating_log').on(table.courseId, table.createdAt),
+]);
+
 /** A meet as it comes round each year; what meet records belong to. */
 export const meetSeries = pgTable('meet_series', {
   id: uuid('id').primaryKey().defaultRandom(),

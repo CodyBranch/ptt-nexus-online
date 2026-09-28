@@ -69,6 +69,27 @@ CREATE TABLE IF NOT EXISTS "courses" (
 );
 CREATE INDEX IF NOT EXISTS "idx_courses_venue" ON "courses" USING btree ("venue_id");
 
+-- ── Course ratings, logged ─────────────────────────────────────────────────
+-- How hard each stretch of a course is: what a desk turns split times into
+-- predictions with. Re-rated as the history grows, so every set of ratings a
+-- course has had is kept, when and from which meet, and any can be put back.
+CREATE TABLE IF NOT EXISTS "course_rating_log" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  "course_id" uuid NOT NULL REFERENCES "public"."courses"("id") ON DELETE cascade,
+  -- The ratings as they became: [{fromMeters,toMeters,difficulty,...}].
+  -- Empty = the ratings were cleared.
+  "difficulty_json" jsonb DEFAULT '[]'::jsonb NOT NULL,
+  "segment_count" integer DEFAULT 0 NOT NULL,
+  -- 'saved' | 'restored'
+  "change_kind" text DEFAULT 'saved' NOT NULL,
+  "meet_name" text,
+  "changed_by" text,
+  "desktop_key_id" uuid,
+  "restored_from_id" uuid REFERENCES "public"."course_rating_log"("id"),
+  "created_at" timestamp with time zone DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "idx_course_rating_log" ON "course_rating_log" USING btree ("course_id", "created_at");
+
 -- ── Meet series ────────────────────────────────────────────────────────────
 -- A meet as it comes round each year. What meet records belong to.
 CREATE TABLE IF NOT EXISTS "meet_series" (
@@ -174,6 +195,7 @@ ALTER TABLE "venues" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "courses" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "meet_series" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "record_splits" ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON "venues", "courses", "meet_series", "record_splits" FROM anon, authenticated;
+ALTER TABLE "course_rating_log" ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON "venues", "courses", "meet_series", "record_splits", "course_rating_log" FROM anon, authenticated;
 
 COMMIT;
