@@ -149,6 +149,8 @@ td.pl{font:600 15px var(--mono);width:40px;text-align:right;color:var(--ink)}
 .histtbl td.tm{font:500 13px var(--mono)}
 .histtbl td.yr{font:500 12.5px var(--mono);white-space:nowrap}
 .histtbl td.yr small{display:block;font-size:10.5px;color:var(--muted);font-weight:400;line-height:1.25}
+/* The meet under the year wraps on a phone rather than running off it. */
+@media (max-width:640px){.histtbl td.yr{white-space:normal}.histtbl td.yr small{overflow-wrap:anywhere}}
 .histtbl tr.expandable{cursor:pointer}
 .histtbl tr.expandable .caret{display:inline-block;margin-left:6px;color:var(--muted);
   transition:transform .12s ease}
@@ -396,9 +398,22 @@ nav.views button:disabled{opacity:.4;cursor:not-allowed}
 .lnk{background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;text-align:left;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lnk:hover{text-decoration:underline}
 .lnk.b{font-weight:600}
-.athhead{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:16px;margin-bottom:12px}
-.athhead .w{flex:1 1 260px;min-width:0}
-.athhead h2{margin-bottom:4px}
+.athhead{padding:16px;margin-bottom:12px;display:grid;gap:14px}
+.athtop{display:flex;align-items:center;gap:14px}
+.athhead .w{flex:1 1 auto;min-width:0;display:grid;gap:3px}
+.athhead h2{margin:0}
+.athschool{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:500}
+.athschool .logo{flex:none}
+.athfacts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line);padding-top:12px}
+.athfacts .fact{padding:0 12px;min-width:0}
+.athfacts .fact:first-child{padding-left:0}
+.athfacts .fact + .fact{border-left:1px solid var(--line)}
+.athfacts .lab{font:600 10.5px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.athfacts .val{font:700 26px/1.1 var(--display);font-variant-numeric:tabular-nums;margin-top:3px;white-space:nowrap}
+.athfacts .sub{font-size:12px;color:var(--muted);margin-top:2px}
+.athfacts .out .val{color:var(--down)}
+.athfacts .live .sub{color:var(--brand-red)}
+@media (max-width:420px){.athfacts .val{font-size:22px}.athfacts .fact{padding:0 8px}}
 .athres{text-align:right;min-width:120px}
 .athres .big{font:700 34px/1 var(--display);font-variant-numeric:tabular-nums}
 .tmates{display:grid;gap:2px;margin-top:4px}
@@ -1068,7 +1083,10 @@ function ptsOf(k,id){
   if(official)return{n:official,firm:true};
   return live?{n:live,firm:false}:null;
 }
-function outWord(a){return a.status==="dq"?"DQ":a.status==="dns"?"DNS":a.status==="dnf"?"DNF":(a.status==="finished"||RACE.status==="live"?"":"DNF");}
+// Missing a time only means DNF once the race is over: before the gun, and
+// while it is running, nobody has stopped yet. It used to say DNF against a
+// whole start list.
+function outWord(a){return a.status==="dq"?"DQ":a.status==="dns"?"DNS":a.status==="dnf"?"DNF":(a.status==="finished"||RACE.status!=="final"?"":"DNF");}
 /**
  * Somebody who never started has no result to show.
  *
@@ -1923,27 +1941,57 @@ function renderAthlete(){
     fol.addEventListener("click",()=>{state.follow=a.id;$("#followSel").value=a.id;setView("replay");});bar.appendChild(fol);}
   host.appendChild(bar);
 
-  // identity card
+  // Who they are, then how it went: place, time and what they are worth to
+  // their team, side by side. The race's own "Final" pill used to sit on the
+  // runner's card, where it read as something about her; and the time floated
+  // to the right with the place in small print under it.
   const idc=h("div","panel athhead");
-  if(showPhotos())idc.appendChild(avatar(a,84,true));
+  const top=h("div","athtop");
+  if(showPhotos())top.appendChild(avatar(a,72,true));
   const who=h("div","w");
   who.appendChild(h("h2",null,a.name));
-  const line=h("div","row");line.style.gap="8px";
-  if(showLogos()&&a.team)line.appendChild(teamLogo(a.team,24));
-  line.appendChild(a.team?h("span","school",teamById[a.team].name):h("span",null,a.school+" (unattached)"));
-  line.appendChild(h("span","note",[a.yr,a.bib!==""?"bib "+a.bib:"",a.box?"box "+a.box:""].filter(Boolean).join(" · ")));
+  const line=h("div","athschool");
+  if(showLogos()&&a.team)line.appendChild(teamLogo(a.team,22));
+  line.appendChild(h("span",null,a.team?teamById[a.team].name:a.school+" (unattached)"));
   who.appendChild(line);
-  const st=h("div","row");st.style.marginTop="6px";st.appendChild(statusPill(RACE));
-  if(!MATS.length)st.appendChild(entryPill(a.entry));
-  who.appendChild(st);
-  idc.appendChild(who);
-  const res=h("div","athres");
-  if(ran){res.appendChild(h("div","big",fmt(a.cum[k])));
-    const worth=ptsOf(k,a.id);
-    res.appendChild(h("div","note",ord(PLACE[k][a.id])+" of "+ORDER[k].length
-      +(worth?" · "+worth.n+" team pts"+(worth.firm?"":" so far"):" · does not score")));}
-  else res.appendChild(h("div","note",MATS.length?(outWord(a)?"Did not finish":"Still on course"):"Race hasn't started"));
-  idc.appendChild(res);
+  const idl=[a.yr!==""&&a.yr!=null?"Year "+a.yr:"",a.bib!==""?"Bib "+a.bib:"",a.box?"Box "+a.box:""].filter(Boolean).join(" · ");
+  if(idl)who.appendChild(h("div","note",idl));
+  top.appendChild(who);idc.appendChild(top);
+
+  const fact=(label,value,sub,cls)=>{const f=h("div","fact"+(cls?" "+cls:""));f.appendChild(h("div","lab",label));
+    f.appendChild(h("div","val",value));if(sub)f.appendChild(h("div","sub",sub));return f;};
+  const facts=h("div","athfacts");
+  const last=(()=>{let m=null;MATS.forEach(k2=>{if(a.cum[k2]!=null)m=k2;});return m;})();
+  const out=outWord(a);
+  // Home means over the finish, not over the last mat anybody has reached:
+  // in a live race that is 2K, and a runner through it is not finished.
+  const home=a.cum[NKM]!=null&&!out;
+  // Out of the race scores nothing, whatever they held when they stopped.
+  const worth=out?null:home?ptsOf(NKM,a.id):(last!=null?ptsOf(last,a.id):null);
+  const teamFact=()=>a.team
+    ?fact("Team pts",worth?String(worth.n):"—",worth?(worth.firm?"scoring place":"so far"):"does not score")
+    :fact("Team pts","—","unattached");
+  if(home){
+    const k=NKM;
+    facts.appendChild(fact("Place",ord(PLACE[k][a.id]),"of "+ORDER[k].length));
+    facts.appendChild(fact("Time",fmt(a.cum[k]),RACE.status==="live"?"provisional":null));
+    facts.appendChild(teamFact());
+  }else if(out){
+    facts.appendChild(fact("Result",out,last!=null?"last seen at "+ML(last):null,"out"));
+    facts.appendChild(fact(last!=null?ML(last):"Time",last!=null?fmt(a.cum[last]):"—",last!=null&&PLACE[last]&&PLACE[last][a.id]?ord(PLACE[last][a.id])+" there":null));
+    facts.appendChild(teamFact());
+  }else if(last!=null){
+    // Still out there: where they were last seen, and how they stood.
+    facts.appendChild(fact("Place at "+ML(last),PLACE[last]&&PLACE[last][a.id]?ord(PLACE[last][a.id]):"—","of "+(ORDER[last]||[]).length));
+    facts.appendChild(fact("Time at "+ML(last),fmt(a.cum[last]),"on course","live"));
+    facts.appendChild(teamFact());
+  }else{
+    // Before the gun, or not yet over the first mat.
+    facts.appendChild(fact("Entry",ENTRY_LABEL[a.entry]||"Entered",null));
+    facts.appendChild(fact("Box",a.box?String(a.box):"—",null));
+    facts.appendChild(fact("Status",RACE.status==="live"?"Running":"Not started",null));
+  }
+  idc.appendChild(facts);
   host.appendChild(idc);
 
   // What this course remembers about them. Sits directly under the identity
@@ -2095,7 +2143,11 @@ function logoSrc(url){
 function teamLogo(tid,size){
   const t=teamById[tid];const w=h("span","logo");w.style.width=size+"px";w.style.height=size+"px";
   if(!t){w.style.visibility="hidden";return w;}
-  if(t.logoUrl){const im=document.createElement("img");im.src=logoSrc(t.logoUrl);im.alt="";w.appendChild(im);w.title=t.name;return w;}
+  if(t.logoUrl&&!t.logoFailed){const im=document.createElement("img");im.src=logoSrc(t.logoUrl);im.alt="";
+    // A logo that does not load becomes the school's initials, here and for
+    // the rest of the visit, rather than a blank where the badge should be.
+    im.addEventListener("error",()=>{t.logoFailed=true;const rep2=teamLogo(tid,size);w.replaceWith(rep2);},{once:true});
+    w.appendChild(im);w.title=t.name;return w;}
   const svg=el("svg",{viewBox:"0 0 32 32","aria-hidden":"true"});
   if(!t.hasLogo){ // no logo on file: initials tile
     el("rect",{x:3,y:3,width:26,height:26,rx:6,style:"fill:var(--surface-2);stroke:var(--line-strong)"},svg);
