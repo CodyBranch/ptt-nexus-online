@@ -574,7 +574,7 @@ td.pl .mvx{display:none}
   /* The athlete column takes what the others leave, and no more: without
      this a school kept on one line widened the table past the screen. */
   .results-table:not(.compiled):not(.startlist) td:nth-child(3){width:100%;max-width:0}
-  .results-table:not(.compiled) .ath .meta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .results-table:not(.compiled) .ath .meta{white-space:nowrap}
 }
 /* A team's group heading on a phone: place, logo, school and score on one
    line, the pack spread under the school. Wrapped freely it put the logo on
@@ -627,7 +627,7 @@ td.pl .mvx{display:none}
    table without a column of its own for places gained - they sit under the place. */
 .athsplits .mvx{display:none}
 @media (max-width:640px){
-  .athbar{flex-wrap:nowrap;gap:6px}
+  .athbar{display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .athbar .btn{flex:1 1 auto;min-width:0;padding:8px 6px;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .athsplits th:nth-child(5),.athsplits td.mvc{display:none}
   .athsplits .mvx{display:block;font-size:10.5px;margin-top:1px}
@@ -636,15 +636,25 @@ td.pl .mvx{display:none}
 }
 /* The start list on a phone: bib, athlete (school and year beneath), box, entry. */
 .slm{display:none}
+/* "Checked in" on one line: a pill that breaks in two is two pills to read. */
+.pill{white-space:nowrap}
+/* A long school gives way before the year and bib after it do: cut short,
+   "Ankeny Centennia…" had taken the year with it. */
+@media (max-width:640px){
+  .results-table:not(.compiled) .ath .meta{overflow:hidden;text-overflow:ellipsis}
+  .results-table .ath .meta:has(> .school){display:flex;min-width:0}
+  .results-table .ath .meta .school{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .results-table .ath .meta .rest{flex:none;white-space:pre}
+}
 @media (max-width:640px){
   .startlist .slm{display:block}
   .startlist th:nth-child(3),.startlist td:nth-child(3),.startlist th:nth-child(5),.startlist td:nth-child(5){display:none}
-  .startlist td:last-child .pill{font-size:10.5px;padding:2px 6px}
+  .startlist td:last-child .pill{font-size:10px;letter-spacing:.02em;padding:2px 6px}
   /* The athlete takes what the bib, box and entry leave; a long school runs
      out under an ellipsis rather than widening the table past the screen. */
   .startlist td:nth-child(2){width:100%;max-width:0}
   .startlist .ath > div{min-width:0}
-  .startlist .slm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .startlist .slm{white-space:nowrap}
 }
 /* ---------- A school's page ---------- */
 .tsum{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;padding:12px}
@@ -1432,7 +1442,7 @@ function renderEvents(){
       st.appendChild(lb);}
     row.appendChild(st);
     const win=h("div","who");
-    if(r.winner){if(r.photos)win.appendChild(avatarFor(r,r.winner,32));if(r.winner.team)win.appendChild(teamLogo(r.winner.team,26));const n=h("div","n");const b=h("b",null,r.winner.name);n.appendChild(b);const sp=h("span");sp.appendChild(r.winner.team&&teamById[r.winner.team]?teamLink(r.winner.team,teamById[r.winner.team].name):document.createTextNode(r.winner.school));sp.appendChild(document.createTextNode(` · ${fmt(r.winTime)}`));n.appendChild(sp);win.appendChild(n);}
+    if(r.winner){if(r.photos)win.appendChild(avatarFor(r,r.winner,32));if(r.winner.team)win.appendChild(teamLogo(r.winner.team,26));const n=h("div","n");const b=h("b",null,r.winner.name);n.appendChild(b);const sp=h("span");sp.appendChild(r.winner.team&&teamById[r.winner.team]?schoolText(r.winner.team,teamById[r.winner.team].name):document.createTextNode(r.winner.school));sp.appendChild(document.createTextNode(` · ${fmt(r.winTime)}`));n.appendChild(sp);win.appendChild(n);}
     // Nobody to name yet: a start list says so, and otherwise the space is
     // left empty rather than filled with a dash that means nothing.
     else if(r.status==="upcoming"&&r.entries){const n=h("div","n");n.appendChild(h("span",null,"Start list posted"));win.appendChild(n);}
@@ -1460,6 +1470,12 @@ function nameBtn(a,cls){const b=h("button",(cls||"")+" lnk");b.type="button";b.t
 /* A school's name that opens the school's page: their runners in every race,
    where the team stood at each mat, and who was either side of them. Plain
    text for a runner with no team to open. */
+/* A school's name where the row is about one runner: plain text. The link to
+   the school's page is kept for the places that are about the team - team
+   scores, a team's group, the schedule's leading team - and a runner's own
+   page has a button to it. A link a few pixels under the runner's name was
+   the school's page opened by a thumb aiming for the runner. */
+function schoolText(tid,label){return h("span","school",label||(tid&&teamById[tid]?teamById[tid].name:""));}
 function teamLink(tid,label){
   if(!tid)return document.createTextNode(label||"");
   const b=h("button","tlink");b.type="button";b.textContent=label||(teamById[tid]?teamById[tid].name:"");
@@ -1877,6 +1893,10 @@ function renderAthlete(){
   back.addEventListener("click",()=>setView(state.back||"results"));bar.appendChild(back);
   const cmp=h("button","btn");cmp.type="button";cmp.textContent=state.pinned[a.id]?"In compare":"Add to compare";
   cmp.addEventListener("click",()=>{togglePin(a.id,null);renderAthlete();});bar.appendChild(cmp);
+  // Their school's page: every race the school is in, and where this runner
+  // sits in the team - the question after "how did she do".
+  if(a.team){const tb=h("button","btn");tb.type="button";tb.textContent=teamById[a.team].name+" →";tb.title="See "+teamById[a.team].name+"'s meet";
+    tb.addEventListener("click",()=>openTeam(a.team));bar.appendChild(tb);}
   if(MATS.length){const fol=h("button","btn");fol.type="button";fol.textContent=state.follow===a.id?"Following in replay":"Follow in replay";
     fol.addEventListener("click",()=>{state.follow=a.id;$("#followSel").value=a.id;setView("replay");});bar.appendChild(fol);}
   host.appendChild(bar);
@@ -1888,7 +1908,7 @@ function renderAthlete(){
   who.appendChild(h("h2",null,a.name));
   const line=h("div","row");line.style.gap="8px";
   if(showLogos()&&a.team)line.appendChild(teamLogo(a.team,24));
-  line.appendChild(a.team?teamLink(a.team,teamById[a.team].name):h("span",null,a.school+" (unattached)"));
+  line.appendChild(a.team?h("span","school",teamById[a.team].name):h("span",null,a.school+" (unattached)"));
   line.appendChild(h("span","note",[a.yr,a.bib!==""?"bib "+a.bib:"",a.box?"box "+a.box:""].filter(Boolean).join(" · ")));
   who.appendChild(line);
   const st=h("div","row");st.style.marginTop="6px";st.appendChild(statusPill(RACE));
@@ -2030,7 +2050,7 @@ function teamLogo(tid,size){
 function showLogos(){return MEET.showLogos!==false;}
 function teamMark(tid,size){const w=h("span","tmark");if(showLogos())w.appendChild(teamLogo(tid,size||24));return w;}
 function showPhotos(){return !!(RACE&&RACE.photos&&MEET.showPhotos!==false);}
-function athCell(a,compact){const d=h("div","ath");const sw=h("span","team-sw");if(showPhotos()&&!compact)d.appendChild(avatar(a,30));if(showLogos()&&a.team)d.appendChild(teamLogo(a.team,compact?20:26));if(a.team&&state.teams[a.team])sw.style.background=slotColor(state.teams[a.team]);d.appendChild(sw);const w=h("div");const nmw=h("div","nm");nmw.appendChild(nameBtn(a));w.appendChild(nmw);if(compact!=="name"){const m=h("div","meta");m.appendChild(teamLink(a.team,a.school));m.appendChild(document.createTextNode(compact?` · ${a.bib}`:` · ${[a.yr,a.bib].filter(x=>x!==""&&x!=null).join(" · ")}`));w.appendChild(m);}d.appendChild(w);return d;}
+function athCell(a,compact){const d=h("div","ath");const sw=h("span","team-sw");if(showPhotos()&&!compact)d.appendChild(avatar(a,30));if(showLogos()&&a.team)d.appendChild(teamLogo(a.team,compact?20:26));if(a.team&&state.teams[a.team])sw.style.background=slotColor(state.teams[a.team]);d.appendChild(sw);const w=h("div");const nmw=h("div","nm");nmw.appendChild(nameBtn(a));w.appendChild(nmw);if(compact!=="name"){const m=h("div","meta");m.appendChild(schoolText(a.team,a.school));m.appendChild(h("span","rest",compact?` · ${a.bib}`:` · ${[a.yr,a.bib].filter(x=>x!==""&&x!=null).join(" · ")}`));w.appendChild(m);}d.appendChild(w);return d;}
 const LAYOUTS=[["table","Table"],["cards","Cards"],["teamgrp","By team"],["packs","Packs"]];
 const LNOTE={table:"The classic table, as today. Pin up to 3 athletes for Compare, or pick a team to highlight it everywhere.",
 cards:"One card per athlete. Easier to read on a phone and to drop into a broadcast overlay or social post.",
@@ -2061,7 +2081,7 @@ function renderCards(k,match,host){
     top.appendChild(h("span","plc",reached?PLACE[k][id]:outWord(a)));
     if(showPhotos())top.appendChild(avatar(a,36));else if(showLogos()&&a.team)top.appendChild(teamLogo(a.team,28));
     const who=h("div","who");const nmw=h("div","nm");nmw.appendChild(nameBtn(a));who.appendChild(nmw);
-    const m=h("div","meta");m.appendChild(teamLink(a.team,a.school));m.appendChild(document.createTextNode(` · ${a.yr} · ${a.bib}`));who.appendChild(m);
+    const m=h("div","meta");m.appendChild(schoolText(a.team,a.school));m.appendChild(document.createTextNode(` · ${a.yr} · ${a.bib}`));who.appendChild(m);
     top.appendChild(who);top.appendChild(pinBtn(id));c.appendChild(top);
     const fin=h("div","fin");
     const left=h("div","lt");
@@ -2132,7 +2152,7 @@ function podiumInto(host,k){
   if(!showPhotos()||!ORDER[k])return;
   const pod=h("div","podium");
   ORDER[k].slice(0,3).forEach(id=>{const a=byId[id];const c=h("div","pod");c.appendChild(h("div","p",PLACE[k][id]));c.appendChild(avatar(a,52));if(showLogos()&&a.team)c.appendChild(teamLogo(a.team,28));
-    const w=h("div");const nw=h("div","n");nw.appendChild(nameBtn(a));w.appendChild(nw);const m=h("div","m");m.appendChild(teamLink(a.team,a.team?teamById[a.team].name:a.school));m.appendChild(document.createTextNode(` · ${fmt(a.cum[k])}`));w.appendChild(m);c.appendChild(w);pod.appendChild(c);});
+    const w=h("div");const nw=h("div","n");nw.appendChild(nameBtn(a));w.appendChild(nw);const m=h("div","m");m.appendChild(schoolText(a.team,a.team?teamById[a.team].name:a.school));m.appendChild(document.createTextNode(` · ${fmt(a.cum[k])}`));w.appendChild(m);c.appendChild(w);pod.appendChild(c);});
   host.appendChild(pod);
 }
 const ENTRY_LABEL={declared:"Declared",entered:"Entered",scratched:"Scratched",checked_in:"Checked in"};
@@ -2181,7 +2201,7 @@ function renderStartList(match,host){
       const dec=r.teamRoster[tid].length;
       const g=h("div","tgroup");const hd=h("header");
       if(showLogos())hd.appendChild(teamLogo(tid,28));
-      hd.appendChild(h("h4",null,teamById[tid].name));
+      const h4=h("h4");h4.appendChild(teamLink(tid,teamById[tid].name));hd.appendChild(h4);
       hd.appendChild(h("span","sp","Box "+r.boxOf[tid]));
       hd.appendChild(h("span","sp",dec+" declared"+(dec<SC?" · needs "+(SC-dec)+" more to score":"")));
       if(dec<5)hd.appendChild(h("span","pill scr","Short"));
@@ -2202,8 +2222,8 @@ function renderStartList(match,host){
   r.ath.filter(keep).sort((a,b)=>a.bib-b.bib).forEach(a=>{const row=h("tr");if(a.entry==="scratched")row.style.opacity=".55";
     row.appendChild(h("td","tm",a.bib));const ac=h("td");const cell=athCell(a,"name");
     // On a phone the school and year go under the name, and their columns go.
-    const sm=h("div","meta slm");sm.appendChild(teamLink(a.team,a.team?teamById[a.team].name:a.school));
-    if(a.yr!==""&&a.yr!=null)sm.appendChild(document.createTextNode(" · "+a.yr));
+    const sm=h("div","meta slm");sm.appendChild(schoolText(a.team,a.team?teamById[a.team].name:a.school));
+    if(a.yr!==""&&a.yr!=null)sm.appendChild(h("span","rest"," · "+a.yr));
     const nmHost=cell.lastElementChild;if(nmHost)nmHost.appendChild(sm);
     ac.appendChild(cell);row.appendChild(ac);
     row.appendChild(h("td",null,a.team?teamById[a.team].name:a.school));row.appendChild(h("td","tm",a.box||"—"));row.appendChild(h("td","tm",a.yr));
