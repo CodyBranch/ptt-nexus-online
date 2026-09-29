@@ -70,6 +70,7 @@ nav.views button:focus-visible,button:focus-visible,select:focus-visible,input:f
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
 .eyebrow{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
 .eyebrow:empty{display:none}
+.loadmsg{padding:28px 4px;color:var(--muted);text-align:center}
 /* Only on the web copy, which has a list of meets to go back to. */
 .allmeets{display:inline-block;margin-bottom:6px;font-size:12px;color:var(--ink-2);text-decoration:none}
 .allmeets:hover{color:var(--ink);text-decoration:underline}
@@ -331,7 +332,18 @@ td.pl{font:600 15px var(--mono);width:40px;text-align:right;color:var(--ink)}
 .livestrip .lsline .w{font-size:12.5px;color:var(--ink-2)}
 .livestrip .lsline .rclock{font:600 13px var(--mono);color:var(--ink);font-variant-numeric:tabular-nums}
 .evwhere .rclock{font:500 12px var(--mono);color:var(--ink-2);font-variant-numeric:tabular-nums}
-@media (max-width:860px){.evrow{grid-template-columns:76px 1fr auto;gap:8px 12px}.evrow .who,.evrow .go{grid-column:2/4}}
+/* The running clock is marked as one - a red dot, the way a broadcast does -
+   so "Leader through 2K 9:40" is not read as the leader's time at 2K. */
+.rclock{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.rclock::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--brand-red);flex:none}
+.rclock:empty::before{display:none}
+@media (max-width:860px){.evrow{grid-template-columns:76px 1fr auto;gap:8px 12px}.evrow .who,.evrow .go{grid-column:2/4}
+  /* The race's progress on its own line under the name, rather than in the
+     narrow column beside it, where it squeezed the name into three lines. */
+  .evrow .st{display:contents}
+  .evrow .st .pill{grid-column:3;grid-row:1;align-self:start;justify-self:end}
+  .evrow .st .evbar,.evrow .st .evwhere{grid-column:2/4}
+  .evrow .when{grid-row:1}}
 /* ---------- Logos ---------- */
 .logo{display:inline-grid;place-items:center;flex:none;line-height:0}
 .logo svg,.logo img{width:100%;height:100%;display:block;object-fit:contain}
@@ -453,6 +465,23 @@ nav.views::-webkit-scrollbar{display:none}
   .side .panel{padding:12px}
 }
 @media (max-width:520px){.meet h1{font-size:28px}.clock{font-size:36px}nav.views button{padding:8px 12px;font-size:12.5px}.stat .val{font-size:24px}.evrow{padding:10px}}
+/* ---------- Phones: a way back, and only the tabs that go somewhere ----------
+   On a phone the schedule is a back link above the race rather than a tab: it
+   is where a thumb expects "back", and it lets the tabs that remain share the
+   width instead of scrolling it. A tab that cannot open yet is not shown at
+   all - greyed out, it needed a tooltip to explain itself, and a phone has none. */
+.backsched{display:none;margin:0 0 6px;padding:4px 0;border:0;background:none;font:500 13px var(--body);color:var(--ink-2);cursor:pointer}
+.backsched:hover{color:var(--ink)}
+@media (max-width:760px){
+  .backsched:not([hidden]){display:inline-block}
+  #tab-events{display:none}
+  nav.views button:disabled{display:none}
+  nav.views.solo{display:none}
+  nav.views button{flex:1 1 0;min-width:0;padding:9px 4px;text-align:center}
+  /* Only what can be opened, and no bar at all when that is one thing. */
+  .seg button:disabled{display:none}
+  .seg.solo{display:none}
+}
 /* ---------- A school's name, anywhere it appears, opens the school ---------- */
 .tlink{background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;text-align:left;
   text-decoration:underline;text-decoration-color:var(--line-strong);text-decoration-thickness:1px;text-underline-offset:2px}
@@ -514,6 +543,109 @@ td.pl .mvx{display:none}
   .compiled .ath .meta .tlink{white-space:nowrap}
   .compiled tbody tr:hover td:first-child,.compiled tbody tr:hover td:nth-child(3){background:var(--surface-2)}
 }
+/* ---------- Results controls on a phone ----------
+   The split bar spans the width and shrinks to fit it, so a 360px phone or a
+   meet with "Mile 2" on its mats does not push the finish off the edge. The
+   layout is a menu beside the search rather than a bar of its own: one row
+   less between the reader and the results. */
+.layoutsel{display:none}
+@media (max-width:640px){
+  #splitSeg{display:flex;width:100%}
+  #splitSeg button{flex:1 1 auto;padding:7px 4px;min-width:0}
+  #splitSeg.solo{display:none}
+  #layoutSeg{display:none}
+  #v-results.pane-team .res-bar .srow{display:none}
+  .res-bar .srow{width:100%;flex-wrap:nowrap;gap:8px}
+  .res-bar .srow .sbox{flex:1 1 auto;width:auto}
+  /* The layout's own explanation is in its panel; said again under it, on a
+     phone, it was one more screenful to scroll past. */
+  #layoutNote{display:none}
+  .layoutsel:not([hidden]){display:block;flex:0 0 auto;font:500 13px var(--body);padding:8px 8px;border:1px solid var(--line-strong);
+    border-radius:8px;background:var(--surface);color:var(--ink)}
+}
+.results-table td.tm small .lp + .gp::before{content:" · "}
+@media (max-width:640px){
+  .res-bar > .row:first-child{width:100%}
+  .results-table td.tm small .lp,.results-table td.tm small .gp{display:block}
+  .results-table td.tm small .lp + .gp::before{content:none}
+  /* The school on one line, cut short if it must: a school three lines tall
+     made every row three lines tall. Its page has the whole name. */
+  .results-table:not(.compiled) .ath > div{min-width:0}
+  /* The athlete column takes what the others leave, and no more: without
+     this a school kept on one line widened the table past the screen. */
+  .results-table:not(.compiled):not(.startlist) td:nth-child(3){width:100%;max-width:0}
+  .results-table:not(.compiled) .ath .meta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
+/* A team's group heading on a phone: place, logo, school and score on one
+   line, the pack spread under the school. Wrapped freely it put the logo on
+   its own line and the score wherever there was room. */
+@media (max-width:640px){
+  .tgroup.rg > header{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;align-items:center;gap:2px 8px}
+  .tgroup.rg > header .plc{grid-column:1;grid-row:1}
+  .tgroup.rg > header .logo{grid-column:2;grid-row:1;margin:0}
+  .tgroup.rg > header h4{grid-column:3;grid-row:1;min-width:0}
+  .tgroup.rg > header .tot{grid-column:4;grid-row:1;text-align:right;white-space:nowrap}
+  .tgroup.rg > header .sp{grid-column:3/5;grid-row:2}
+  .tgroup.rg > header .sp:empty{display:none}
+  .tgroup li{gap:8px;padding:6px 10px}
+  .tgroup li .who .meta{display:block;line-height:1.3}
+}
+/* ---------- The replay on a phone ----------
+   Loading a course file is a timing-tent tool, and "Line measures 5.00 km" is
+   a note for whoever set the course up: neither is for a phone at the fence.
+   The schools to highlight run along one row that scrolls, rather than
+   twenty-six chips wrapping into a block that pushed the running order a
+   screen further down. */
+@media (max-width:760px){
+  #kmlBtn,#sampleCourse,#lineSel,#courseInfo{display:none!important}
+  #teamChips,#teamChips2{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;margin-inline:-2px;padding-inline:2px}
+  #teamChips::-webkit-scrollbar,#teamChips2::-webkit-scrollbar{display:none}
+  #teamChips .chip,#teamChips2 .chip{flex:none}
+  /* A row that scrolls must not count its whole length as the least width it
+     needs, or it stretches the panel - and the page - to fit every chip. */
+  #teamChips,#teamChips2{min-width:0;flex:1 1 100%;max-width:100%}
+  .rp-grid,.chart-grid{grid-template-columns:minmax(0,1fr)}
+}
+/* The web copy has no course files to load either. */
+.webcopy #kmlBtn,.webcopy #sampleCourse,.webcopy #lineSel{display:none!important}
+/* Compare on a phone: one table, a column per runner, instead of a card each. */
+.cmptbl{display:none}
+@media (max-width:640px){
+  #cmpCards{display:none}
+  .cmptbl{display:block;padding:4px 0;margin-block:12px;overflow:hidden}
+  .cmptbl table{width:100%;border-collapse:collapse;table-layout:fixed}
+  .cmptbl th{font:600 12.5px var(--body);text-align:right;padding:8px 10px 6px;vertical-align:bottom;text-transform:none;letter-spacing:0;color:var(--ink)}
+  .cmptbl th:first-child{width:31%}
+  .cmptbl th .key{display:block;height:3px;border-radius:2px;margin:0 0 5px auto;width:22px}
+  .cmptbl th .nm{display:block;line-height:1.2;overflow-wrap:anywhere}
+  .cmptbl th .sc{display:block;font:500 10.5px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cmptbl td{padding:7px 10px;border-top:1px solid var(--line);font-size:12.5px}
+  .cmptbl td.l{color:var(--ink-2)}
+  .cmptbl td.v{text-align:right;font:600 13px var(--mono)}
+}
+/* A runner's page on a phone: the three buttons on one line, and the splits
+   table without a column of its own for places gained - they sit under the place. */
+.athsplits .mvx{display:none}
+@media (max-width:640px){
+  .athbar{flex-wrap:nowrap;gap:6px}
+  .athbar .btn{flex:1 1 auto;min-width:0;padding:8px 6px;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .athsplits th:nth-child(5),.athsplits td.mvc{display:none}
+  .athsplits .mvx{display:block;font-size:10.5px;margin-top:1px}
+  .athsplits .mvx.same{display:none}
+  .athsplits th,.athsplits td{padding:7px 6px}
+}
+/* The start list on a phone: bib, athlete (school and year beneath), box, entry. */
+.slm{display:none}
+@media (max-width:640px){
+  .startlist .slm{display:block}
+  .startlist th:nth-child(3),.startlist td:nth-child(3),.startlist th:nth-child(5),.startlist td:nth-child(5){display:none}
+  .startlist td:last-child .pill{font-size:10.5px;padding:2px 6px}
+  /* The athlete takes what the bib, box and entry leave; a long school runs
+     out under an ellipsis rather than widening the table past the screen. */
+  .startlist td:nth-child(2){width:100%;max-width:0}
+  .startlist .ath > div{min-width:0}
+  .startlist .slm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
 /* ---------- A school's page ---------- */
 .tsum{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;padding:12px}
 .tsum .box2{background:var(--surface-2);border-radius:8px;padding:8px 10px;min-width:0}
@@ -546,11 +678,12 @@ td.pl .mvx{display:none}
   <header class="top">
     <div class="meet">
       <a class="allmeets" id="allMeets" href="/results/xc/" hidden>&larr; All meets</a>
+      <button class="backsched" id="backSched" type="button" hidden>&lsaquo; Schedule</button>
       <div class="eyebrow" id="meetLine"></div>
       <h1 id="raceName"></h1>
       <div class="sub" id="raceSub"></div>
     </div>
-    <nav class="views" role="tablist" aria-label="View">
+    <nav class="views" role="tablist" aria-label="View" hidden>
       <button role="tab" data-view="events" id="tab-events">Events</button>
       <button role="tab" data-view="results" id="tab-results">Results</button>
       <button role="tab" data-view="replay" id="tab-replay">Replay</button>
@@ -564,32 +697,37 @@ td.pl .mvx{display:none}
   <section class="view" id="v-events">
     <div class="hdr" style="margin-top:4px">
       <h2 id="evHead"></h2>
-      <div class="sbox meetfind">
+      <div class="sbox meetfind" id="meetFind" hidden>
         <input type="search" id="meetSearch" placeholder="Search name, team or bib"
                aria-label="Find an athlete or school anywhere in the meet" autocomplete="off"
                role="combobox" aria-expanded="false" aria-controls="meetHits" aria-autocomplete="list">
         <ul class="suggest" id="meetHits" role="listbox" hidden></ul>
       </div>
     </div>
-    <div id="eventList"></div>
+    <!-- Until the meet has answered: the schedule is what opens, so it is what
+         waits. Every other view starts hidden - they used to be drawn empty,
+         one under another, and on a slow connection the first thing a phone
+         showed was an empty replay map with a clock at 0:00. -->
+    <div id="eventList"><p class="loadmsg">Loading the schedule…</p></div>
   </section>
 
   <!-- TEAM -->
-  <section class="view" id="v-team"></section>
+  <section class="view" id="v-team" hidden></section>
 
   <!-- RESULTS -->
-  <section class="view" id="v-results">
+  <section class="view" id="v-results" hidden>
     <div class="seg panesw" id="paneSeg" aria-label="Show individuals or team scores" hidden></div>
     <div class="res-bar">
       <div class="row">
         <div class="seg" id="splitSeg" aria-label="Split"></div>
         <div class="seg" id="layoutSeg" aria-label="Layout"></div>
       </div>
-      <div class="row">
+      <div class="row srow">
         <div class="sbox">
           <input type="search" id="resSearch" placeholder="Search name, team or bib" aria-label="Search the runners in this race" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="sugList" aria-autocomplete="list">
           <ul class="suggest" id="sugList" role="listbox" hidden></ul>
         </div>
+        <select id="layoutSel" class="layoutsel" aria-label="Layout"></select>
       </div>
     </div>
     <div id="liveHost"></div>
@@ -604,13 +742,13 @@ td.pl .mvx{display:none}
   </section>
 
   <!-- ATHLETE -->
-  <section class="view" id="v-athlete"></section>
+  <section class="view" id="v-athlete" hidden></section>
 
   <!-- HISTORY -->
-  <section class="view" id="v-history"></section>
+  <section class="view" id="v-history" hidden></section>
 
   <!-- REPLAY -->
-  <section class="view" id="v-replay">
+  <section class="view" id="v-replay" hidden>
     <div class="rp-grid">
       <div class="panel stage">
         <div class="clockline">
@@ -656,7 +794,7 @@ td.pl .mvx{display:none}
   </section>
 
   <!-- COMPARE -->
-  <section class="view" id="v-compare">
+  <section class="view" id="v-compare" hidden>
     <div class="panel emptyv" id="cmpEmpty" hidden></div>
     <div id="cmpBody">
     <div class="hdr" style="margin-top:4px"><h2>Head to head</h2><span class="eyebrow">up to 3 athletes</span></div>
@@ -672,10 +810,10 @@ td.pl .mvx{display:none}
   </section>
 
   <!-- TEAMS -->
-  <section class="view" id="v-teams">
+  <section class="view" id="v-teams" hidden>
     <div class="panel emptyv" id="teamsEmpty" hidden></div>
     <div id="teamsBody">
-    <div class="hdr" style="margin-top:4px"><h2>Team battle</h2><span class="eyebrow">click teams to highlight, up to 3</span></div>
+    <div class="hdr" style="margin-top:4px"><h2>Team battle</h2><span class="eyebrow" id="teamsHint">pick up to 3 teams to highlight</span></div>
     <div class="chips" id="teamChips2" style="margin-bottom:12px"></div>
     <div class="chart-grid">
       <div class="panel chart wide"><h3>Team standings at each mat</h3><p class="q">Team place if scoring stopped at that kilometer. Top 10 finishing teams shown.</p><div id="chBump"></div></div>
@@ -720,12 +858,24 @@ const API=location.pathname.replace(/\/live\/?$/,"")+"/live/api";
    middle of it. */
 let SKEW=0;
 function serverNow(){return Date.now()+SKEW;}
+/* The running clocks as the laptop last said them, raceId to seconds. Taken
+   from a header on every answer (see routes.ts): the meet document itself can
+   come out of the browser's cache, clock and all. */
+let LASTCLOCKS=null;
+function applyClocks(doc){
+  const m=FBSRC?Object.fromEntries((doc.races||[]).filter(r=>r.elapsedS!=null).map(r=>[r.id,r.elapsedS])):LASTCLOCKS;
+  if(!m)return;
+  const now=Date.now();
+  RACES.forEach(r=>{if(m[r.id]!=null){r.elapsedS=m[r.id];r.elapsedAt=now;}});
+  document.querySelectorAll(".rclock[data-race]").forEach(c=>{const r=RACES.find(x=>x.id===c.dataset.race);
+    if(r&&r.elapsedS!=null){c.dataset.elapsed=String(r.elapsedS);c.dataset.at=String(r.elapsedAt);paintClock(c);}});
+}
 /* Read from Firebase instead of the laptop, when this copy of the page was
    built for the web (window.LIVE_FIREBASE: the database and the meet). The
    same documents come back, put together from Firebase by firebase-source.js,
    so nothing below knows the difference. */
 const FBSRC=window.LIVE_FIREBASE&&window.LiveFirebase?window.LiveFirebase.createSource(window.LIVE_FIREBASE):null;
-if(FBSRC){const a=document.getElementById("allMeets");if(a)a.hidden=false;}
+if(FBSRC){const a=document.getElementById("allMeets");if(a)a.hidden=false;document.documentElement.classList.add("webcopy");}
 async function getJson(path){
   if(FBSRC)return FBSRC.get(path);
   const t0=Date.now();
@@ -733,6 +883,8 @@ async function getJson(path){
   const t1=Date.now();
   const sv=Number(res.headers.get("X-Live-Now"));
   if(Number.isFinite(sv)&&sv>0)SKEW=sv-(t0+(t1-t0)/2);
+  const ck=res.headers.get("X-Live-Clock");
+  if(path==="/meet")LASTCLOCKS=ck?Object.fromEntries(ck.split(",").map(p=>p.split("=")).map(([k,v])=>[k,Number(v)])):{};
   if(!res.ok){let msg="The results could not be reached.";try{const j=await res.json();if(j&&j.error)msg=j.error;}catch(e){}const err=new Error(msg);err.status=res.status;throw err;}
   return res.json();
 }
@@ -985,7 +1137,13 @@ function adaptRace(doc){
   const lastK=rec.length?rec[rec.length-1]:undefined;
   const fin=lastK?ORDER[lastK]:[];
   const known=Math.max(0,...ath.map(a=>a.last?a.cum[a.last]:0));
-  const tEnd=r.status==="upcoming"?60:r.status==="live"?(r.gunTime?Math.max(known,(Date.now()-r.gunTime)/1000):known+20):Math.ceil(known)+8;
+  // A live race runs to now: how long it has been going by the laptop's own
+  // count (the meet document's elapsed time, carried on by this device's
+  // stopwatch). Not now minus the gun's date and time - a meet dated a day
+  // out, or a phone whose clock is, turned a nine-minute race into 5779
+  // minutes and ran every runner off the end of the course.
+  const sm=RACES.find(x=>x.id===r.id);const el=raceElapsed(sm);
+  const tEnd=r.status==="upcoming"?60:r.status==="live"?(el!=null?Math.max(known,el):known+20):Math.ceil(known)+8;
   const boxes=(doc.boxes||[]).map(b=>({box:b.box,team:b.teamId||null,label:b.label,open:!!b.open}));
   const boxOf={};boxes.forEach(b=>{if(b.team&&boxOf[b.team]==null)boxOf[b.team]=b.box;});
   const declared=ath.filter(a=>a.entry!=="scratched");
@@ -993,7 +1151,7 @@ function adaptRace(doc){
   const teamRoster={};declared.forEach(a=>{if(a.team)(teamRoster[a.team]=teamRoster[a.team]||[]).push(a);});
   return{id:r.id,name:r.name,dist:r.distanceM,start:r.startLocal||"",status:r.status,photos:!!r.hasPhotos,gunTime:r.gunTime||null,
     scorers:r.scorers||5,displacers:r.displacers!=null?r.displacers:2,scoresTeams:r.scoresTeams!==false,noScore,
-    n,matm,matl,ath,book,MATS:rec,lastK,ORDER,PLACE,SCORE,TPLACE,FIN:fin,T_END:tEnd,recs:(doc.records||[]),
+    n,matm,matl,ath,book,MATS:rec,lastK,ORDER,PLACE,SCORE,TPLACE,FIN:fin,T_END:tEnd,recs:mergeRecords(doc.records||[]),
     declaredCount:declared.length,checkedIn,scratchCount:ath.length-declared.length,indivCount:declared.filter(a=>!a.team).length,
     boxes,boxOf,teamRoster,
     fullTeams:Object.values(teamRoster).filter(x=>x.length>=(r.scorers||5)).length,
@@ -1155,6 +1313,10 @@ function setHeader(){
     sub.appendChild(h("span",null,(RACE.date?niceDate(RACE.date)+" ":"")+RACE.start));
   }
 }
+/** A label cut to n characters, with an ellipsis when it had to be. */
+function fitText(t,n){t=String(t);return t.length<=n?t:t.slice(0,Math.max(1,n-1)).trimEnd()+"…";}
+/** "1 pt", "27 pts". */
+function ptsLabel(n){return n+(Number(n)===1?" pt":" pts");}
 function statusPill(r){const p=h("span","pill "+(r.status==="live"?"live":r.status==="final"?"final":"up"));p.textContent=r.status==="live"?"Live":r.status==="final"?"Final":"Upcoming";return p;}
 
 /* ============ View switching ============ */
@@ -1172,7 +1334,11 @@ function setTabs(){
   ["replay","compare","teams"].forEach(x=>{const b=$("#tab-"+x);b.disabled=off;b.title=off?why:"";});
   // History needs no mat to have reported - before the gun is exactly when it
   // is worth reading - so it is only off when there is nothing to read.
-  const hb=$("#tab-history");hb.disabled=!HIST;hb.title=HIST?"":"Nothing recorded here yet";}
+  const hb=$("#tab-history");hb.disabled=!HIST;hb.title=HIST?"":"Nothing recorded here yet";
+  // Results and nothing else to go to (a race not yet started, with no
+  // history): on a phone, a bar with one tab on it is not shown.
+  const open=["replay","compare","teams","history"].filter(x=>!$("#tab-"+x).disabled).length;
+  document.querySelector("nav.views").classList.toggle("solo",open===0);}
 function setView(v){
   // Nothing but Events works until an event is picked, and this gets called
   // with something else anyway: a shared or bookmarked #view=results, a stale
@@ -1189,9 +1355,14 @@ function setView(v){
   // viewer has to rule out, and on a phone they crowd out the only thing on the
   // page that does anything. It comes back the moment an event is opened, with
   // Events on it to get back here.
-  const nv=document.querySelector("nav.views");if(nv)nv.hidden=(v==="events");
-  try{history.replaceState(null,"","#view="+v);}catch(e){}if(v==="replay")drawReplay(true);if(v==="compare")renderCompare();if(v==="teams")renderTeams();if(v==="history")renderHistory();if(v==="team")renderTeam();if(v==="results")renderResults();if(v==="events")renderEvents();if(v==="athlete")renderAthlete();}
+  // A school's page is the whole meet, not the race the tabs are about, so
+  // they go there too; it has its own way back.
+  const nv=document.querySelector("nav.views");if(nv)nv.hidden=(v==="events"||v==="team");
+  const bk=$("#backSched");if(bk)bk.hidden=(v==="events");
+  const am=$("#allMeets");if(am&&FBSRC)am.hidden=(v!=="events");
+  try{history.replaceState(null,"","#view="+v);}catch(e){}if(v==="replay"){if(RACE&&MATS.length){buildMap();buildProgress();}drawReplay(true);}if(v==="compare")renderCompare();if(v==="teams")renderTeams();if(v==="history")renderHistory();if(v==="team")renderTeam();if(v==="results")renderResults();if(v==="events")renderEvents();if(v==="athlete")renderAthlete();}
 document.querySelectorAll("nav.views button[data-view]").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
+$("#backSched").addEventListener("click",()=>{setView("events");scrollTo({top:0});});
 
 // Light unless somebody says otherwise. This is read at a course in daylight,
 // so following the phone's night setting served nobody here; anyone who does
@@ -1217,7 +1388,7 @@ document.querySelectorAll("nav.views button[data-view]").forEach(b=>b.addEventLi
 
 /* ============ EVENTS ============ */
 function renderEvents(){
-  $("#evHead").textContent="Schedule";
+  $("#evHead").textContent="Schedule";$("#meetFind").hidden=false;
   const host=$("#eventList");host.replaceChildren();
   RACES.forEach(r=>{
     const row=h("button","evrow"+(RACE&&r.id===RACE.id?" cur":""));row.type="button";
@@ -1227,7 +1398,7 @@ function renderEvents(){
     ws.textContent=(MULTIDAY&&r.date?dayName(r.date)+" · ":"")+(r.dist/1000)+"K";
     w.appendChild(ws);row.appendChild(w);
     const t=h("div","ttl");t.textContent=r.name;const ts=h("small");ts.textContent=`${r.entries} entered · ${r.teamCount} teams`;t.appendChild(ts);row.appendChild(t);
-    const st=h("div");st.appendChild(statusPill(r));
+    const st=h("div","st");st.appendChild(statusPill(r));
     // A lead vehicle knows where it is every few seconds; mats know three
     // times in a 5K. Where there is one, the bar follows it - which is also
     // what fills in the first four or five minutes, when the race is under way
@@ -1250,7 +1421,7 @@ function renderEvents(){
           .filter(Boolean).join(" · ");
       }
       lb.appendChild(h("span","w",where));
-      if(r.elapsedS!=null){const c=h("span","rclock");
+      if(r.elapsedS!=null){const c=h("span","rclock");c.dataset.race=r.id;
         c.dataset.elapsed=String(r.elapsedS);c.dataset.at=String(r.elapsedAt);
         // Painted here rather than waiting for the next tick. The row is
         // rebuilt every time the meet document moves, which during a live
@@ -1262,12 +1433,14 @@ function renderEvents(){
     row.appendChild(st);
     const win=h("div","who");
     if(r.winner){if(r.photos)win.appendChild(avatarFor(r,r.winner,32));if(r.winner.team)win.appendChild(teamLogo(r.winner.team,26));const n=h("div","n");const b=h("b",null,r.winner.name);n.appendChild(b);const sp=h("span");sp.appendChild(r.winner.team&&teamById[r.winner.team]?teamLink(r.winner.team,teamById[r.winner.team].name):document.createTextNode(r.winner.school));sp.appendChild(document.createTextNode(` · ${fmt(r.winTime)}`));n.appendChild(sp);win.appendChild(n);}
-    else{const n=h("div","n");n.appendChild(h("span",null,r.status==="upcoming"?(r.entries?"Start list posted":"—"):"—"));win.appendChild(n);}
-    row.appendChild(win);
-    const tm=h("div","who");if(r.teamLead)tm.appendChild(teamLogo(r.teamLead.team,26));const n2=h("div","n");
-    if(r.teamLead){const tb=h("b");tb.appendChild(teamLink(r.teamLead.team,(teamById[r.teamLead.team]||{name:r.teamLead.name}).name));n2.appendChild(tb);const sp=h("span");sp.textContent=r.teamLead.score+" pts"+(r.status==="live"?" · projected":"");n2.appendChild(sp);}
-    else n2.appendChild(h("span",null,"—"));
-    tm.appendChild(n2);row.appendChild(tm);
+    // Nobody to name yet: a start list says so, and otherwise the space is
+    // left empty rather than filled with a dash that means nothing.
+    else if(r.status==="upcoming"&&r.entries){const n=h("div","n");n.appendChild(h("span",null,"Start list posted"));win.appendChild(n);}
+    if(win.childNodes.length)row.appendChild(win);
+    if(r.teamLead){
+      const tm=h("div","who");tm.appendChild(teamLogo(r.teamLead.team,26));const n2=h("div","n");
+      const tb=h("b");tb.appendChild(teamLink(r.teamLead.team,(teamById[r.teamLead.team]||{name:r.teamLead.name}).name));n2.appendChild(tb);const sp=h("span");sp.textContent=ptsLabel(r.teamLead.score)+(r.status==="live"?" · projected":"");n2.appendChild(sp);
+      tm.appendChild(n2);row.appendChild(tm);}
     row.appendChild(h("div","go",r.status==="upcoming"?"Start list →":r.status==="live"?"Follow live →":"Results →"));
     // Always the results. A live race used to open on the replay, which is the
     // best thing on the page and the wrong place to be put: somebody clicking a
@@ -1699,8 +1872,8 @@ function renderAthlete(){
   const host=$("#v-athlete");host.replaceChildren();
   const a=byId[state.athlete];if(!a){host.appendChild(h("p","note","Pick an athlete from the results."));return;}
   const k=LASTK, ran=MATS.length&&a.cum[k]!=null;
-  const bar=h("div","row");bar.style.margin="4px 0 12px";
-  const back=h("button","btn");back.type="button";back.textContent="← Back to "+(state.back==="replay"?"replay":state.back==="teams"?"teams":state.back==="compare"?"compare":state.back==="team"?(TEAMDOC&&TEAMDOC.name?TEAMDOC.name:"team"):state.back==="events"?"schedule":"results");
+  const bar=h("div","row athbar");bar.style.margin="4px 0 12px";
+  const back=h("button","btn");back.type="button";back.textContent="← "+(state.back==="replay"?"Replay":state.back==="teams"?"Teams":state.back==="compare"?"Compare":state.back==="team"?(TEAMDOC&&TEAMDOC.name?TEAMDOC.name:"Team"):state.back==="events"?"Schedule":"Results");
   back.addEventListener("click",()=>setView(state.back||"results"));bar.appendChild(back);
   const cmp=h("button","btn");cmp.type="button";cmp.textContent=state.pinned[a.id]?"In compare":"Add to compare";
   cmp.addEventListener("click",()=>{togglePin(a.id,null);renderAthlete();});bar.appendChild(cmp);
@@ -1749,12 +1922,12 @@ function renderAthlete(){
     const hp=halves(a,k);if(hp!=null)stats.appendChild(statTile("Second part",(hp>=0?"+":"")+hp.toFixed(1)+"s","per km vs the first part"));
     host.appendChild(stats);
     // split table
-    const panel=h("div","panel tscroll");const tb=h("table");const th=h("thead"),tr=h("tr");
+    const panel=h("div","panel tscroll");const tb=h("table");tb.className="athsplits";const th=h("thead"),tr=h("tr");
     // Their best run here, if this course remembers one, to lay today against.
     const bh=(HIST&&HIST.returning)?(HIST.returning.find(x=>x.id===a.id)||{}).best:null;
     const vsCol=bh&&bh.splits&&bh.splits.length?("vs "+(bh.year!=null?bh.year:"best here")):null;
     [
-      "Mat","Elapsed",UNI?"Km split":"Leg","Place","Move","Behind leader",
+      "Mat","Elapsed",UNI?"Km split":"Leg","Place","Move","Behind",
       ...(vsCol?[vsCol]:[]),
     ].forEach(x=>tr.appendChild(h("th",null,x)));
     th.appendChild(tr);tb.appendChild(th);const body=h("tbody");
@@ -1762,8 +1935,9 @@ function renderAthlete(){
       r.appendChild(h("td","tm",ML(m)));
       r.appendChild(h("td","tm",fmt(a.cum[m])));
       r.appendChild(h("td","tm",a.laps[m-1]!=null?fmt(a.laps[m-1]):""));
-      r.appendChild(h("td","tm",ord(PLACE[m][a.id])));
-      const mc=h("td");mc.appendChild(moveEl(a.id,m));r.appendChild(mc);
+      // The move goes under the place on a phone, and its own column goes.
+      const pc=h("td","tm",ord(PLACE[m][a.id]));const mx=moveEl(a.id,m);if(mx.textContent){const mm=mx.cloneNode(true);mm.classList.add("mvx");pc.appendChild(mm);}r.appendChild(pc);
+      const mc=h("td","mvc");mc.appendChild(mx);r.appendChild(mc);
       const lead=byId[ORDER[m][0]].cum[m];
       r.appendChild(h("td","tm",a.cum[m]>lead?fmtGap(a.cum[m]-lead):"leader"));
       if(vsCol){
@@ -1823,6 +1997,8 @@ function renderAthlete(){
 
 /* ============ RESULTS ============ */
 function segButtons(container,items,current,on){container.replaceChildren();
+  // One choice is not a choice: a phone does not show the bar (see .seg.solo).
+  container.classList.toggle("solo",items.filter(it=>!it[2]).length<=1);
   items.forEach(([val,label,off,why])=>{const b=h("button",null,label);
     b.setAttribute("aria-pressed",String(val===current));
     if(off){b.disabled=true;if(why)b.title=why;}
@@ -1856,7 +2032,7 @@ function teamMark(tid,size){const w=h("span","tmark");if(showLogos())w.appendChi
 function showPhotos(){return !!(RACE&&RACE.photos&&MEET.showPhotos!==false);}
 function athCell(a,compact){const d=h("div","ath");const sw=h("span","team-sw");if(showPhotos()&&!compact)d.appendChild(avatar(a,30));if(showLogos()&&a.team)d.appendChild(teamLogo(a.team,compact?20:26));if(a.team&&state.teams[a.team])sw.style.background=slotColor(state.teams[a.team]);d.appendChild(sw);const w=h("div");const nmw=h("div","nm");nmw.appendChild(nameBtn(a));w.appendChild(nmw);if(compact!=="name"){const m=h("div","meta");m.appendChild(teamLink(a.team,a.school));m.appendChild(document.createTextNode(compact?` · ${a.bib}`:` · ${[a.yr,a.bib].filter(x=>x!==""&&x!=null).join(" · ")}`));w.appendChild(m);}d.appendChild(w);return d;}
 const LAYOUTS=[["table","Table"],["cards","Cards"],["teamgrp","By team"],["packs","Packs"]];
-const LNOTE={table:"The classic table, as today. Pin up to 3 athletes for Compare, or click a team to highlight it everywhere.",
+const LNOTE={table:"The classic table, as today. Pin up to 3 athletes for Compare, or pick a team to highlight it everywhere.",
 cards:"One card per athlete. Easier to read on a phone and to drop into a broadcast overlay or social post.",
 teamgrp:"Results grouped by team, in scoring order. This is the coach's view: the runners who score, those who displace, and the pack spread.",
 packs:"Every athlete placed by time behind the leader, so packs and gaps in the field show up as shapes rather than numbers."};
@@ -1897,23 +2073,23 @@ function renderCards(k,match,host){
     if(reached&&a.cum[k]>lead)line1.appendChild(h("span","gap",fmtGap(a.cum[k]-lead)));
     const mv=moveEl(id,k);if(mv.textContent&&!mv.classList.contains("same"))line1.appendChild(mv);
     right.appendChild(line1);
-    {const worth=ptsOf(k,id);if(worth)right.appendChild(h("div","sub"+(worth.firm?"":" prov"),worth.n+" pts"));}
+    {const worth=ptsOf(k,id);if(worth)right.appendChild(h("div","sub"+(worth.firm?"":" prov"),ptsLabel(worth.n)));}
     fin.appendChild(right);c.appendChild(fin);
     grid.appendChild(c);});
   host.appendChild(grid);
 }
 function renderTeamGroups(k,match,host){
   SCORE[k].teams.forEach(t=>{const ids=t.ids.filter(id=>match(byId[id]));if(!ids.length&&!match({name:teamById[t.team].name,school:teamById[t.team].name,bib:"",team:t.team,yr:""}))return;
-    const g=h("div","tgroup");if(state.teams[t.team])g.style.borderColor=slotColor(state.teams[t.team]);
+    const g=h("div","tgroup rg");if(state.teams[t.team])g.style.borderColor=slotColor(state.teams[t.team]);
     const hd=h("header");hd.title="Highlight this team";hd.addEventListener("click",()=>toggleTeam(t.team,null));
     // A team still coming home has no place yet. An empty heading beats
     // "undefined.", which is what this said the moment part-way teams were
     // allowed onto the board.
-    const pl=h("span","sc");pl.textContent=t.place!=null?t.place+".":"";hd.appendChild(pl);if(showLogos())hd.appendChild(teamLogo(t.team,28));const h4=h("h4");h4.appendChild(teamLink(t.team,teamById[t.team].name));hd.appendChild(h4);
+    const pl=h("span","sc plc");pl.textContent=t.place!=null?t.place+".":"";hd.appendChild(pl);if(showLogos())hd.appendChild(teamLogo(t.team,28));const h4=h("h4");h4.appendChild(teamLink(t.team,teamById[t.team].name));hd.appendChild(h4);
     const ts=t.ids.map(id=>byId[id].cum[k]);const sp=t.spread!=null?t.spread:(ts.length>=SC?ts[SC-1]-ts[0]:null);
-    hd.appendChild(h("span","sp",sp!=null?"1–"+SC+" spread "+sp.toFixed(1)+" s":""));hd.appendChild(t.score!=null?h("span","sc",t.score+" pts")
-      :t.points!=null?h("span","sc prov",t.points+" pts so far")
-      :h("span","sc",""));g.appendChild(hd);
+    hd.appendChild(h("span","sp",sp!=null?"1–"+SC+" spread "+sp.toFixed(1)+" s":""));hd.appendChild(t.score!=null?h("span","sc tot",ptsLabel(t.score))
+      :t.points!=null?h("span","sc tot prov",t.points+" so far")
+      :h("span","sc tot",""));g.appendChild(hd);
     const ol=h("ol");t.ids.forEach((id,i)=>{const a=byId[id];const li=h("li",i>=SC?"disp":"");
       const worth=ptsOf(k,id);const pv=worth?worth.n:"";
       li.appendChild(h("span","pt"+(worth&&!worth.firm?" prov":""),pv===""?"":(i>=SC?"("+pv+")":String(pv))));
@@ -1936,11 +2112,12 @@ function renderPacks(k,match,host){
   const hd=h("div","hdr");hd.appendChild(h("h3",null,"Gaps and packs at "+(k===NKM?"the finish":ML(k))));hd.appendChild(seg);panel.appendChild(hd);
   panel.appendChild(h("p","q","Distance from the left is time behind the leader. Each dot is an athlete; a column of dots is a pack running together."));
   const W=cw(980,460),ml=8,mr=8,mt=16,W2=W-ml-mr;const maxG=Math.max(1,byId[front[front.length-1]].cum[k]-lead);
-  const bin=Math.max(0.6,maxG/70);const cols={};front.forEach(id=>{const g=byId[id].cum[k]-lead;const b=Math.floor(g/bin);(cols[b]=cols[b]||[]).push(id);});
+  // A column per dot's width: seventy of them on a phone put the dots on top of each other.
+  const bin=Math.max(0.6,maxG/Math.max(12,Math.min(70,Math.floor(W2/11))));const cols={};front.forEach(id=>{const g=byId[id].cum[k]-lead;const b=Math.floor(g/bin);(cols[b]=cols[b]||[]).push(id);});
   const maxCol=Math.max(...Object.values(cols).map(c=>c.length));const rowH=14,H=mt+Math.max(3,maxCol)*rowH+38;
   const svg=el("svg",{viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":"Gaps and packs"},panel);
   const sx=g=>ml+g/maxG*W2;
-  const ax=el("g",{class:"axis"},svg);niceTicks(0,maxG,8).forEach(v=>{el("line",{x1:sx(v),x2:sx(v),y1:mt-6,y2:H-30},ax);el("text",{x:sx(v),y:H-12,"text-anchor":v===0?"start":"middle"},ax,v===0?"leader":"+"+(v<60?v+"s":fmt(v,0)));});
+  const ax=el("g",{class:"axis"},svg);niceTicks(0,maxG,narrow()?4:8).forEach(v=>{el("line",{x1:sx(v),x2:sx(v),y1:mt-6,y2:H-30},ax);el("text",{x:sx(v),y:H-12,"text-anchor":v===0?"start":"middle"},ax,v===0?"leader":"+"+(v<60?v+"s":fmt(v,0)));});
   Object.keys(cols).forEach(b=>{const list=cols[b];list.forEach((id,i)=>{const a=byId[id];const g=a.cum[k]-lead;const sl=a.team&&state.teams[a.team];const col=sl?slotColor(sl):"var(--dot)";
     const cy=mt+i*rowH+6,cx=sx(g);
     el("circle",{cx,cy,r:sl?5:4,style:`fill:${col};stroke:var(--surface);stroke-width:1.5;opacity:${sl?1:.75}`},svg);
@@ -1948,7 +2125,7 @@ function renderPacks(k,match,host){
     hit.addEventListener("pointermove",ev=>showTip(ev,ord(PLACE[k][id])+" · "+a.school,[{v:a.name,l:a.bib},{v:fmt(a.cum[k]),l:g>0?fmtGap(g)+" back":"leader"}]));
     hit.addEventListener("pointerleave",hideTip);hit.addEventListener("click",()=>togglePin(id,null));});
     if(list.length>=4){el("text",{x:sx((+b+0.5)*bin),y:mt-2,"text-anchor":"middle",class:"lbl2"},svg,list.length);}});
-  panel.appendChild(h("p","note","A number above a column is how many athletes are in that pack. Click a dot to add that athlete to Compare."));
+  panel.appendChild(h("p","note","A number above a column is how many athletes are in that pack. "+TAP+" a dot to add that athlete to Compare."));
   host.appendChild(panel);
 }
 function podiumInto(host,k){
@@ -2019,11 +2196,16 @@ function renderStartList(match,host){
       g.appendChild(ol);host.appendChild(g);}
     return;
   }
-  const panel=h("div","panel tscroll");const tb=h("table");tb.className="results-table";const th=h("thead"),tr=h("tr");
+  const panel=h("div","panel tscroll");const tb=h("table");tb.className="results-table startlist";const th=h("thead"),tr=h("tr");
   ["Bib","Athlete","Team","Box","Yr","Entry"].forEach(x=>tr.appendChild(h("th",null,x)));th.appendChild(tr);tb.appendChild(th);
   const body=h("tbody");
   r.ath.filter(keep).sort((a,b)=>a.bib-b.bib).forEach(a=>{const row=h("tr");if(a.entry==="scratched")row.style.opacity=".55";
-    row.appendChild(h("td","tm",a.bib));const ac=h("td");ac.appendChild(athCell(a,"name"));row.appendChild(ac);
+    row.appendChild(h("td","tm",a.bib));const ac=h("td");const cell=athCell(a,"name");
+    // On a phone the school and year go under the name, and their columns go.
+    const sm=h("div","meta slm");sm.appendChild(teamLink(a.team,a.team?teamById[a.team].name:a.school));
+    if(a.yr!==""&&a.yr!=null)sm.appendChild(document.createTextNode(" · "+a.yr));
+    const nmHost=cell.lastElementChild;if(nmHost)nmHost.appendChild(sm);
+    ac.appendChild(cell);row.appendChild(ac);
     row.appendChild(h("td",null,a.team?teamById[a.team].name:a.school));row.appendChild(h("td","tm",a.box||"—"));row.appendChild(h("td","tm",a.yr));
     const ec=h("td");ec.appendChild(entryPill(a.entry));row.appendChild(ec);body.appendChild(row);});
   tb.appendChild(body);panel.appendChild(tb);host.appendChild(panel);
@@ -2160,6 +2342,22 @@ function renderBoxes(host){
 function recYear(iso){const y=(iso||"").slice(0,4);return /^\d{4}$/.test(y)?y:"";}
 /* The records this race is run against, and - once a split is picked - what
    the holder was doing when they came past that same point. */
+/* One record held twice - the course record and this race's record, by the
+   same runner in the same time - is one line, not two. On a phone the pair of
+   them, as cards and again as rows in the table, stood between the reader and
+   the winner. The labels are kept, joined; the splits come from whichever
+   copy knows more of them. */
+function mergeRecords(list){
+  const out=[];
+  list.forEach(rec=>{
+    const same=out.find(o=>Math.abs(o.seconds-rec.seconds)<0.005&&(o.who||"")===(rec.who||"")&&(o.team||"")===(rec.team||""));
+    if(!same){out.push(Object.assign({},rec));return;}
+    if(rec.label&&!(same.label||"").split(" · ").includes(rec.label))same.label=[same.label,rec.label].filter(Boolean).join(" · ");
+    if(rec.kind==="course")same.kind="course";
+    if((rec.splits||[]).length>(same.splits||[]).length)same.splits=rec.splits;
+  });
+  return out;
+}
 function renderRecords(host,k){
   host.replaceChildren();
   if(!RECS.length)return;
@@ -2277,7 +2475,7 @@ function renderLiveStrip(){
   const done=ATH.filter(a=>a.last===NKM&&a.status!=="dq").length;
   if(done)line.appendChild(h("span","lsn",done+" home"));
   if(el!=null){
-    const c=h("span","rclock");
+    const c=h("span","rclock");c.dataset.race=RACE.id;
     c.dataset.elapsed=String(RACE.elapsedS);c.dataset.at=String(RACE.elapsedAt);
     paintClock(c);line.appendChild(c);
   }
@@ -2301,11 +2499,17 @@ function renderResults(){
   const q=$("#resSearch").value.trim().toLowerCase();
   const match=a=>!q||a.name.toLowerCase().includes(q)||a.school.toLowerCase().includes(q)||String(a.bib).includes(q)||(a.team||"").toLowerCase().includes(q);
   $("#splitSeg").hidden=!NKM;$("#layoutSeg").hidden=!MATS.length;
-  segButtons($("#layoutSeg"),LAYOUTS,state.layout,v=>{state.layout=v;if(v!=="table"&&state.split==="C")state.split=LASTK;try{localStorage.setItem("xcRaceLab.layout",v);}catch(e){}renderResults();});
+  const setLayout=v=>{state.layout=v;if(v!=="table"&&state.split==="C")state.split=LASTK;try{localStorage.setItem("xcRaceLab.layout",v);}catch(e){}renderResults();};
+  segButtons($("#layoutSeg"),LAYOUTS,state.layout,setLayout);
+  // The same choice as a menu beside the search, for a phone (see .layoutsel).
+  const ls=$("#layoutSel");
+  if(!ls.options.length){LAYOUTS.forEach(([v,l])=>ls.appendChild(new Option(l,v)));ls.addEventListener("change",()=>setLayout(ls.value));}
+  ls.value=state.layout;
   $("#layoutNote").textContent=LNOTE[state.layout];
   const alt=$("#resAlt");alt.replaceChildren();$("#podiumHost").replaceChildren();
   paneSwitch(false);
-  if(!MATS.length||k==="E"){$("#layoutSeg").hidden=true;renderRecords($("#recHost"),null);renderStartList(match,alt);return;}
+  $("#layoutSel").hidden=$("#layoutSeg").hidden;
+  if(!MATS.length||k==="E"){$("#layoutSeg").hidden=true;$("#layoutSel").hidden=true;renderRecords($("#recHost"),null);renderStartList(match,alt);return;}
   if(state.layout!=="table"){
     $("#resGrid").hidden=true;alt.hidden=false;document.querySelector(".wrap").classList.remove("wide");
     const kk=state.split==="C"?6:state.split;
@@ -2360,7 +2564,9 @@ function renderResults(){
         r.appendChild(h("td","pl","—"));r.appendChild(h("td","pinc"));
         const ac=h("td");const d=h("div","ath");
         const w=h("div");
-        w.appendChild(h("div","nm",(g.rec.kind==="course"?"Course record":"Race record")+" · "+g.rec.label));
+        // The label says what the record is ("Girls course record"); a
+        // "Race record" tag in front of it contradicted a course record.
+        w.appendChild(h("div","nm",g.rec.label||"Record"));
         const meta=[g.rec.who,g.rec.team,recYear(g.rec.date)].filter(Boolean).join(" · ");
         if(meta)w.appendChild(h("div","meta",meta));
         d.appendChild(w);ac.appendChild(d);r.appendChild(ac);
@@ -2374,7 +2580,12 @@ function renderResults(){
     rows.forEach(id=>{const a=byId[id];if(!match(a))return;const r=h("tr");const reached=a.cum[k]!=null;
       if(reached)dropGhosts(a.cum[k]);
       const plc=h("td","pl",reached?PLACE[k][id]:outWord(a));r.appendChild(plc);const pc=h("td","pinc");pc.appendChild(pinBtn(id));r.appendChild(pc);const ac=h("td");ac.appendChild(athCell(a));r.appendChild(ac);
-      const tc=h("td","tm",reached?fmt(a.cum[k]):"");if(reached){const sm=h("small");const g=a.cum[k]-lead;sm.textContent=`${a.laps[k-1]!=null?fmt(a.laps[k-1]):""}${g>0?" · "+fmtGap(g):""}`;tc.appendChild(sm);}r.appendChild(tc);
+      const tc=h("td","tm",reached?fmt(a.cum[k]):"");if(reached){const sm=h("small");const g=a.cum[k]-lead;
+        // Lap and gap as two pieces, so a phone can put each on its own line
+        // rather than breaking "3:19.2 · +6.0" wherever it runs out of room.
+        if(a.laps[k-1]!=null)sm.appendChild(h("span","lp",fmt(a.laps[k-1])));
+        if(g>0)sm.appendChild(h("span","gp",fmtGap(g)));
+        tc.appendChild(sm);}r.appendChild(tc);
       const mc=h("td","mv");const pm=prevMat(k);if(reached&&pm&&PLACE[pm][id]){const d=PLACE[pm][id]-PLACE[k][id];mc.textContent=d>0?"▲ "+d:d<0?"▼ "+(-d):"–";mc.classList.add(d>0?"up":d<0?"down":"same");mc.setAttribute("aria-label",d>0?`up ${d}`:d<0?`down ${-d}`:"no change");
         // The same, under the place, for a phone that has folded the column away.
         if(d!==0){const mx=h("span","mvx "+(d>0?"up":"down"),d>0?"▲"+d:"▼"+(-d));mx.setAttribute("aria-hidden","true");plc.appendChild(mx);}}r.appendChild(mc);
@@ -2624,7 +2835,14 @@ function useBuiltin(){
     useKml(parsed,0,c.name);COURSE_SRC.builtin=true;}
   catch(e){useSample();}
 }
+/* How much bigger to draw the map's marks on a phone. The map is 1000 units
+   across whatever the screen, so on a phone every label, dot and tag came out
+   at under a third of its size - the leader's name was four pixels tall. The
+   course itself is not scaled; only what is drawn on it. */
+let MK=1;
+function mapScale(){const w=map.clientWidth;return narrow()&&w>0?Math.min(3.2,Math.max(1,850/w)):1;}
 function buildMap(){
+  MK=mapScale();
   map.replaceChildren();map.setAttribute("viewBox",`0 0 1000 ${VBH}`);
   const kml=COURSE_SRC.kind==="kml";let d;
   if(!kml){
@@ -2637,33 +2855,33 @@ function buildMap(){
   if(kml){ // scale bar + north arrow
     const u=COURSE_SRC.unitsPerM;const steps=[50,100,200,250,500,1000];const m=steps.find(s=>s*u>=90)||1000;const w=m*u;const y=VBH-22;
     el("line",{x1:20,x2:20+w,y1:y,y2:y,style:"stroke:var(--ink-2)","stroke-width":"2"},map);[20,20+w].forEach(x=>el("line",{x1:x,x2:x,y1:y-5,y2:y+5,style:"stroke:var(--ink-2)","stroke-width":"2"},map));
-    el("text",{x:20+w+8,y:y+4,class:"lbl2"},map,m>=1000?m/1000+" km":m+" m");
-    const nx=970,ny=34;el("path",{d:`M ${nx} ${ny-16} L ${nx+7} ${ny+4} L ${nx} ${ny} L ${nx-7} ${ny+4} Z`,style:"fill:var(--ink-2)"},map);el("text",{x:nx,y:ny+20,"text-anchor":"middle",class:"lbl2"},map,"N");
+    el("text",{x:20+w+8,y:y+4,class:"lbl2",style:`font-size:${11*MK}px`},map,m>=1000?m/1000+" km":m+" m");
+    const nx=970-10*(MK-1),ny=34*MK;el("path",{d:`M ${nx} ${ny-16*MK} L ${nx+7*MK} ${ny+4*MK} L ${nx} ${ny} L ${nx-7*MK} ${ny+4*MK} Z`,style:"fill:var(--ink-2)"},map);el("text",{x:nx,y:ny+20*MK,"text-anchor":"middle",class:"lbl2",style:`font-size:${11*MK}px`},map,"N");
   }
   // mats and the start, as marks along the line; two marks merge only when they are the same spot
   const [sx,sy]=posAt(0),[sx2,sy2]=posAt(20);
   const startAng=Math.atan2(sy2-sy,sx2-sx)+Math.PI/2;
   const marks=[{f:0,x:sx,y:sy,ang:startAng,side:1,labels:[],start:true}];
-  const sameSpot=(m,f,x,y)=>{const d=Math.abs(m.f-f);return Math.min(d,1-d)<0.006&&Math.hypot(m.x-x,m.y-y)<20;};
+  const sameSpot=(m,f,x,y)=>{const d=Math.abs(m.f-f);return Math.min(d,1-d)<0.006&&Math.hypot(m.x-x,m.y-y)<20*MK;};
   MATS.forEach(k=>{const f=RACE_TO_FRAC(MATM[k]);const [x,y]=posAt(MATM[k]);const [x2,y2]=posAt(MATM[k]-15);
     const ang=Math.atan2(y-y2,x-x2)+Math.PI/2;
     const label=ML(k).toUpperCase();
     const same=marks.find(m=>sameSpot(m,f,x,y));
     if(same){same.labels.push(label);return;}
     // a different point that just draws nearby puts its label on the other side of the line
-    const crowded=marks.some(m=>Math.hypot(m.x-x,m.y-y)<34);
+    const crowded=marks.some(m=>Math.hypot(m.x-x,m.y-y)<34*MK);
     marks.push({f,x,y,ang,side:crowded?-1:1,labels:[label]});});
   marks.forEach(m=>{
-    if(m.start)el("rect",{x:m.x-4,y:m.y-14,width:8,height:28,rx:2,style:"fill:var(--accent)"},map);
-    else{const dx=Math.cos(m.ang)*13,dy=Math.sin(m.ang)*13;
-      el("line",{x1:m.x-dx,y1:m.y-dy,x2:m.x+dx,y2:m.y+dy,style:"stroke:var(--ink)","stroke-width":"3","stroke-linecap":"round"},map);}
+    if(m.start)el("rect",{x:m.x-4*MK,y:m.y-14*MK,width:8*MK,height:28*MK,rx:2*MK,style:"fill:var(--accent)"},map);
+    else{const dx=Math.cos(m.ang)*13*MK,dy=Math.sin(m.ang)*13*MK;
+      el("line",{x1:m.x-dx,y1:m.y-dy,x2:m.x+dx,y2:m.y+dy,style:"stroke:var(--ink)","stroke-width":String(3*MK),"stroke-linecap":"round"},map);}
     const labels=m.start?[m.labels.includes("FINISH")?"START / FINISH":"START",...m.labels.filter(t=>t!=="FINISH")]:m.labels;
-    labels.forEach((t,i)=>{const off=m.start?42:26*m.side;
-      const lx=m.x+(m.start?0:Math.cos(m.ang)*off),ly=m.y+(m.start?off:Math.sin(m.ang)*off)+4+i*14;
-      el("text",{x:lx,y:ly,"text-anchor":"middle",class:"lbl",style:"font-size:13px;fill:var(--ink)"},map,t);});});
+    labels.forEach((t,i)=>{const off=(m.start?42:26*m.side)*MK;
+      const lx=m.x+(m.start?0:Math.cos(m.ang)*off),ly=m.y+(m.start?off:Math.sin(m.ang)*off)+(4+i*14)*MK;
+      el("text",{x:lx,y:ly,"text-anchor":"middle",class:"lbl",style:`font-size:${13*MK}px;fill:var(--ink)`},map,t);});});
   const gd=el("g",{},map);dots={};
-  ATH.forEach(a=>{const c=el("circle",{r:5.5,cx:sx,cy:sy,style:"fill:var(--dot);stroke:var(--surface);stroke-width:1.5;cursor:pointer"},gd);c.addEventListener("pointermove",ev=>{const d=distAt(a,state.t);showTip(ev,a.school,[{v:a.name,l:a.bib},{v:(d/1000).toFixed(2)+" km",l:"covered"}]);});c.addEventListener("pointerleave",hideTip);c.addEventListener("click",()=>{state.follow=a.id;$("#followSel").value=a.id;drawReplay(true);});dots[a.id]=c;});
-  folRing=el("circle",{r:11,fill:"none",style:"stroke:var(--ink);stroke-width:2.5;pointer-events:none"},map);
+  ATH.forEach(a=>{const c=el("circle",{r:5.5*MK,cx:sx,cy:sy,style:"fill:var(--dot);stroke:var(--surface);stroke-width:1.5;cursor:pointer"},gd);c.addEventListener("pointermove",ev=>{const d=distAt(a,state.t);showTip(ev,a.school,[{v:a.name,l:a.bib},{v:(d/1000).toFixed(2)+" km",l:"covered"}]);});c.addEventListener("pointerleave",hideTip);c.addEventListener("click",()=>{state.follow=a.id;$("#followSel").value=a.id;drawReplay(true);});dots[a.id]=c;});
+  folRing=el("circle",{r:11*MK,fill:"none",style:`stroke:var(--ink);stroke-width:${2.5*MK};pointer-events:none`},map);
   folLabel=el("g",{style:"pointer-events:none"},map);
   leadTag=el("g",{style:"pointer-events:none"},map);
   courseInfo();
@@ -2700,19 +2918,32 @@ function distAt(a,t){if(t<=0)return 0;const kn=a._kn||(a._kn=knots(a));
   return z[1];}
 function leadDist(t){let m=0;for(const a of ATH){const d=distAt(a,t);if(d>m)m=d;}return m;}
 function timeForLead(d){let lo=0,hi=T_END;for(let i=0;i<40;i++){const mid=(lo+hi)/2;if(leadDist(mid)>=d)hi=mid;else lo=mid;}return hi;}
-function orderAt(t){return ATH.map(a=>({a,d:distAt(a,t)})).sort((x,y)=>{const xf=lastIdx(x.a)===NKM&&x.d>=DIST,yf=lastIdx(y.a)===NKM&&y.d>=DIST;if(xf&&yf)return x.a.cum[NKM]-y.a.cum[NKM];return y.d-x.d;});}
+/* Who is where at time t, front first.
+
+   Runners at the same spot keep the order they had at the last mat they
+   crossed. That happens whenever a mat is late: everybody past the one
+   before is carried on and held just short of it, so a field of two hundred
+   can share one distance - and sorted on distance alone they came out in
+   whatever order the list was in, one school on top. */
+function orderAt(t){return ATH.map(a=>({a,d:distAt(a,t)})).sort((x,y)=>{const xf=lastIdx(x.a)===NKM&&x.d>=DIST,yf=lastIdx(y.a)===NKM&&y.d>=DIST;if(xf&&yf)return x.a.cum[NKM]-y.a.cum[NKM];
+  if(Math.abs(y.d-x.d)>=0.5)return y.d-x.d;
+  const lx=lastIdx(x.a),ly=lastIdx(y.a);if(lx!==ly)return ly-lx;
+  return (x.a.cum[lx]??Infinity)-(y.a.cum[ly]??Infinity);});}
 // progress bar
 const prog=$("#progress");let pSvg,pField=[],pLead,pFol,pFill;
-const PX0=20,PX1=980;const px=m=>PX0+(PX1-PX0)*m/DIST;
+/* Drawn 1000 wide on a desk; on a phone, at the width it is shown, so the
+   mat names under it are readable rather than three pixels tall. */
+let PW=1000,PX0=20,PX1=980;const px=m=>PX0+(PX1-PX0)*m/DIST;
 function buildProgress(){
-  prog.replaceChildren();pSvg=el("svg",{viewBox:"0 0 1000 74"},prog);
+  const pw=prog.clientWidth;PW=narrow()&&pw>0?pw:1000;PX0=PW<1000?14:20;PX1=PW-PX0;
+  prog.replaceChildren();pSvg=el("svg",{viewBox:`0 0 ${PW} 74`},prog);
   el("rect",{x:PX0,y:34,width:PX1-PX0,height:10,rx:5,style:"fill:var(--surface-2);stroke:var(--line)"},pSvg);
   pFill=el("rect",{x:PX0,y:34,width:0,height:10,rx:5,style:"fill:var(--accent);opacity:.28"},pSvg);
   const gf=el("g",{},pSvg);pField=ATH.map(()=>el("line",{y1:31,y2:47,style:"stroke:var(--ink);stroke-width:1.2;opacity:.28"},gf));
   [0,...MATS].forEach(k=>{const x=px(MATM[k]);el("line",{x1:x,x2:x,y1:48,y2:56,style:"stroke:var(--muted)"},pSvg);el("text",{x,y:69,"text-anchor":"middle",class:"lbl2"},pSvg,k===0?"0":(k===NKM?"Fin":ML(k)));});
   pFol=el("g",{},pSvg);el("circle",{r:5,cy:39,style:"fill:var(--surface);stroke:var(--ink);stroke-width:2"},pFol);
   pLead=el("g",{},pSvg);el("path",{d:"M -7 14 L 7 14 L 0 26 Z",style:"fill:var(--ink)"},pLead);pLead._t=el("text",{y:9,"text-anchor":"middle",class:"lbl",style:"font-size:12px"},pLead,"");
-  let drag=false;const go=ev=>{const r=pSvg.getBoundingClientRect();const x=(ev.clientX-r.left)/r.width*1000;const m=Math.max(0,Math.min(DIST,(x-PX0)/(PX1-PX0)*DIST));state.t=timeForLead(m);state.playing=false;drawReplay(true);};
+  let drag=false;const go=ev=>{const r=pSvg.getBoundingClientRect();const x=(ev.clientX-r.left)/r.width*PW;const m=Math.max(0,Math.min(DIST,(x-PX0)/(PX1-PX0)*DIST));state.t=timeForLead(m);state.playing=false;drawReplay(true);};
   prog.addEventListener("pointerdown",ev=>{drag=true;prog.setPointerCapture(ev.pointerId);go(ev);});prog.addEventListener("pointermove",ev=>{if(drag)go(ev);});prog.addEventListener("pointerup",()=>drag=false);
 }
 function teamDotColor(a){const s=a.team&&state.teams[a.team];return s?slotColor(s):null;}
@@ -2724,7 +2955,7 @@ function drawReplay(forceLB){
   ATH.forEach((a,i)=>{const d=distAt(a,t);if(d>ld){ld=d;lead=a;}
     const [x,y]=posAt(d);const c=dots[a.id];c.setAttribute("cx",x.toFixed(1));c.setAttribute("cy",y.toFixed(1));
     const col=teamDotColor(a);const li=lastIdx(a);const done=(li===NKM&&d>=DIST)||(li<NKM&&!stillOut(a)&&t>a.cum[li]);
-    c.style.fill=col||"var(--dot)";c.setAttribute("r",col?6.5:5.5);
+    c.style.fill=col||"var(--dot)";c.setAttribute("r",(col?6.5:5.5)*MK);
     c.style.opacity=done?(a.last<NKM?0.12:0.25):(anySel&&state.dim&&!col?0.35:1);
     pField[i].setAttribute("x1",px(d));pField[i].setAttribute("x2",px(d));pField[i].style.opacity=done?0:0.28;
   });
@@ -2733,12 +2964,12 @@ function drawReplay(forceLB){
   // follow
   folLabel.replaceChildren();
   if(state.follow){const a=byId[state.follow];const d=distAt(a,t);const [x,y]=posAt(d);folRing.setAttribute("cx",x);folRing.setAttribute("cy",y);folRing.style.display="";dots[a.id].parentNode.appendChild(dots[a.id]);
-    const o=orderAt(t);const pl=o.findIndex(r=>r.a.id===a.id)+1;const txt=`${a.name} · ${ord(pl)}`;const w=txt.length*7.4+16;const lx=Math.min(1000-w-4,Math.max(4,x+14)),ly=y<60?y+18:y-30;
-    el("rect",{x:lx,y:ly,width:w,height:22,rx:5,style:"fill:var(--ink)"},folLabel);el("text",{x:lx+8,y:ly+15,class:"lbl",style:"fill:var(--surface);font-size:12px"},folLabel,txt);
+    const o=orderAt(t);const pl=o.findIndex(r=>r.a.id===a.id)+1;const txt=`${a.name} · ${ord(pl)}`;const w=(txt.length*7.4+16)*MK;const lx=Math.min(1000-w-4,Math.max(4,x+14*MK)),ly=y<60*MK?y+18*MK:y-30*MK;
+    el("rect",{x:lx,y:ly,width:w,height:22*MK,rx:5*MK,style:"fill:var(--ink)"},folLabel);el("text",{x:lx+8*MK,y:ly+15*MK,class:"lbl",style:`fill:var(--surface);font-size:${12*MK}px`},folLabel,txt);
     pFol.style.display="";pFol.setAttribute("transform",`translate(${px(d)},0)`);
   }else{folRing.style.display="none";pFol.style.display="none";}
   // leader tag
-  leadTag.replaceChildren();if(t>0&&ld<DIST){const [x,y]=posAt(ld);el("text",{x:x,y:y-12,"text-anchor":"middle",class:"lbl",style:"font-size:11px"},leadTag,"1");}
+  leadTag.replaceChildren();if(t>0&&ld<DIST){const [x,y]=posAt(ld);el("text",{x:x,y:y-12*MK,"text-anchor":"middle",class:"lbl",style:`font-size:${11*MK}px`},leadTag,"1");}
   pLead.setAttribute("transform",`translate(${px(ld)},0)`);pLead._t.textContent=(ld/1000).toFixed(2)+" km";pFill.setAttribute("width",Math.max(0,px(ld)-PX0));
   $("#clock").firstChild.nodeValue=clock(t,0);
   const matsPassed=MATS.filter(k=>lead&&ld>=MATM[k]).length;
@@ -2752,7 +2983,7 @@ function drawBoards(t){
   const leadPace=top?(top.d>0?t/top.d:0):0;
   const rows=o.slice(0,10);const fi=o.findIndex(r=>r.a.id===state.follow);if(fi>=10)rows.push(o[fi]);
   rows.forEach(r=>{const i=o.indexOf(r);const tr=h("tr");if(r.a.id===state.follow)tr.className="fol";tr.appendChild(h("td","p",i+1));const nc=h("td");nc.style.cssText="display:flex;align-items:center;gap:6px";if(showPhotos())nc.appendChild(avatar(r.a,22));else if(showLogos()&&r.a.team)nc.appendChild(teamLogo(r.a.team,20));const col=teamDotColor(r.a);const k=h("span");k.style.cssText=`display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:${col||"var(--line-strong)"}`;nc.appendChild(k);const w2=h("div");w2.style.minWidth="0";const nmw=h("div","nm");nmw.appendChild(nameBtn(r.a));w2.appendChild(nmw);const tn=h("div","sub2");tn.textContent=r.a.team?teamById[r.a.team].name:r.a.school;w2.appendChild(tn);nc.appendChild(w2);tr.appendChild(nc);
-    let g;const fin=lastIdx(r.a)===NKM&&r.d>=DIST;if(fin)g=fmt(r.a.cum[NKM]);else if(i===0)g=(r.d/1000).toFixed(2)+" km";else g="−"+Math.round(top.d-r.d)+" m";tr.appendChild(h("td","g",g));lb.appendChild(tr);});
+    let g;const fin=lastIdx(r.a)===NKM&&r.d>=DIST;if(fin)g=fmt(r.a.cum[NKM]);else if(i===0)g=(r.d/1000).toFixed(2)+" km";else{const gap=Math.round(top.d-r.d);g=gap<1?"level":"−"+gap+" m";}tr.appendChild(h("td","g",g));lb.appendChild(tr);});
   $("#lbWhen").textContent=t<=0?"start line":clock(t,0);
   const sc=scoreOrder(o.filter(r=>r.d>0&&(lastIdx(r.a)===NKM||stillOut(r.a)||t<=r.a.cum[lastIdx(r.a)])).map(r=>r.a.id),byId);const tl=$("#lbTeams");tl.replaceChildren();
   sc.teams.slice(0,8).forEach(tm=>{const tr=h("tr");const col=state.teams[tm.team]?slotColor(state.teams[tm.team]):null;tr.appendChild(h("td","p",tm.place));const nc=h("td");nc.style.cssText="display:flex;align-items:center;gap:6px";if(showLogos())nc.appendChild(teamLogo(tm.team,20));const k=h("span");k.style.cssText=`display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:${col||"var(--line-strong)"}`;nc.appendChild(k);nc.appendChild(h("span","nm",teamById[tm.team].name));tr.appendChild(nc);tr.appendChild(h("td","g",tm.score));tl.appendChild(tr);});
@@ -2768,7 +2999,19 @@ function loop(ts){if(state.playing&&state.view==="replay"){if(last!=null){state.
 
 /* ============ Generic line chart ============ */
 const narrow=()=>window.matchMedia("(max-width:700px)").matches;
-function cw(wide,small){return narrow()?small:wide;}
+/* A chart's drawing width. On a phone it is the width it will actually be
+   shown at, so its text comes out at the size it was set in: drawn 460 wide
+   and shrunk into a 300px panel, every label was two thirds of its size. */
+function cw(wide,small){
+  if(!narrow())return wide;
+  // The page's gutters and a panel's padding and border come off the screen width.
+  // Only ever shrinks: the same helper picks margins and heights too, and a
+  // floor on it turned a 58 margin into 280 and drew every chart backwards.
+  const w=(document.querySelector(".wrap")||document.body).clientWidth-77;
+  return Math.min(small,Math.max(280,w));
+}
+/* "Tap" where there is no pointer to hover with, "Click" where there is. */
+const TAP=window.matchMedia("(hover:none)").matches?"Tap":"Click";
 function lineChart(host,o){
   host.replaceChildren();const W=o.w||640,H=o.h||280,ml=o.ml||46,mr=o.mr||96,mt=14,mb=34;const iw=W-ml-mr,ih=H-mt-mb;
   const svg=el("svg",{viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":o.aria||""},host);
@@ -2808,11 +3051,26 @@ function renderCompare(){
   ids.forEach(id=>{const a=byId[id];const c=h("span","pchip");const i=h("i");i.style.background=slotColor(state.pinned[id]);c.appendChild(i);c.appendChild(document.createTextNode(a.name));const x=h("button",null,"×");x.setAttribute("aria-label","Remove "+a.name);x.addEventListener("click",()=>togglePin(id));c.appendChild(x);pk.appendChild(c);});
   if(ids.length<3){const s=h("select");s.id="cmpAdd";s.setAttribute("aria-label","Add athlete to compare");const o0=h("option",null,"+ Add athlete");o0.value="";s.appendChild(o0);FIN.forEach(id=>{if(state.pinned[id])return;const a=byId[id];const o=h("option",null,`${PLACE[LASTK][id]}. ${a.name} — ${a.team?teamById[a.team].name:a.school}`);o.value=id;s.appendChild(o);});s.addEventListener("change",()=>{if(s.value)togglePin(s.value,$("#cmpToast"));});pk.appendChild(s);}
   const cards=$("#cmpCards");cards.replaceChildren();
-  const live=ids.filter(id=>byId[id].last===6);
+  const byRow={};
   ids.forEach(id=>{const a=byId[id];const c=h("div","panel card");const w=h("div","who");if(showPhotos())w.appendChild(avatar(a,34));if(showLogos()&&a.team)w.appendChild(teamLogo(a.team,26));const k=h("span","key");k.style.background=slotColor(state.pinned[id]);w.appendChild(k);w.appendChild(h("span",null,a.name));c.appendChild(w);c.appendChild(h("div","note",`${a.school} · ${a.yr} · ${a.bib}`));
     const kv=h("div","kv");const fin=a.last===NKM;const best=legsOf(a).reduce((m,x)=>!m||x[1]<m[1]?x:m,null);const mv=fin&&PLACE[MATS[0]][id]?PLACE[MATS[0]][id]-PLACE[LASTK][id]:0;const half=fin?halves(a,LASTK):null;
-    [["Place",fin?ord(PLACE[LASTK][id]):(outWord(a)||"on course")],["Time",fin?fmt(a.cum[LASTK]):"—"],[UNI?"Fastest km":"Fastest leg",best?`${ML(best[0])} · ${fmt(best[1])}`:"—"],[ML(MATS[0])+" → last mat",fin?(mv>0?"+"+mv:mv)+" pl":"—"],["2nd part vs 1st",half!=null?(half>=0?"+":"")+half.toFixed(1)+" s/km":"—"],["Team pts",fin&&SCORE[LASTK].pts[id]?SCORE[LASTK].pts[id]:"—"]].forEach(([l,v])=>{const d=h("div");d.appendChild(h("span",null,l));d.appendChild(h("b",null,v));kv.appendChild(d);});c.appendChild(kv);cards.appendChild(c);});
+    // Still running: where they stood, and their time, at the last mat they crossed.
+    const at=a.last>0&&PLACE[a.last]&&PLACE[a.last][id]?a.last:null;
+    [["Place",fin?ord(PLACE[LASTK][id]):outWord(a)||(at?ord(PLACE[at][id])+" at "+ML(at):"on course")],["Time",fin?fmt(a.cum[LASTK]):at?fmt(a.cum[at])+" at "+ML(at):"—"],[UNI?"Fastest km":"Fastest leg",best?`${ML(best[0])} · ${fmt(best[1])}`:"—"],[ML(MATS[0])+" → last mat",fin?(mv>0?"+"+mv:mv)+" pl":"—"],["2nd part vs 1st",half!=null?(half>=0?"+":"")+half.toFixed(1)+" s/km":"—"],["Team pts",fin&&SCORE[LASTK].pts[id]?SCORE[LASTK].pts[id]:"—"]].forEach(([l,v])=>{const d=h("div");d.appendChild(h("span",null,l));d.appendChild(h("b",null,v));kv.appendChild(d);(byRow[l]=byRow[l]||[]).push(v);});c.appendChild(kv);cards.appendChild(c);});
   if(!ids.length){cards.appendChild(h("p","note","Pin athletes from Results or add them above to compare."));}
+  // The same numbers side by side, for a phone: one table with a column per
+  // runner reads as head to head, where three cards one under another was
+  // three screens of scrolling before the first chart.
+  const oldT=$("#cmpTable");if(oldT)oldT.remove();
+  if(ids.length){
+    const wrap=h("div","panel cmptbl");wrap.id="cmpTable";const t=h("table");const hr=h("tr");hr.appendChild(h("th"));
+    ids.forEach(id=>{const a=byId[id];const th=h("th");const k=h("span","key");k.style.background=slotColor(state.pinned[id]);th.appendChild(k);
+      const parts=a.name.split(" ");th.appendChild(h("span","nm",parts.length>1?parts[0][0]+". "+parts.slice(1).join(" "):a.name));
+      th.appendChild(h("span","sc",a.team?teamById[a.team].abbr:a.school));hr.appendChild(th);});
+    const thead=h("thead");thead.appendChild(hr);t.appendChild(thead);const tb=h("tbody");
+    Object.entries(byRow).forEach(([l,vs])=>{const tr=h("tr");tr.appendChild(h("td","l",l));vs.forEach(v=>tr.appendChild(h("td","v",String(v))));tb.appendChild(tr);});
+    t.appendChild(tb);wrap.appendChild(t);cards.after(wrap);
+  }
   const ser=ids.map(id=>({id,a:byId[id],name:byId[id].name.split(" ")[1],color:slotColor(state.pinned[id])}));
   // gap
   const ref=ser[0];
@@ -2840,41 +3098,54 @@ function renderTeams(){
   teamChips($("#teamChips2"));
   const top=SCORE[LASTK].teams.slice(0,10).map(t=>t.team);const extra=Object.keys(state.teams).filter(t=>!top.includes(t));
   const list=[...top,...extra];
-  const ser=list.map(tid=>{const s=state.teams[tid];return{name:teamById[tid].name,endLabel:(TPLACE[LASTK][tid]!=null?TPLACE[LASTK][tid]+". ":"")+teamById[tid].name,color:s?slotColor(s):"var(--line-strong)",dim:!s,width:s?3:1.5,pts:MATS.map(k=>[k,TPLACE[k][tid]]).filter(p=>p[1]!=null)};});
+  // On a phone the school's name at the end of its line gets what room there
+  // is and is cut short to it, rather than running off the side of the chart.
+  const N=narrow(),bw=cw(980,460),bmr=N?Math.round(bw*0.44):cw(150,96),room=Math.floor((bmr-14)/6.4);
+  const ser=list.map(tid=>{const s=state.teams[tid];return{name:teamById[tid].name,endLabel:fitText((TPLACE[LASTK][tid]!=null?TPLACE[LASTK][tid]+". ":"")+teamById[tid].name,N?room:99),color:s?slotColor(s):"var(--line-strong)",dim:!s,width:s?3:1.5,pts:MATS.map(k=>[k,TPLACE[k][tid]]).filter(p=>p[1]!=null)};});
   ser.sort((a,b)=>(a.dim?0:1)-(b.dim?0:1));
   const mx=Math.max(10,...ser.flatMap(s=>s.pts.map(p=>p[1])));
-  lineChart($("#chBump"),{w:cw(980,460),h:cw(320,340),mr:cw(150,96),aria:"Team standings at each mat",x:{min:1,max:LASTK,ticks:MATS,fmt:v=>ML(v),tipFmt:v=>"At "+ML(v)},y:{min:1,max:mx,ticks:[1,...niceTicks(0,mx,6).filter(v=>v>1)],invert:true},series:ser,tipAll:true,tipVal:(v,s,p)=>{const tm=SCORE[p[0]]&&SCORE[p[0]].teams[v-1];
+  lineChart($("#chBump"),{w:bw,h:cw(320,340),mr:bmr,aria:"Team standings at each mat",x:{min:1,max:LASTK,ticks:MATS,fmt:v=>ML(v),tipFmt:v=>"At "+ML(v)},y:{min:1,max:mx,ticks:[1,...niceTicks(0,mx,6).filter(v=>v>1)],invert:true},series:ser,tipAll:true,tipVal:(v,s,p)=>{const tm=SCORE[p[0]]&&SCORE[p[0]].teams[v-1];
     const n=tm?(tm.score!=null?tm.score:tm.points):null;
-    return ord(v)+(n!=null?" · "+n+" pts":"");}});
+    return ord(v)+(n!=null?" · "+ptsLabel(n):"");}});
   // pack spread
   const k=state.packSplit;
   segButtons($("#packSeg"),MATS.map(m=>[m,ML(m)]),k,v=>{state.packSplit=v;renderTeams();});
   const host=$("#chPack");host.replaceChildren();
-  const teams=SCORE[k].teams;const rowH=cw(28,26),W=cw(980,470),ml=cw(240,132),mr=cw(110,56),mt=10,H=mt+teams.length*rowH+30;
+  /* On a phone each school takes two lines - its name and score, then its
+     runners on the full width beneath - because the three side by side (name,
+     score, strip) left each a third of a phone and they ran into each other. */
+  const teams=SCORE[k].teams;const rowH=N?46:cw(28,26),W=cw(980,470),ml=N?12:cw(240,132),mr=N?12:cw(110,56),mt=10,H=mt+teams.length*rowH+30;
   const times=teams.flatMap(t=>t.ids.map(id=>byId[id].cum[k]));const lo=Math.floor(Math.min(...times)/5)*5-2,hi=Math.ceil(Math.max(...times)/5)*5+2;
   const sx=v=>ml+(v-lo)/(hi-lo)*(W-ml-mr);
   const svg=el("svg",{viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":"Pack spread by team"},host);
-  const ax=el("g",{class:"axis"},svg);const tks=niceTicks(lo,hi,7);tks.forEach(v=>{el("line",{x1:sx(v),x2:sx(v),y1:mt,y2:H-24},ax);el("text",{x:sx(v),y:H-8,"text-anchor":"middle"},ax,fmt(v,0));});
+  const ax=el("g",{class:"axis"},svg);const tks=niceTicks(lo,hi,N?4:7);tks.forEach(v=>{el("line",{x1:sx(v),x2:sx(v),y1:mt,y2:H-24},ax);el("text",{x:sx(v),y:H-8,"text-anchor":"middle"},ax,fmt(v,0));});
   if(!narrow())el("text",{x:W-mr+12,y:mt+2,class:"lbl2"},svg,"1–"+SC+" spread");
-  teams.forEach((t,i)=>{const y=mt+i*rowH+rowH/2+4;const s=state.teams[t.team];const col=s?slotColor(s):"var(--ink-2)";
+  teams.forEach((t,i)=>{const top=mt+i*rowH;const y=N?top+33:top+rowH/2+4;const s=state.teams[t.team];const col=s?slotColor(s):"var(--ink-2)";
     const g=el("g",{style:"cursor:pointer"},svg);g.addEventListener("click",()=>toggleTeam(t.team));
-    el("rect",{x:0,y:y-rowH/2,width:W,height:rowH,fill:"transparent"},g);
-    if(s)el("rect",{x:0,y:y-rowH/2+2,width:W,height:rowH-4,rx:4,style:"fill:var(--surface-2)"},g);
-    if(showLogos()){const lg=el("g",{transform:`translate(${8},${y-11}) scale(0.7)`},g);const tt=teamById[t.team];
+    el("rect",{x:0,y:top,width:W,height:rowH,fill:"transparent"},g);
+    if(s)el("rect",{x:0,y:top+2,width:W,height:rowH-4,rx:4,style:"fill:var(--surface-2)"},g);
+    const ly=N?top+17:y+4;
+    if(showLogos()){const lg=el("g",{transform:`translate(${8},${ly-15}) scale(0.7)`},g);const tt=teamById[t.team];
       if(!tt.hasLogo){el("rect",{x:3,y:3,width:26,height:26,rx:6,style:"fill:var(--surface-2);stroke:var(--line-strong)"},lg);el("text",{x:16,y:21,"text-anchor":"middle",style:"font:600 12px var(--mono);fill:var(--ink-2)"},lg,tt.abbr);}
       else{if(tt.shape==="circle")el("circle",{cx:16,cy:16,r:14,style:`fill:${tt.color}`},lg);else el("path",{d:SHAPE_D[tt.shape],style:`fill:${tt.color}`},lg);
         el("text",{x:16,y:20,"text-anchor":"middle",style:`font:700 11px var(--display);fill:${tt.color2}`},lg,tt.abbr);}}
     // A team still coming home has no place and no final score. Say what it
     // does have, or nothing — never the word "undefined" in front of a school.
-    el("text",{x:showLogos()?34:8,y:y+4,class:"lbl"},g,
-      (t.place!=null?t.place+". ":"")+teamById[t.team].name);
-    el("text",{x:ml-16,y:y+4,"text-anchor":"end",class:"lbl2"},g,
-      t.score!=null?t.score+" pts":t.points!=null?t.points+" so far":"");
     const ts=t.ids.map(id=>byId[id].cum[k]);
+    const sp0=t.spread!=null?t.spread:(ts.length>=SC?ts[SC-1]-ts[0]:null);
+    const scoreTxt=t.score!=null?ptsLabel(t.score):t.points!=null?t.points+" so far":"";
+    const nameTxt=(t.place!=null?t.place+". ":"")+teamById[t.team].name;
+    if(N){
+      el("text",{x:showLogos()?34:8,y:ly,class:"lbl"},g,fitText(nameTxt,Math.floor((W-(showLogos()?34:8)-110)/6.6)));
+      el("text",{x:W-mr,y:ly,"text-anchor":"end",class:"lbl2"},g,[scoreTxt,sp0!=null?sp0.toFixed(1)+" s":""].filter(Boolean).join(" · "));
+    }else{
+      el("text",{x:showLogos()?34:8,y:y+4,class:"lbl"},g,nameTxt);
+      el("text",{x:ml-16,y:y+4,"text-anchor":"end",class:"lbl2"},g,scoreTxt);
+    }
     el("line",{x1:sx(ts[0]),x2:sx(ts[Math.min(SC-1,ts.length-1)]),y1:y,y2:y,style:`stroke:${col};opacity:${s?0.9:0.45}`,"stroke-width":s?6:4,"stroke-linecap":"round"},g);
     t.ids.forEach((id,j)=>{const a=byId[id];const c=el("circle",{cx:sx(a.cum[k]),cy:y,r:j<SC?5:4.5,style:j<SC?`fill:${col};stroke:var(--surface);stroke-width:2`:`fill:var(--surface);stroke:${col};stroke-width:2`},g);
-      const hit=el("circle",{cx:sx(a.cum[k]),cy:y,r:10,fill:"transparent"},g);hit.addEventListener("pointermove",ev=>showTip(ev,teamById[t.team].name+(j<SC?" · scorer "+(j+1):" · displacer"),[{v:fmt(a.cum[k]),l:a.name},{v:ord(PLACE[k][id]),l:"overall · "+SCORE[k].pts[id]+" pts"}]));hit.addEventListener("pointerleave",hideTip);});
-    const sp=t.spread!=null?t.spread:(ts.length>=SC?ts[SC-1]-ts[0]:null);el("text",{x:W-mr+12,y:y+4,class:"lbl num"},g,sp!=null?sp.toFixed(1)+" s":"");
+      const hit=el("circle",{cx:sx(a.cum[k]),cy:y,r:10,fill:"transparent"},g);hit.addEventListener("pointermove",ev=>showTip(ev,teamById[t.team].name+(j<SC?" · scorer "+(j+1):" · displacer"),[{v:fmt(a.cum[k]),l:a.name},{v:ord(PLACE[k][id]),l:"overall · "+ptsLabel(SCORE[k].pts[id])}]));hit.addEventListener("pointerleave",hideTip);});
+    if(!N)el("text",{x:W-mr+12,y:y+4,class:"lbl num"},g,sp0!=null?sp0.toFixed(1)+" s":"");
   });
 }
 
@@ -2908,7 +3179,7 @@ function showProblem(msg){
 }
 let busy=false,started=false;
 async function start(){
-  const doc=await getJson("/meet");ingestMeet(doc);
+  const doc=await getJson("/meet");ingestMeet(doc);applyClocks(doc);
   if(!RACES.length){showProblem("This meet has no races yet.");setFoot(true);return;}
   // Open on what is happening: the live race, else the last one finished, else the first to come.
   let want=null;try{const m=location.search.match(/[?&]race=([^&]+)/);if(m)want=decodeURIComponent(m[1]);}catch(e){}
@@ -2954,6 +3225,9 @@ async function refresh(){
       else renderLiveStrip();
       });
     }
+    // Every time, changed or not: the clock is the one thing the version
+    // leaves out.
+    applyClocks(doc);
     const cur=RACE&&RACES.find(r=>r.id===RACE.id);
     if(cur&&cur.version!==cur.docVersion){await keepingPlace(async()=>{await loadRace(cur.id,true);setView(state.view);});}
     setFoot(true);
