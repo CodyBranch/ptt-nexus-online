@@ -1526,7 +1526,7 @@ function meetFind(){
       d.teams.forEach(t=>{
         const row=li();row.setAttribute("role","option");
         const b=h("button","hit");b.type="button";
-        if(showLogos()&&t.logoUrl){const im=document.createElement("img");im.src=t.logoUrl;im.alt="";
+        if(showLogos()&&t.logoUrl){const im=document.createElement("img");im.src=logoSrc(t.logoUrl);im.alt="";
           im.style.cssText="width:22px;height:22px;object-fit:contain;flex:none";b.appendChild(im);}
         const w=h("div","w");
         w.appendChild(h("div","nm",t.name));
@@ -1616,7 +1616,7 @@ function renderTeam(){
   const d=TEAMDOC;
 
   const head=h("div","panel athhead");
-  if(showLogos()&&d.logoUrl){const im=document.createElement("img");im.src=d.logoUrl;im.alt="";
+  if(showLogos()&&d.logoUrl){const im=document.createElement("img");im.src=logoSrc(d.logoUrl);im.alt="";
     im.style.cssText="width:56px;height:56px;object-fit:contain;flex:none";head.appendChild(im);}
   const who=h("div","w");
   who.appendChild(h("h2",null,d.name));
@@ -2081,10 +2081,21 @@ function avatar(a,size,sq){const d=h("span","avatar"+(sq?" sq":""));d.style.widt
   else{d.textContent=initials(a.name);const hue=(a.bib*37)%360;d.style.background=`hsl(${hue} 32% 42%)`;d.title=a.name+" — headshot slot";}
   return d;}
 const SHAPE_D={shield:"M16 2 L29 7 V15 C29 23 23 28.5 16 31 C9 28.5 3 23 3 15 V7 Z",hex:"M16 2 L28 9 V23 L16 30 L4 23 V9 Z",rsq:"M5 3 H27 A2 2 0 0 1 29 5 V27 A2 2 0 0 1 27 29 H5 A2 2 0 0 1 3 27 V5 A2 2 0 0 1 5 3 Z"};
+/* Where to load a school's logo from. On the web copy, the portal's logo
+   store is reached through primetime-nexus.com/logos/, which caches it: the
+   store itself says no-cache on most logos, so every redraw of a live race had
+   a phone asking again for each one, and on a weak signal some went blank.
+   The laptop page keeps the address as it is. */
+const LOGO_STORE=/\/storage\/v1\/object\/public\/Logos\/(.+)$/;
+function logoSrc(url){
+  if(!url||!FBSRC)return url;
+  const m=LOGO_STORE.exec(url);
+  return m?"/logos/"+m[1]:url;
+}
 function teamLogo(tid,size){
   const t=teamById[tid];const w=h("span","logo");w.style.width=size+"px";w.style.height=size+"px";
   if(!t){w.style.visibility="hidden";return w;}
-  if(t.logoUrl){const im=document.createElement("img");im.src=t.logoUrl;im.alt="";w.appendChild(im);w.title=t.name;return w;}
+  if(t.logoUrl){const im=document.createElement("img");im.src=logoSrc(t.logoUrl);im.alt="";w.appendChild(im);w.title=t.name;return w;}
   const svg=el("svg",{viewBox:"0 0 32 32","aria-hidden":"true"});
   if(!t.hasLogo){ // no logo on file: initials tile
     el("rect",{x:3,y:3,width:26,height:26,rx:6,style:"fill:var(--surface-2);stroke:var(--line-strong)"},svg);

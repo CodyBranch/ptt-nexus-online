@@ -290,21 +290,52 @@
       return subscribe(sub);
     }
 
+    /*
+     * A stream is trusted only while it keeps talking. Firebase sends a
+     * keep-alive about every thirty seconds, so one silent for longer than
+     * STALE_MS has died without saying so - a phone moving from the car park's
+     * signal to the venue's wifi, a network that holds streams open and
+     * delivers nothing - and is opened again. And a stream that has not
+     * delivered its first answer within FIRST_MS is not waited on: the answer
+     * is fetched plainly, so the page loads, and the stream catches up after.
+     */
+    const STALE_MS = 75000, FIRST_MS = 8000;
+    function stale(sub) {
+      const s = subs[sub];
+      return !!(s && s.es && s.es.readyState !== 2 && s.last && Date.now() - s.last > STALE_MS);
+    }
+    function reopen(sub) {
+      const s = subs[sub];
+      if (s && s.es) s.es.close();
+      delete subs[sub];
+      return subscribe(sub);
+    }
     function subscribe(sub) {
       const have = subs[sub];
       if (have && have.es && have.es.readyState !== 2) return have.ready;
-      const s = { es: null, ready: null, failed: null };
+      const s = { es: null, ready: null, failed: null, last: Date.now() };
       s.ready = new Promise((resolve, reject) => {
         const es = new EventSource(at(sub));
         s.es = es;
         let first = true;
         const on = (kind) => (e) => {
+          s.last = Date.now();
           let msg; try { msg = JSON.parse(e.data); } catch (err) { return; }
           apply(sub, kind, msg);
           if (first) { first = false; resolve(); }
         };
         es.addEventListener("put", on("put"));
         es.addEventListener("patch", on("patch"));
+        es.addEventListener("keep-alive", () => { s.last = Date.now(); });
+        setTimeout(() => {
+          if (!first) return;
+          getOnce(sub).then((data) => {
+            if (!first) return;
+            first = false;
+            apply(sub, "put", { path: "/", data });
+            resolve();
+          }).catch((err) => { if (first) { first = false; reject(err); } });
+        }, FIRST_MS);
         // Firebase ends a stream it will no longer serve: the meet was
         // switched off, or the rules changed. Try again later from scratch.
         es.addEventListener("cancel", () => { es.close(); if (first) reject(notOn()); });
@@ -342,7 +373,10 @@
 
     async function get(path) {
       await open();
-      // A stream Firebase closed (switched off, then on again) is opened again here.
+      // A stream Firebase closed (switched off, then on again) is opened again
+      // here, and so is one that has gone quiet.
+      if (stale("head")) reopen("head");
+      if (raceSub && stale(raceSub)) reopen(raceSub);
       await subscribe("head");
       const [p, q] = String(path).split("?");
       const parts = split(p).map(decodeURIComponent);
