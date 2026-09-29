@@ -702,7 +702,11 @@ td.pl .mvx{display:none}
 .tnear{padding:0 12px 10px;font-size:13px;color:var(--ink-2);display:flex;flex-direction:column;gap:3px}
 .tnear b{font-weight:600}
 .tprog{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 12px;align-items:center}
-.tprog .st{font:500 12px var(--mono);background:var(--surface-2);border:1px solid var(--line);border-radius:99px;padding:3px 9px;white-space:nowrap}
+.tprog .st{font:500 12px var(--mono);background:var(--surface-2);border:1px solid var(--line);border-radius:99px;padding:3px 9px;white-space:nowrap;color:var(--ink);cursor:pointer}
+.tprog .st:hover{border-color:var(--line-strong)}
+.tprog .st[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.tat{padding:0 12px 10px;margin:0}
+@media (max-width:640px){.tprog .st{padding:6px 11px}}
 .tprog .st b{font-weight:700}
 .tprog .st.prov{color:var(--muted)}
 .tprog .ar{color:var(--muted);font-size:11px}
@@ -1633,21 +1637,42 @@ function renderTeam(){
   if(TEAMDOC.error){host.appendChild(h("p","note",TEAMDOC.error));return;}
   const d=TEAMDOC;
 
-  const head=h("div","panel athhead");
+  const head=h("div","panel athhead");const htop=h("div","athtop");head.appendChild(htop);
   if(showLogos()&&d.logoUrl){const im=document.createElement("img");im.src=logoSrc(d.logoUrl);im.alt="";
-    im.style.cssText="width:56px;height:56px;object-fit:contain;flex:none";head.appendChild(im);}
+    im.style.cssText="width:56px;height:56px;object-fit:contain;flex:none";htop.appendChild(im);}
   const who=h("div","w");
   who.appendChild(h("h2",null,d.name));
   const total=d.races.reduce((n,r)=>n+r.runners.length,0);
   const placed=d.races.filter(r=>r.place!=null);
   who.appendChild(h("div","note",total+" entered across "+d.races.length+(d.races.length===1?" race":" races")
     +(placed.length?" \u00b7 "+placed.map(r=>ord(r.place)+" in "+r.name).join(", "):"")));
-  head.appendChild(who);host.appendChild(head);
+  htop.appendChild(who);host.appendChild(head);
 
   const first=d.races.filter(r=>r.id===state.teamRace);
   [...first,...d.races.filter(r=>r.id!==state.teamRace)].forEach(r=>host.appendChild(teamRace(d,r)));
 }
-function teamRace(d,r){
+/* The team as it stood at one mat, from the same document: its place, score,
+   spread and neighbours there, and every runner's place, time and points
+   there. The page used to show only the latest mat; the chips along the top
+   now choose. */
+function raceAtMat(r,label){
+  const p=(r.progress||[]).find(x=>x.label===label);if(!p)return r;
+  const runners=r.runners.map(a=>{const m=(a.atMats||[]).find(x=>x.label===label);
+    return Object.assign({},a,{place:m?m.place:undefined,ms:m?m.ms:undefined,points:m?m.points:undefined,
+      livePoints:m?m.livePoints:undefined,role:m?m.role:undefined});})
+    .sort((x,y)=>(x.place??1e9)-(y.place??1e9)||(x.bib??1e9)-(y.bib??1e9));
+  return Object.assign({},r,{atLabel:label,runners,
+    place:p.provisional?undefined:p.place,score:p.provisional?undefined:p.score,
+    across:p.provisional?p.across:undefined,points:p.provisional?p.score:undefined,projected:undefined,
+    teamCount:p.teamCount,spreadMs:p.spreadMs,ahead:p.ahead,behind:p.behind,leader:p.leader,atEarlier:true});
+}
+function teamRace(d,r0){
+  // Which mat this race is being looked at: a chip the reader tapped, or the
+  // latest one (which is what everything showed before there was a choice).
+  const latest=r0.progress&&r0.progress.length?r0.progress[r0.progress.length-1].label:null;
+  const chosen=state.teamMat&&state.teamMat[r0.id];
+  const r=chosen&&chosen!==latest?raceAtMat(r0,chosen):r0;
+  const viewing=chosen&&chosen!==latest?chosen:latest;
   const g=h("div","tgroup");
   const hd=h("header");hd.style.cursor="default";
   hd.appendChild(h("h4",null,r.name));
@@ -1665,13 +1690,14 @@ function teamRace(d,r){
   if(r.scorers&&(r.place!=null||r.points!=null||r.progress)){
     const sum=h("div","tsum");
     const box=(v,unit,l)=>{const b=h("div","box2");const vv=h("div","v",v);if(unit)vv.appendChild(h("small",null,unit));b.appendChild(vv);b.appendChild(h("div","l",l));sum.appendChild(b);};
-    if(r.place!=null)box(ord(r.place),r.teamCount?"of "+r.teamCount:"",r.status==="final"?"Team place":"Team place now");
+    const atWord=r.atEarlier?" at "+r.atLabel:"";
+    if(r.place!=null)box(ord(r.place),r.teamCount?"of "+r.teamCount:"",r.atEarlier?"Team place"+atWord:r.status==="final"?"Team place":"Team place now");
     else if(r.across!=null)box(r.across+"/"+SCn,"across","Scorers in");
-    if(r.score!=null)box(String(r.score),"pts","Score");
-    else if(r.points!=null)box(String(r.points),r.projected!=null?"proj "+r.projected:"so far","Points");
-    if(r.spreadMs!=null)box(fmt(r.spreadMs/1000),"","1\u2013"+SCn+" spread");
+    if(r.score!=null)box(String(r.score),"pts","Score"+atWord);
+    else if(r.points!=null)box(String(r.points),r.projected!=null?"proj "+r.projected:"so far","Points"+atWord);
+    if(r.spreadMs!=null)box(fmt(r.spreadMs/1000),"","1\u2013"+SCn+" spread"+atWord);
     const ts=scorers.map(x=>x.ms).filter(x=>x!=null);
-    if(ts.length===SCn)box(fmt(ts.reduce((a,b)=>a+b,0)/ts.length/1000),"","Scorers' average");
+    if(ts.length===SCn)box(fmt(ts.reduce((a,b)=>a+b,0)/ts.length/1000),"","Scorers' average"+atWord);
     if(sum.children.length)g.appendChild(sum);
 
     // Who is either side, in points.
@@ -1684,17 +1710,25 @@ function teamRace(d,r){
     line(r.ahead,"behind");line(r.behind,"ahead of");
     if(near.children.length)g.appendChild(near);
 
-    // Place at each mat: the race as the team ran it.
-    if(r.progress&&r.progress.length>1){
-      const pr=h("div","tprog");
-      r.progress.forEach((m,i)=>{
-        if(i){const prev=r.progress[i-1].place,dd=prev!=null&&m.place!=null?prev-m.place:0;
+    // Place at each mat: the race as the team ran it. Each one opens the team
+    // as it stood there; the one being looked at is marked.
+    if(r0.progress&&r0.progress.length>1){
+      const pr=h("div","tprog");pr.setAttribute("role","group");pr.setAttribute("aria-label","Show the team at a split");
+      r0.progress.forEach((m,i)=>{
+        if(i){const prev=r0.progress[i-1].place,dd=prev!=null&&m.place!=null?prev-m.place:0;
           pr.appendChild(h("span","ar"+(dd>0?" up":dd<0?" down":""),dd>0?"\u25b2"+dd:dd<0?"\u25bc"+(-dd):"\u2192"));}
-        const st=h("span","st"+(m.provisional?" prov":""));st.appendChild(document.createTextNode(m.label+" "));
+        const st=h("button","st"+(m.provisional?" prov":""));st.type="button";
+        st.setAttribute("aria-pressed",String(m.label===viewing));
+        st.appendChild(document.createTextNode(m.label+" "));
         st.appendChild(h("b",null,m.place!=null?ord(m.place):"\u2013"));
-        if(m.provisional)st.title=(m.across!=null?m.across+"/"+SCn+" across; ":"")+"can still move";
+        st.title=(m.provisional?(m.across!=null?m.across+"/"+SCn+" across; ":"")+"can still move. ":"")+"Show the team at "+m.label;
+        st.addEventListener("click",()=>{
+          state.teamMat=state.teamMat||{};
+          state.teamMat[r0.id]=m.label===latest?null:m.label;
+          const y=scrollY;renderTeam();scrollTo(0,y);});
         pr.appendChild(st);});
       g.appendChild(pr);
+      if(r.atEarlier)g.appendChild(h("p","tat note","The team at "+r.atLabel+". Tap "+latest+" for "+(r0.status==="final"?"the result":"now")+"."));
     }
 
     // The scoring grid: the places that make the score.
