@@ -400,8 +400,15 @@ export default function DeclarePage() {
             <p className="text-xs text-gray-500 truncate">
               {data.meetName}
             </p>
-            <Image src="/PRIMETIME.png" alt="PrimeTime Timing" width={1586} height={250} priority
-              className="h-4 w-auto shrink-0 opacity-90" />
+            <div className="flex items-center gap-3 shrink-0">
+              {/* A new tab, so the form — and where the coach was in it — stays put. */}
+              <a href="/declare/help" target="_blank" rel="noopener"
+                className="text-xs text-blue-400 hover:text-blue-300 underline-offset-2 hover:underline">
+                How this works
+              </a>
+              <Image src="/PRIMETIME.png" alt="PrimeTime Timing" width={1586} height={250} priority
+                className="h-4 w-auto shrink-0 opacity-90" />
+            </div>
           </div>
           <h1 className="text-xl font-bold text-white truncate">{data.teamName}</h1>
 
