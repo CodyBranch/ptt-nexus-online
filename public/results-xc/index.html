@@ -634,6 +634,28 @@ td.pl .mvx{display:none}
   .athsplits .mvx.same{display:none}
   .athsplits th,.athsplits td{padding:7px 6px}
 }
+/* The team at every mat, on a runner's page: a compiled table of the school. */
+.tmwrap{margin:0 -4px}
+.tmtbl{width:100%;border-collapse:collapse;font-size:13px}
+.tmtbl th{font:600 10.5px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tmtbl th.num,.tmtbl td.num{text-align:right}
+.tmtbl td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top;white-space:nowrap}
+.tmtbl td.pl{font:600 13px var(--mono);color:var(--ink-2);text-align:right;width:34px}
+.tmtbl td.nmc .yr{font-size:11px;color:var(--muted)}
+.tmtbl td .t{font:500 13px var(--mono)}
+.tmtbl td .p{font:500 10.5px var(--mono);color:var(--muted)}
+.tmtbl td.pts{font:600 13px var(--mono)}
+.tmtbl td.pts.prov{color:var(--muted);font-weight:400}
+.tmtbl tr.me td{background:var(--accent-soft)}
+@media (max-width:640px){
+  /* Place and name held at the left; the mats scroll past them. */
+  .tmtbl th:first-child,.tmtbl td:first-child{position:sticky;left:0;z-index:2;background:var(--surface);min-width:34px}
+  .tmtbl th:nth-child(2),.tmtbl td:nth-child(2){position:sticky;left:34px;z-index:2;background:var(--surface);
+    max-width:128px;min-width:128px;overflow:hidden;text-overflow:ellipsis;box-shadow:1px 0 0 var(--line)}
+  .tmtbl tr.me td:first-child,.tmtbl tr.me td:nth-child(2){background:var(--accent-soft)}
+  .tmtbl td.nmc{white-space:normal}
+  .tmtbl td.nmc .lnk,.tmtbl td.nmc b{white-space:normal;overflow:visible;text-overflow:clip;text-align:left;max-width:none}
+}
 /* The start list on a phone: bib, athlete (school and year beneath), box, entry. */
 .slm{display:none}
 /* "Checked in" on one line: a pill that breaks in two is two pills to read. */
@@ -2003,14 +2025,42 @@ function renderAthlete(){
 
   // Season results and personal bests have a place here once athletes carry them across meets.
   const bio=h("div","chart-grid");bio.style.marginTop="12px";
-  const bp=h("div","panel chart");
+  const bp=h("div","panel chart wide");
   if(a.team){
-    bp.appendChild(h("h3",null,"Teammates"));bp.style.gap="6px";
-    const list=h("div","tmates");
-    ATH.filter(x=>x.team===a.team&&x.id!==a.id).sort((x,y)=>(PLACE[k]&&PLACE[k][x.id]||999)-(PLACE[k]&&PLACE[k][y.id]||999)).forEach(x=>{
-      const row=h("div","tmrow");row.appendChild(h("span","p",(MATS.length&&PLACE[k][x.id])?PLACE[k][x.id]:"—"));
-      row.appendChild(nameBtn(x));row.appendChild(h("span","t",(MATS.length&&x.cum[k]!=null)?fmt(x.cum[k]):""));list.appendChild(row);});
-    bp.appendChild(list);
+    /* The team, every mat: their time and place at each, as the compiled
+       results print it. A single time at the last mat said where each
+       teammate ended up and nothing about how - which is the reason to be
+       looking at a teammate from here. This runner is in it, marked, so the
+       row to compare against is on the same table. */
+    bp.appendChild(h("h3",null,"The team at every mat"));bp.style.gap="6px";
+    const team=ATH.filter(x=>x.team===a.team);
+    const lastOf=x=>{let m=null;MATS.forEach(k2=>{if(x.cum[k2]!=null)m=k2;});return m;};
+    const rank=x=>{const m=lastOf(x);const out=outWord(x);
+      // Home first by place; then still out, furthest and fastest first; then
+      // out of the race; then those who never crossed a mat.
+      if(m===LASTK&&!out)return[0,PLACE[m][x.id]||9999];
+      if(m!=null&&!out)return[1,-m,x.cum[m]];
+      if(m!=null)return[2,-m,x.cum[m]];
+      return[3,x.name];};
+    const cmp=(p,q)=>{for(let i=0;i<Math.max(p.length,q.length);i++){if(p[i]===q[i])continue;return p[i]<q[i]?-1:1;}return 0;};
+    team.sort((x,y)=>cmp(rank(x),rank(y)));
+    const panel=h("div","tscroll tmwrap");const tb=h("table");tb.className="tmtbl";
+    const thead=h("thead"),hr=h("tr");
+    ["Pl","Athlete",...MATS.map(m=>ML(m)),"Pts"].forEach((t,i)=>hr.appendChild(h("th",i>=2?"num":null,t)));
+    thead.appendChild(hr);tb.appendChild(thead);const body=h("tbody");
+    team.forEach(x=>{
+      const r=h("tr",x.id===a.id?"me":null);const m=lastOf(x);const out=outWord(x);
+      r.appendChild(h("td","pl",m===LASTK&&!out?String(PLACE[m][x.id]||"—"):out||"—"));
+      const nc=h("td","nmc");nc.appendChild(x.id===a.id?h("b",null,x.name):nameBtn(x));
+      if(x.yr!==""&&x.yr!=null)nc.appendChild(h("span","yr"," "+x.yr));r.appendChild(nc);
+      MATS.forEach(k2=>{const c=h("td","num");
+        if(x.cum[k2]!=null){c.appendChild(h("div","t",fmt(x.cum[k2])));if(PLACE[k2]&&PLACE[k2][x.id])c.appendChild(h("div","p",ord(PLACE[k2][x.id])));}
+        else c.textContent="";
+        r.appendChild(c);});
+      const worth=ptsOf(LASTK,x.id);
+      r.appendChild(h("td","num pts"+(worth&&!worth.firm?" prov":""),worth?String(worth.n):""));
+      body.appendChild(r);});
+    tb.appendChild(body);panel.appendChild(tb);bp.appendChild(panel);
   }
   if(a.team){bio.appendChild(bp);host.appendChild(bio);}
 }
