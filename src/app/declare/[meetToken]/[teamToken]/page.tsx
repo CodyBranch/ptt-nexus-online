@@ -400,17 +400,19 @@ export default function DeclarePage() {
             <p className="text-xs text-gray-500 truncate">
               {data.meetName}
             </p>
-            <div className="flex items-center gap-3 shrink-0">
-              {/* A new tab, so the form — and where the coach was in it — stays put. */}
-              <a href="/declare/help" target="_blank" rel="noopener"
-                className="text-xs text-blue-400 hover:text-blue-300 underline-offset-2 hover:underline">
-                How this works
-              </a>
-              <Image src="/PRIMETIME.png" alt="PrimeTime Timing" width={1586} height={250} priority
-                className="h-4 w-auto shrink-0 opacity-90" />
-            </div>
+            <Image src="/PRIMETIME.png" alt="PrimeTime Timing" width={1586} height={250} priority
+              className="h-4 w-auto shrink-0 opacity-90" />
           </div>
-          <h1 className="text-xl font-bold text-white truncate">{data.teamName}</h1>
+          {/* The help link sits with the school's name, so the meet's name and
+              the logo keep the top line to themselves. A new tab, so the form —
+              and where the coach was in it — stays put. */}
+          <div className="flex items-baseline justify-between gap-3">
+            <h1 className="text-xl font-bold text-white truncate">{data.teamName}</h1>
+            <a href="/declare/help" target="_blank" rel="noopener"
+              className="shrink-0 text-xs text-blue-400 hover:text-blue-300 underline-offset-2 hover:underline">
+              How this works
+            </a>
+          </div>
 
           {(soonest || closedCount > 0) && (
             <div className={`mt-2.5 rounded-lg border px-3 py-2 text-sm ${
