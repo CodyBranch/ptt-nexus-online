@@ -1,7 +1,7 @@
 /**
  * Complete the organisation profiles for the Joe Piane Notre Dame Invitational
- * teams that org matching could not place: Goshen, and the first two Canadian
- * schools in the table.
+ * teams that org matching could not place: Goshen, the University of Rio Grande,
+ * and the first two Canadian schools in the table.
  *
  * Run a dry run first — it writes nothing and prints what it would do:
  *   npx tsx scripts/complete-joe-piane-orgs.ts
@@ -93,6 +93,20 @@ const PLANS: Plan[] = [
       website: 'https://golancers.ca/',
       notes: 'U SPORTS (Canada). Not Windsor High School or Windsor (Imperial), both Missouri high schools.',
       logoFile: 'windsor.png', logoKey: 'usports/windsor.png',
+    },
+  },
+  {
+    // Never submitted: org matching linked it to UT Rio Grande Valley, the only
+    // Rio Grande in the table, until the desk unlinked it.
+    meetName: 'Rio Grande', abbreviation: 'RIOG',
+    org: {
+      name: 'University of Rio Grande', shortName: 'Rio Grande', mascot: 'RedStorm',
+      naiaMember: true, conference: 'River States Conference',
+      city: 'Rio Grande', state: 'OH', country: 'USA',
+      primaryColor: '#B5121B', secondaryColor: '#FFFFFF',
+      website: 'https://www.rioredstorm.com/',
+      notes: 'NAIA, Rio Grande, Ohio. Not the University of Texas Rio Grande Valley (NCAA D1).',
+      logoFile: 'rio-grande.png', logoKey: 'naia/rio-grande.png',
     },
   },
 ];
