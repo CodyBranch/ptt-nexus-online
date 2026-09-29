@@ -718,7 +718,11 @@ td.pl .mvx{display:none}
 .trun .role{font:600 10px var(--mono);letter-spacing:.05em;text-transform:uppercase;padding:1px 5px;border-radius:4px;margin-left:6px;vertical-align:1px}
 .trun .role.scorer{background:var(--accent-soft);color:var(--accent)}
 .trun .role.displacer{border:1px dashed var(--line-strong);color:var(--muted)}
-.trun .trail{font:500 11px var(--mono);color:var(--muted);margin-top:2px;line-height:1.4}
+.trun .trail{font:500 11px var(--mono);color:var(--muted);line-height:1.4}
+.trun .trail b{color:var(--ink);font-weight:700}
+.trun tr.hastrail td{border-bottom:0;padding-bottom:1px}
+.trun tr.trailrow{cursor:pointer}
+.trun tr.trailrow td{padding-top:0;padding-bottom:7px}
 .trun .trail .up{color:var(--up)} .trun .trail .down{color:var(--down)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -1661,10 +1665,40 @@ function raceAtMat(r,label){
     return Object.assign({},a,{place:m?m.place:undefined,ms:m?m.ms:undefined,points:m?m.points:undefined,
       livePoints:m?m.livePoints:undefined,role:m?m.role:undefined});})
     .sort((x,y)=>(x.place??1e9)-(y.place??1e9)||(x.bib??1e9)-(y.bib??1e9));
-  return Object.assign({},r,{atLabel:label,runners,
+  const out=Object.assign({},r,{atLabel:label,runners,
     place:p.provisional?undefined:p.place,score:p.provisional?undefined:p.score,
     across:p.provisional?p.across:undefined,points:p.provisional?p.score:undefined,projected:undefined,
     teamCount:p.teamCount,spreadMs:p.spreadMs,ahead:p.ahead,behind:p.behind,leader:p.leader,atEarlier:true});
+  // A laptop running an older build publishes only the team's place and score
+  // at each mat. What it leaves out is filled here: from the race itself when
+  // it is the one open on this page (its scoring at that mat is all there),
+  // and otherwise from the runners' own places.
+  const SC=r.scorers||5,DP=r.displacers||0;
+  const k=RACE&&RACE.id===r.id&&SCORE?Object.keys(SCORE).find(k=>ML(+k)===label):null;
+  const sk=k!=null?SCORE[k]:null;
+  if(sk){
+    runners.forEach(a=>{if(a.points==null&&a.livePoints==null){
+      if(sk.pts[a.id]!=null)a.points=sk.pts[a.id];else if(sk.live[a.id]!=null)a.livePoints=sk.live[a.id];}});
+    const ranked=sk.teams.filter(t=>t.place!=null);
+    const i=ranked.findIndex(t=>t.team===TEAMID);
+    const nm=t=>t&&{id:t.team,name:(teamById[t.team]||{}).name||"",place:t.place,score:t.score};
+    if(out.teamCount==null)out.teamCount=ranked.length||undefined;
+    if(i>=0){
+      if(out.ahead==null&&i>0)out.ahead=nm(ranked[i-1]);
+      if(out.behind==null&&i<ranked.length-1)out.behind=nm(ranked[i+1]);
+      if(out.leader==null&&i>1)out.leader=nm(ranked[0]);
+      if(out.spreadMs==null&&ranked[i].spread!=null)out.spreadMs=Math.round(ranked[i].spread*1000);
+    }
+  }
+  if(!runners.some(a=>a.role)){
+    let n=0;runners.forEach(a=>{if(a.place==null)return;a.role=n<SC?"scorer":n<SC+DP?"displacer":undefined;n++;});
+  }
+  if(out.spreadMs==null){
+    const ms=runners.filter(a=>a.role==="scorer"&&a.ms!=null).map(a=>a.ms);
+    if(ms.length===SC)out.spreadMs=ms[SC-1]-ms[0];
+  }
+  if(out.teamCount==null){const last=(r.progress||[]).slice(-1)[0];out.teamCount=r.teamCount??(last&&last.teamCount);}
+  return out;
 }
 function teamRace(d,r0){
   // Which mat this race is being looked at: a chip the reader tapped, or the
@@ -1762,16 +1796,6 @@ function teamRace(d,r0){
     w.appendChild(nm);
     const meta=[a.year,a.bib!=null?"#"+a.bib:"",a.entry!=="declared"&&a.entry!=="entered"&&a.entry!=="checked_in"?a.entry:""].filter(Boolean).join(" \u00b7 ");
     if(meta)w.appendChild(h("div","meta",meta));
-    // Place at each mat, with the move from the one before.
-    if(a.atMats&&a.atMats.length>1){
-      const tr2=h("div","trail");
-      a.atMats.forEach((m,i)=>{
-        if(i)tr2.appendChild(document.createTextNode(" \u00b7 "));
-        tr2.appendChild(document.createTextNode(m.label+" "+m.place));
-        if(i){const dd=a.atMats[i-1].place-m.place;if(dd)tr2.appendChild(h("span",dd>0?"up":"down",dd>0?" \u25b2"+dd:" \u25bc"+(-dd)));}
-      });
-      w.appendChild(tr2);
-    }
     btn.appendChild(w);
     btn.addEventListener("click",()=>openAthleteInRace(r.id,a.id,"team"));
     ac.appendChild(btn);row.appendChild(ac);
@@ -1779,7 +1803,25 @@ function teamRace(d,r0){
     const pv=a.points??a.livePoints;
     const pc=h("td","pts"+(a.points==null&&a.livePoints!=null?" prov":""),pv!=null?(a.role==="displacer"?"("+pv+")":String(pv)):"");
     row.appendChild(pc);
-    b.appendChild(row);});
+    b.appendChild(row);
+    // Place at each mat, with the move from the one before, on a line of its
+    // own across the row: squeezed under the name it broke into three lines.
+    // The mat being looked at is in bold.
+    if(a.atMats&&a.atMats.length>1){
+      row.classList.add("hastrail");
+      const tr=h("tr","trailrow");if(a.entry==="scratched")tr.style.opacity=".55";
+      tr.appendChild(h("td"));
+      const td=h("td");td.colSpan=3;
+      const tr2=h("div","trail");
+      a.atMats.forEach((m,i)=>{
+        if(i)tr2.appendChild(document.createTextNode(" \u00b7 "));
+        tr2.appendChild(h(m.label===viewing?"b":"span",null,m.label+" "+m.place));
+        if(i){const dd=a.atMats[i-1].place-m.place;if(dd)tr2.appendChild(h("span",dd>0?"up":"down",dd>0?" \u25b2"+dd:" \u25bc"+(-dd)));}
+      });
+      td.appendChild(tr2);tr.appendChild(td);
+      tr.addEventListener("click",()=>openAthleteInRace(r.id,a.id,"team"));
+      b.appendChild(tr);
+    }});
   tb.appendChild(b);
   const panel=h("div","tscroll");panel.appendChild(tb);g.appendChild(panel);
   return g;
