@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cross Country Results — PrimeTime</title>
+<meta name="description" content="Live and final cross country results from meets timed by PrimeTime.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Roboto+Condensed:wght@400;600;700&display=swap">
+<style>
+/* The list of meets in front of the live results pages: the same paper, ink
+   and red as the results page itself (resources/live/index.html), so going
+   from one to the other feels like turning a page, not changing sites. */
+:root{
+  color-scheme:light;
+  --brand-navy:#0c1537; --brand-red:#e70518;
+  --ground:#f1f3f8; --surface:#ffffff; --surface-2:#e9edf4; --ink:var(--brand-navy); --ink-2:#454e70; --muted:#79819c;
+  --line:#dfe4ee; --line-strong:#b5bdd0; --accent:#17265c; --accent-soft:#e3e8f5;
+  --shadow:0 1px 2px rgba(12,21,55,.05),0 1px 1px rgba(12,21,55,.03);
+  --display:"Roboto Condensed","Arial Narrow",Arial,sans-serif;
+  --body:Roboto,system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.45;
+  font-variant-numeric:tabular-nums;border-top:3px solid var(--brand-red)}
+.wrap{max-width:880px;margin:0 auto;padding:28px 16px 40px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+h1{font-family:var(--display);font-weight:700;font-size:34px;line-height:1.05;margin:4px 0 0;text-wrap:balance}
+.find{flex:0 1 280px;min-width:200px;padding:9px 12px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);
+  color:var(--ink);font:inherit}
+.find:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+section{margin-top:26px}
+h2{font-family:var(--display);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2);
+  margin:0 0 8px;display:flex;align-items:center;gap:8px}
+h2 .n{color:var(--muted);font-weight:400}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--brand-red);box-shadow:0 0 0 0 rgba(231,5,24,.5);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(231,5,24,.45)}70%{box-shadow:0 0 0 8px rgba(231,5,24,0)}100%{box-shadow:0 0 0 0 rgba(231,5,24,0)}}
+@media (prefers-reduced-motion:reduce){.live-dot{animation:none}}
+.list{display:grid;gap:8px}
+a.meet{display:grid;grid-template-columns:64px 1fr auto;gap:14px;align-items:center;padding:12px 14px;background:var(--surface);
+  border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);color:inherit;text-decoration:none}
+a.meet:hover{border-color:var(--line-strong)}
+a.meet:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a.meet.is-live{border-color:rgba(231,5,24,.35)}
+.day{text-align:center;border-right:1px solid var(--line);padding-right:12px}
+.day .m{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.day .d{font-family:var(--display);font-weight:700;font-size:26px;line-height:1}
+.day .y{font-size:11px;color:var(--muted)}
+.name{font-family:var(--display);font-weight:600;font-size:18px;line-height:1.2}
+.where{color:var(--ink-2);font-size:13px;margin-top:2px}
+.tag{font-size:12px;white-space:nowrap;color:var(--ink-2);text-align:right}
+.tag .now{color:var(--brand-red);font-weight:600}
+.empty,.problem{padding:28px 16px;text-align:center;color:var(--ink-2);background:var(--surface);border:1px dashed var(--line-strong);border-radius:10px}
+.problem{border-style:solid;border-color:rgba(231,5,24,.35)}
+footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px;
+  color:var(--muted);font-size:12px}
+footer .brand{display:block;width:120px;height:20px;background:url("/live/primetime-on-light.png") no-repeat left center/contain}
+@media (max-width:560px){
+  h1{font-size:28px}
+  .find{flex:1 1 100%}
+  a.meet{grid-template-columns:52px 1fr;gap:10px}
+  .day .d{font-size:22px}
+  .tag{grid-column:2;text-align:left;margin-top:-4px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Live results</div>
+      <h1>Cross Country Results</h1>
+    </div>
+    <input class="find" id="find" type="search" placeholder="Find a meet" aria-label="Find a meet" hidden>
+  </header>
+
+  <main id="main" aria-live="polite">
+    <p class="empty" id="loading">Loading meets…</p>
+  </main>
+
+  <footer>
+    <a class="brand" href="https://pttiming.com" target="_blank" rel="noopener noreferrer" aria-label="PrimeTime Timing"></a>
+    <span>Results update as the runners cross each mat.</span>
+  </footer>
+</div>
+<script>window.LIVE_FIREBASE={db:"https://ptt-nexus-live-default-rtdb.firebaseio.com"};</script>
+<script>
+"use strict";
+/* The meets publishing results, from Firebase's list (live_index), kept
+   current through its streaming REST API: a meet appears here the moment its
+   results are switched on, shows when a race is running, and goes when they
+   are switched off. Each links to /results/xc/<meet>. */
+(function(){
+  const DB=(window.LIVE_FIREBASE&&window.LIVE_FIREBASE.db)||"";
+  const $=(s)=>document.querySelector(s);
+  const main=$("#main"),find=$("#find");
+  let meets={},query="";
+
+  function decodeKey(k){const s=k.charAt(0)==="~"?k.slice(1):k;return s.replace(/%([0-9A-F]{2})/g,(_,h)=>String.fromCharCode(parseInt(h,16)));}
+  function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
+  function parse(iso){const d=new Date(String(iso||"").slice(0,10)+"T12:00:00");return isNaN(d)?null:d;}
+  // Today where the reader is, not in UTC: at nine at night in Iowa it is
+  // already tomorrow in UTC, and tonight's meet would move to "Results".
+  function today(){const d=new Date(),p=(n)=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());}
+
+  function row(slug,m){
+    const a=el("a","meet"+(m.live?" is-live":""));
+    a.href="/results/xc/"+encodeURIComponent(slug);
+    const d=parse(m.date),day=el("div","day");
+    if(d){
+      day.appendChild(el("div","m",d.toLocaleDateString(undefined,{month:"short"})));
+      day.appendChild(el("div","d",String(d.getDate())));
+      day.appendChild(el("div","y",String(d.getFullYear())));
+    }
+    a.appendChild(day);
+    const mid=el("div");
+    mid.appendChild(el("div","name",m.name||slug));
+    const end=parse(m.endDate);
+    const bits=[m.venue,end&&d&&end.getTime()!==d.getTime()?"through "+end.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}):null].filter(Boolean);
+    if(bits.length)mid.appendChild(el("div","where",bits.join(" · ")));
+    a.appendChild(mid);
+    const tag=el("div","tag");
+    if(m.live){tag.appendChild(el("span","now","Running now"));if(m.liveRace)tag.appendChild(document.createTextNode(": "+m.liveRace));}
+    else if(m.races){tag.textContent=m.finals>=m.races?`${m.races} race${m.races===1?"":"s"}, final`:m.finals?`${m.finals} of ${m.races} races final`:`${m.races} race${m.races===1?"":"s"}`;}
+    a.appendChild(tag);
+    return a;
+  }
+
+  function section(title,list,live){
+    if(!list.length)return null;
+    const s=el("section"),h=el("h2");
+    if(live)h.appendChild(el("span","live-dot"));
+    h.appendChild(document.createTextNode(title));
+    h.appendChild(el("span","n",String(list.length)));
+    s.appendChild(h);
+    const box=el("div","list");
+    list.forEach(([slug,m])=>box.appendChild(row(slug,m)));
+    s.appendChild(box);
+    return s;
+  }
+
+  function render(){
+    const now=today();
+    const all=Object.entries(meets)
+      .map(([k,m])=>[decodeKey(k),m||{}])
+      .filter(([slug,m])=>!query||(m.name||slug).toLowerCase().includes(query)||(m.venue||"").toLowerCase().includes(query));
+    const by=(a,b)=>String(a[1].date||"").localeCompare(String(b[1].date||""));
+    const live=all.filter(([,m])=>m.live).sort(by);
+    const soon=all.filter(([,m])=>!m.live&&String(m.date||"")>=now).sort(by);
+    const past=all.filter(([,m])=>!m.live&&String(m.date||"")<now).sort((a,b)=>by(b,a));
+    main.replaceChildren();
+    find.hidden=Object.keys(meets).length<6;
+    const parts=[section("Running now",live,true),section("Coming up",soon),section("Results",past)].filter(Boolean);
+    if(parts.length)parts.forEach((p)=>main.appendChild(p));
+    else main.appendChild(el("p","empty",query?"No meet matches that.":"No meets are publishing results right now."));
+  }
+
+  function problem(msg){main.replaceChildren(el("p","problem",msg));}
+
+  // Firebase sends the whole list first ('put' at "/"), then each change.
+  function apply(path,data){
+    const parts=String(path||"").split("/").filter(Boolean);
+    if(!parts.length){meets=data&&typeof data==="object"?data:{};return;}
+    let at=meets;
+    for(let i=0;i<parts.length-1;i++){if(!at[parts[i]]||typeof at[parts[i]]!=="object")at[parts[i]]={};at=at[parts[i]];}
+    const last=parts[parts.length-1];
+    if(data===null)delete at[last];else at[last]=data;
+  }
+
+  let es=null,loaded=false;
+  function open(){
+    if(!DB){problem("This page is not connected to a results database.");return;}
+    if(typeof EventSource==="undefined"){
+      fetch(DB+"/live_index.json").then((r)=>r.ok?r.json():Promise.reject(r)).then((d)=>{meets=d||{};render();})
+        .catch(()=>problem("The list of meets could not be read. Try again in a moment."));
+      return;
+    }
+    es=new EventSource(DB+"/live_index.json");
+    const on=(kind)=>(e)=>{
+      let msg;try{msg=JSON.parse(e.data);}catch(err){return;}
+      if(kind==="put")apply(msg.path,msg.data);
+      else Object.entries(msg.data||{}).forEach(([k,v])=>apply((msg.path||"")+"/"+k,v));
+      loaded=true;render();
+    };
+    es.addEventListener("put",on("put"));
+    es.addEventListener("patch",on("patch"));
+    es.addEventListener("cancel",()=>{es.close();problem("The list of meets is not available right now.");});
+    es.onerror=()=>{if(es.readyState===2&&!loaded)problem("The list of meets could not be read. Try again in a moment.");};
+  }
+
+  find.addEventListener("input",()=>{query=find.value.trim().toLowerCase();render();});
+  open();
+})();
+</script>
+</body>
+</html>

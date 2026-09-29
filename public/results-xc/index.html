@@ -70,6 +70,9 @@ nav.views button:focus-visible,button:focus-visible,select:focus-visible,input:f
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
 .eyebrow{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
 .eyebrow:empty{display:none}
+/* Only on the web copy, which has a list of meets to go back to. */
+.allmeets{display:inline-block;margin-bottom:6px;font-size:12px;color:var(--ink-2);text-decoration:none}
+.allmeets:hover{color:var(--ink);text-decoration:underline}
 .themesw{font:500 12px var(--body);border:1px solid var(--line);background:var(--surface);color:var(--ink-2);
   padding:7px 11px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:var(--shadow)}
 .themesw:hover{border-color:var(--line-strong);color:var(--ink)}
@@ -542,6 +545,7 @@ td.pl .mvx{display:none}
 <div class="wrap">
   <header class="top">
     <div class="meet">
+      <a class="allmeets" id="allMeets" href="/results/xc/" hidden>&larr; All meets</a>
       <div class="eyebrow" id="meetLine"></div>
       <h1 id="raceName"></h1>
       <div class="sub" id="raceSub"></div>
@@ -721,6 +725,7 @@ function serverNow(){return Date.now()+SKEW;}
    same documents come back, put together from Firebase by firebase-source.js,
    so nothing below knows the difference. */
 const FBSRC=window.LIVE_FIREBASE&&window.LiveFirebase?window.LiveFirebase.createSource(window.LIVE_FIREBASE):null;
+if(FBSRC){const a=document.getElementById("allMeets");if(a)a.hidden=false;}
 async function getJson(path){
   if(FBSRC)return FBSRC.get(path);
   const t0=Date.now();
