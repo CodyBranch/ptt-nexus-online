@@ -28,6 +28,37 @@ import { useParams } from 'next/navigation';
  * one that saves nineteen and says so about the twentieth.
  */
 
+// ── Talking to the server ─────────────────────────────────────────────────────
+
+/**
+ * fetch, but patient.
+ *
+ * A request that stalls or meets a server hiccup is tried again, up to three
+ * times, each attempt given ten seconds, before the coach is told anything.
+ * Only failures that another try can fix are retried — a network error, a
+ * timeout, a 5xx — never a 4xx, which is the server's considered answer.
+ * Every write on this form is safe to repeat: an answer is set, not added.
+ */
+async function request(url: string, init?: RequestInit): Promise<Response> {
+  const waits = [0, 700, 2000];
+  let last: unknown = null;
+  for (const wait of waits) {
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 10_000);
+    try {
+      const res = await fetch(url, { ...init, signal: ctl.signal, cache: 'no-store' });
+      if (res.status < 500) return res;
+      last = new Error(`HTTP ${res.status}`);
+    } catch (e) {
+      last = e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  throw last ?? new Error('unreachable');
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Race {
@@ -158,13 +189,15 @@ export default function DeclarePage() {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    const load = async (attempt: number): Promise<void> => {
       try {
-        const res = await fetch(`/api/declare/${meetToken}/${teamToken}`);
+        const res = await request(`/api/declare/${meetToken}/${teamToken}`);
         if (!res.ok) {
           setError(res.status === 404
             ? 'This link is not valid for any meet. Check with the meet office.'
             : 'Could not load the form.');
+          setLoading(false);
           return;
         }
         const json = await res.json() as FormData;
@@ -180,20 +213,24 @@ export default function DeclarePage() {
         setData(json);
         setChoices(initial);
         setFinalized(new Set((json.finalized ?? []).map((f) => f.raceId)));
+        setError(null);
+        setLoading(false);
       } catch {
-        if (!cancelled) setError('Could not reach the server.');
-      } finally {
-        if (!cancelled) setLoading(false);
+        if (cancelled) return;
+        // No signal in a car park is ordinary. Say so, and keep trying.
+        setError('Having trouble reaching the meet — still trying…');
+        retry = setTimeout(() => { void load(attempt + 1); }, Math.min(15_000, 3_000 * (attempt + 1)));
       }
-    })();
-    return () => { cancelled = true; };
+    };
+    void load(0);
+    return () => { cancelled = true; if (retry) clearTimeout(retry); };
   }, [meetToken, teamToken]);
 
   const save = useCallback(async (athleteId: string, choice: Choice) => {
     if (choice.kind === 'none') return;
     setSaving((s) => ({ ...s, [athleteId]: true }));
     try {
-      const res = await fetch(`/api/declare/${meetToken}/${teamToken}`, {
+      const res = await request(`/api/declare/${meetToken}/${teamToken}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -204,7 +241,7 @@ export default function DeclarePage() {
           }],
         }),
       });
-      const json = await res.json() as { rejected?: string[] };
+      const json = await res.json().catch(() => ({})) as { rejected?: string[] };
       const bad = !res.ok || (json.rejected?.length ?? 0) > 0;
       setFailed((f) => ({ ...f, [athleteId]: bad }));
       setError(bad ? 'That change was not accepted. Reload and try again.' : null);
@@ -213,7 +250,7 @@ export default function DeclarePage() {
       // the banner is off screen by the time a coach has scrolled to the next
       // name, and one who walks away believing it saved is the whole problem.
       setFailed((f) => ({ ...f, [athleteId]: true }));
-      setError('Some changes did not save — you are offline. They are marked below.');
+      setError('Some changes did not save — check your signal and tap them again. They are marked below.');
     } finally {
       setSaving((s) => ({ ...s, [athleteId]: false }));
     }
@@ -229,7 +266,7 @@ export default function DeclarePage() {
   const setFinal = async (raceId: string, next: boolean) => {
     setBusy(`final:${raceId}`);
     try {
-      const res = await fetch(`/api/declare/${meetToken}/${teamToken}/finalize`, {
+      const res = await request(`/api/declare/${meetToken}/${teamToken}/finalize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ raceId, finalized: next }),
@@ -246,7 +283,7 @@ export default function DeclarePage() {
         return copy;
       });
     } catch {
-      setError('That did not save — you are offline.');
+      setError('That did not save — check your signal and try again.');
     } finally {
       setBusy(null);
     }
@@ -273,7 +310,7 @@ export default function DeclarePage() {
     setChoices((c) => ({ ...c, ...Object.fromEntries(who.map((id) => [id, { kind: 'race', raceId } as Choice])) }));
     setSaving((s) => ({ ...s, ...Object.fromEntries(who.map((id) => [id, true])) }));
     try {
-      const res = await fetch(`/api/declare/${meetToken}/${teamToken}`, {
+      const res = await request(`/api/declare/${meetToken}/${teamToken}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ declarations: who.map((athleteId) => ({ athleteId, status: 'declared', raceId })) }),
@@ -284,7 +321,7 @@ export default function DeclarePage() {
       setError(refused.size ? `${refused.size} of those were not accepted. They are marked below.` : null);
     } catch {
       setFailed((f) => ({ ...f, ...Object.fromEntries(who.map((id) => [id, true])) }));
-      setError('Those did not save — you are offline. They are marked below.');
+      setError('Those did not save — check your signal and try again. They are marked below.');
     } finally {
       setSaving((s) => ({ ...s, ...Object.fromEntries(who.map((id) => [id, false])) }));
       setBusy(null);
@@ -368,7 +405,11 @@ export default function DeclarePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-950">
-        <p className="text-sm text-gray-500">Loading…</p>
+        <div className="text-center px-6">
+          <p className="text-sm text-gray-500">Loading…</p>
+          {/* Still retrying: a note, not an alarm. */}
+          {error && <p className="mt-2 text-xs text-amber-300/80">{error}</p>}
+        </div>
       </div>
     );
   }
