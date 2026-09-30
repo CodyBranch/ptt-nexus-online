@@ -3207,10 +3207,20 @@ function buildMap(){
     const nx=970-10*(MK-1),ny=34*MK;el("path",{d:`M ${nx} ${ny-16*MK} L ${nx+7*MK} ${ny+4*MK} L ${nx} ${ny} L ${nx-7*MK} ${ny+4*MK} Z`,style:"fill:var(--ink-2)"},map);el("text",{x:nx,y:ny+20*MK,"text-anchor":"middle",class:"lbl2",style:`font-size:${11*MK}px`},map,"N");
   }
   // mats and the start, as marks along the line; two marks merge only when they are the same spot
-  const [sx,sy]=posAt(0),[sx2,sy2]=posAt(20);
+  const [sx,sy]=posAt(0),[sx2,sy2]=posAt(25);
   const startAng=Math.atan2(sy2-sy,sx2-sx)+Math.PI/2;
   const marks=[{f:0,x:sx,y:sy,ang:startAng,side:1,labels:[],start:true}];
-  const sameSpot=(m,f,x,y)=>{const d=Math.abs(m.f-f);return Math.min(d,1-d)<0.006&&Math.hypot(m.x-x,m.y-y)<20*MK;};
+  // One mat, crossed on more than one lap, is one mark. Each lap's crossing
+  // is placed from its own distance, so on a loop course 1K and 6K land a few
+  // metres apart and drew as two or three near-parallel lines with their
+  // labels printed over each other. Anything within ten metres on the map is
+  // the same mat: one line, labelled "1K · 6K". Farther than that is a
+  // different point - the next lane of an out-and-back is more than a course
+  // width away.
+  // In the map's own units, not scaled up with the marks on a phone: that
+  // swallowed the finish into the start a few metres along.
+  const matGap=kml?Math.max(8,10*COURSE_SRC.unitsPerM):12;
+  const sameSpot=(m,f,x,y)=>{const d=Math.abs(m.f-f);return Math.hypot(m.x-x,m.y-y)<matGap||(Math.min(d,1-d)<0.006&&Math.hypot(m.x-x,m.y-y)<20);};
   MATS.forEach(k=>{const f=RACE_TO_FRAC(MATM[k]);const [x,y]=posAt(MATM[k]);const [x2,y2]=posAt(MATM[k]-15);
     const ang=Math.atan2(y-y2,x-x2)+Math.PI/2;
     const label=ML(k).toUpperCase();
@@ -3219,14 +3229,35 @@ function buildMap(){
     // a different point that just draws nearby puts its label on the other side of the line
     const crowded=marks.some(m=>Math.hypot(m.x-x,m.y-y)<34*MK);
     marks.push({f,x,y,ang,side:crowded?-1:1,labels:[label]});});
+  const placed=[];
   marks.forEach(m=>{
-    if(m.start)el("rect",{x:m.x-4*MK,y:m.y-14*MK,width:8*MK,height:28*MK,rx:2*MK,style:"fill:var(--accent)"},map);
-    else{const dx=Math.cos(m.ang)*13*MK,dy=Math.sin(m.ang)*13*MK;
-      el("line",{x1:m.x-dx,y1:m.y-dy,x2:m.x+dx,y2:m.y+dy,style:"stroke:var(--ink)","stroke-width":String(3*MK),"stroke-linecap":"round"},map);}
-    const labels=m.start?[m.labels.includes("FINISH")?"START / FINISH":"START",...m.labels.filter(t=>t!=="FINISH")]:m.labels;
-    labels.forEach((t,i)=>{const off=(m.start?42:26*m.side)*MK;
-      const lx=m.x+(m.start?0:Math.cos(m.ang)*off),ly=m.y+(m.start?off:Math.sin(m.ang)*off)+(4+i*14)*MK;
-      el("text",{x:lx,y:ly,"text-anchor":"middle",class:"lbl",style:`font-size:${13*MK}px;fill:var(--ink)`},map,t);});});
+    // Every mark goes across the course, the start included. The start was
+    // an upright bar whatever the course did there, so on a course that runs
+    // up the page from the line (Gans Creek) it lay along the course instead.
+    const dx=Math.cos(m.ang)*(m.start?15:13)*MK,dy=Math.sin(m.ang)*(m.start?15:13)*MK;
+    el("line",{x1:m.x-dx,y1:m.y-dy,x2:m.x+dx,y2:m.y+dy,style:`stroke:${m.start?"var(--accent)":"var(--ink)"}`,"stroke-width":String((m.start?7:3)*MK),"stroke-linecap":m.start?"butt":"round"},map);
+    const rest=m.labels.filter(t=>!(m.start&&t==="FINISH"));
+    const labels=m.start?[m.labels.includes("FINISH")?"START / FINISH":"START",...(rest.length?[rest.join(" · ")]:[])]:[m.labels.join(" · ")];
+    // Labels start just past the end of the line and read away from it: a
+    // centred "1K · 3K · 6K" reached back across its own mat. They stay on
+    // the map, and clear of labels already placed: on a phone the start and
+    // the finish are a few pixels apart and their names landed on each other.
+    const wide=Math.max(...labels.map(t=>t.length))*7.6*MK,lh=14*MK,lines=labels.length;
+    const place=(sgn,shift)=>{
+      const ux=Math.cos(m.ang)*sgn,uy=Math.sin(m.ang)*sgn;
+      const anchor=ux>0.35?"start":ux<-0.35?"end":"middle";
+      const off=(anchor==="middle"?(m.start?30:24):20)*MK;
+      const lx=m.x+ux*off,top=m.y+uy*off+(uy<-0.35||(anchor==="middle"&&uy<0)?-(lines-1)*lh:0)+shift;
+      const x0=anchor==="start"?lx:anchor==="end"?lx-wide:lx-wide/2;
+      return {anchor,lx,top,box:[x0,top-11*MK,x0+wide,top+(lines-1)*lh+4*MK]};};
+    const hits=b=>b[0]<4||b[2]>996||b[1]<2||b[3]>VBH-2||placed.some(q=>b[0]<q[2]&&b[2]>q[0]&&b[1]<q[3]&&b[3]>q[1]);
+    const side=m.start?1:m.side;let best=null;
+    for(const shift of [0,1,-1,2,-2,3].map(k=>k*lh*lines)){
+      for(const sg of [side,-side]){const c=place(sg,shift);if(!hits(c.box)){best=c;break;}}
+      if(best)break;}
+    if(!best)best=place(side,0);
+    placed.push(best.box);
+    labels.forEach((t,i)=>el("text",{x:best.lx,y:best.top+4*MK+i*lh,"text-anchor":best.anchor,class:"lbl",style:`font-size:${13*MK}px;fill:var(--ink)`},map,t));});
   const gd=el("g",{},map);dots={};
   ATH.forEach(a=>{const c=el("circle",{r:5.5*MK,cx:sx,cy:sy,style:"fill:var(--dot);stroke:var(--surface);stroke-width:1.5;cursor:pointer"},gd);c.addEventListener("pointermove",ev=>{const d=distAt(a,state.t);showTip(ev,a.school,[{v:a.name,l:a.bib},{v:(d/1000).toFixed(2)+" km",l:"covered"}]);});c.addEventListener("pointerleave",hideTip);c.addEventListener("click",()=>setFollow(a.id));dots[a.id]=c;});
   folRing=el("circle",{r:11*MK,fill:"none",style:`stroke:var(--ink);stroke-width:${2.5*MK};pointer-events:none`},map);
@@ -3303,12 +3334,24 @@ function drawReplay(forceLB){
   ATH.forEach((a,i)=>{const d=distAt(a,t);if(d>ld){ld=d;lead=a;}
     const [x,y]=posAt(d);const c=dots[a.id];c.setAttribute("cx",x.toFixed(1));c.setAttribute("cy",y.toFixed(1));
     const col=teamDotColor(a);const li=lastIdx(a);const done=(li===NKM&&d>=DIST)||(li<NKM&&!stillOut(a)&&t>a.cum[li]);
-    c.style.fill=col||"var(--dot)";c.setAttribute("r",(col?6.5:5.5)*MK);
-    c.style.opacity=done?(a.last<NKM?0.12:0.25):(anySel&&state.dim&&!col?0.35:1);
+    // Faded dots (the finished, and other teams' runners while teams are
+    // picked) are a lighter solid color, not see-through: where a pack
+    // bunched, see-through dots darkened each other by however much they
+    // overlapped, and as the runners moved that changed every frame - the
+    // grey dots shimmered. Finished runners go to the back so the ones still
+    // racing are drawn over them.
+    const fade=done?(a.last<NKM?14:28):(anySel&&state.dim&&!col?38:100);
+    const base=col||"var(--dot)";
+    const fill=fade===100?base:`color-mix(in srgb, ${base} ${fade}%, var(--surface))`;
+    if(c._fill!==fill){c.style.fill=fill;c._fill=fill;}
+    const r=String((col?6.5:5.5)*MK);if(c._r!==r){c.setAttribute("r",r);c._r=r;}
+    if(done&&!c._done)c.parentNode.insertBefore(c,c.parentNode.firstChild);
+    c._done=done;
     pField[i].setAttribute("x1",px(d));pField[i].setAttribute("x2",px(d));pField[i].style.opacity=done?0:0.28;
   });
   // raise selected dots to top
-  ATH.forEach(a=>{if(teamDotColor(a))dots[a.id].parentNode.appendChild(dots[a.id]);});
+  const selKey=Object.keys(state.teams).sort().join(",");
+  if(selKey!==drawReplay._sel){drawReplay._sel=selKey;ATH.forEach(a=>{if(teamDotColor(a)&&!dots[a.id]._done)dots[a.id].parentNode.appendChild(dots[a.id]);});}
   // follow
   folLabel.replaceChildren();
   if(state.follow){const a=byId[state.follow];const d=distAt(a,t);const [x,y]=posAt(d);folRing.setAttribute("cx",x);folRing.setAttribute("cy",y);folRing.style.display="";dots[a.id].parentNode.appendChild(dots[a.id]);
