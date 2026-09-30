@@ -1081,9 +1081,9 @@ function dayDate(d){return d.toLocaleDateString(undefined,{weekday:"short",month
 function niceDate(iso){const d=new Date(iso+"T12:00:00");return isNaN(d)?iso:dayDate(d)+", "+d.getFullYear();}
 function abbrOf(name){return name.split(/\s+/).map(w=>w[0]).join("").slice(0,3).toUpperCase();}
 function ingestTeams(list){
-  list.forEach((t,i)=>{if(teamById[t.id]){Object.assign(teamById[t.id],{name:t.name,logoUrl:t.logoUrl});return;}
+  list.forEach((t,i)=>{if(teamById[t.id]){Object.assign(teamById[t.id],{name:t.name,logoUrl:t.logoUrl,logoDarkUrl:t.logoDarkUrl});return;}
     const x={id:t.id,name:t.name,abbr:(t.shortName||abbrOf(t.name)).slice(0,4),color:t.primaryColor||"#4a544d",color2:t.secondaryColor||"#ffffff",
-      shape:SHAPES[i%4],hasLogo:false,logoUrl:t.logoUrl};
+      shape:SHAPES[i%4],hasLogo:false,logoUrl:t.logoUrl,logoDarkUrl:t.logoDarkUrl};
     TEAMS.push(x);teamById[x.id]=x;});
 }
 function ingestMeet(doc){
@@ -1512,6 +1512,9 @@ $("#backSched").addEventListener("click",()=>{setView("events");scrollTo({top:0}
   sw.addEventListener("click",()=>{
     dark=!dark;apply(dark);
     try{localStorage.setItem("xcRaceLab.theme",dark?"dark":"light");}catch(e){}
+    // Logos differ by theme for the schools that have a dark version, so
+    // what is on screen is drawn again rather than left with the wrong ones.
+    try{if(typeof state!=="undefined"&&state.view&&TEAMS.some(t=>t.logoDarkUrl))setView(state.view);}catch(e){}
   });
 })();
 
@@ -1623,7 +1626,7 @@ function meetFind(){
       d.teams.forEach(t=>{
         const row=li();row.setAttribute("role","option");
         const b=h("button","hit");b.type="button";
-        if(showLogos()&&t.logoUrl){const im=logoImg(t.logoUrl,x=>x.remove());
+        if(showLogos()&&logoOf(t)){const im=logoImg(logoOf(t),x=>x.remove());
           im.style.cssText="width:22px;height:22px;object-fit:contain;flex:none";b.appendChild(im);}
         const w=h("div","w");
         w.appendChild(h("div","nm",t.name));
@@ -1713,7 +1716,7 @@ function renderTeam(){
   const d=TEAMDOC;
 
   const head=h("div","panel athhead");const htop=h("div","athtop");head.appendChild(htop);
-  if(showLogos()&&d.logoUrl){const im=logoImg(d.logoUrl,x=>x.remove());
+  if(showLogos()&&logoOf(d)){const im=logoImg(logoOf(d),x=>x.remove());
     im.style.cssText="width:56px;height:56px;object-fit:contain;flex:none";htop.appendChild(im);}
   const who=h("div","w");
   who.appendChild(h("h2",null,d.name));
@@ -2371,6 +2374,12 @@ function logoAbs(url){
    never finishes. Shrunk, each is a few kilobytes and cached by the site.
    `plain` is the file as it is, which a logo falls back to if it cannot be
    shrunk. */
+/* Which of a school's logos to draw: the one made for a dark background when
+   the page is dark and the school has one, the ordinary one otherwise. A
+   school with only a white logo (stored as its dark one) shows it in the dark
+   and its initials in the light, where white on white would be nothing. */
+function isDarkPage(){return document.documentElement.getAttribute("data-theme")==="dark";}
+function logoOf(o){return o?(isDarkPage()&&o.logoDarkUrl?o.logoDarkUrl:o.logoUrl):null;}
 function logoSrc(url,plain){
   if(!url)return url;url=logoAbs(url);
   if(!FBSRC)return url;
@@ -2391,10 +2400,11 @@ function logoImg(url,onFail){
 function teamLogo(tid,size){
   const t=teamById[tid];const w=h("span","logo");w.style.width=size+"px";w.style.height=size+"px";
   if(!t){w.style.visibility="hidden";return w;}
-  if(t.logoUrl&&!t.logoFailed){
+  const lu=logoOf(t);
+  if(lu&&!(t.logoFailed&&t.logoFailed[lu])){
     // A logo that does not load becomes the school's initials, here and for
     // the rest of the visit, rather than a blank where the badge should be.
-    const im=logoImg(t.logoUrl,()=>{t.logoFailed=true;const rep2=teamLogo(tid,size);w.replaceWith(rep2);});
+    const im=logoImg(lu,()=>{(t.logoFailed=t.logoFailed||{})[lu]=true;const rep2=teamLogo(tid,size);w.replaceWith(rep2);});
     w.appendChild(im);w.title=t.name;return w;}
   const svg=el("svg",{viewBox:"0 0 32 32","aria-hidden":"true"});
   if(!t.hasLogo){ // no logo on file: initials tile
@@ -2420,12 +2430,13 @@ function svgTeamLogo(g,tid){
     else{if(t.shape==="circle")el("circle",{cx:16,cy:16,r:14,style:`fill:${t.color}`},g);else el("path",{d:SHAPE_D[t.shape],style:`fill:${t.color}`},g);
       el("text",{x:16,y:20,"text-anchor":"middle",style:`font:700 11px var(--display);fill:${t.color2}`},g,t.abbr);}
   };
-  if(!t.logoUrl||t.logoFailed){initials();return;}
-  const first=logoSrc(t.logoUrl),plain=logoSrc(t.logoUrl,true);
+  const lu=logoOf(t);
+  if(!lu||(t.logoFailed&&t.logoFailed[lu])){initials();return;}
+  const first=logoSrc(lu),plain=logoSrc(lu,true);
   const im=el("image",{x:0,y:0,width:32,height:32,preserveAspectRatio:"xMidYMid meet",href:first},g);
   im.addEventListener("error",function retry(){
     if(im.getAttribute("href")!==plain&&first!==plain){im.setAttribute("href",plain);return;}
-    im.removeEventListener("error",retry);t.logoFailed=true;im.remove();initials();});
+    im.removeEventListener("error",retry);(t.logoFailed=t.logoFailed||{})[lu]=true;im.remove();initials();});
 }
 function teamMark(tid,size){const w=h("span","tmark");if(showLogos())w.appendChild(teamLogo(tid,size||24));return w;}
 function showPhotos(){return !!(RACE&&RACE.photos&&MEET.showPhotos!==false);}
