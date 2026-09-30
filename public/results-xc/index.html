@@ -114,6 +114,10 @@ input[type=search],select{font:14px var(--body);color:var(--ink);background:var(
 .compiled .pin{width:24px;height:24px}
 @media (max-width:900px){.res-grid{grid-template-columns:1fr}}
 .tscroll{overflow-x:auto}
+/* The teams that cannot score, under the table: inset like the rows above it
+   rather than running to the panel's edge. Sticky left so it stays in view
+   when a wide table is scrolled sideways. */
+#teamWrap p.short-teams{margin:0;padding:12px 14px 14px;border-top:1px solid var(--line);line-height:1.45;position:sticky;left:0}
 table{border-collapse:collapse;width:100%}
 th{top:0;z-index:2;font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);white-space:nowrap;position:sticky;top:0;background:var(--surface)}
 td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
