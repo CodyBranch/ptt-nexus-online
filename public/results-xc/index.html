@@ -2231,7 +2231,7 @@ function logoSrc(url,plain){
   if(!FBSRC)return url;
   const m=LOGO_STORE.exec(url);
   if(!plain&&!/\.svg(\?|$)/i.test(url)&&(m||LOGO_MSHSAA.test(url)))
-    return "/_next/image?url="+encodeURIComponent(url)+"&w=128&q=75";
+    return "/_next/image?url="+encodeURIComponent(url)+"&w=128&q=70";
   return m?"/logos/"+m[1]:url;
 }
 // An <img> for a logo: resized first, then the file as it is, then onFail.
