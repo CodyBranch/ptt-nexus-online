@@ -151,10 +151,27 @@ td.pl{font:600 15px var(--mono);width:40px;text-align:right;color:var(--ink)}
 .histtbl .nm{font-weight:600;font-size:13px;line-height:1.2}
 .histtbl .meta{color:var(--muted);font-size:11px;line-height:1.25}
 .histtbl td.tm{font:500 13px var(--mono)}
-.histtbl td.yr{font:500 12.5px var(--mono);white-space:nowrap}
-.histtbl td.yr small{display:block;font-size:10.5px;color:var(--muted);font-weight:400;line-height:1.25}
-/* The meet under the year wraps on a phone rather than running off it. */
-@media (max-width:640px){.histtbl td.yr{white-space:normal}.histtbl td.yr small{overflow-wrap:anywhere}}
+/* The number columns as narrow as their numbers: left to itself the table
+   handed the spare width to them (the long line under a row spans them) and
+   the names wrapped in what was left. */
+.histtbl th.r,.histtbl td.r{text-align:right;width:1%}
+.histtbl td.tm{white-space:nowrap}
+.histtbl td.tm small{display:block;font-size:11px;color:var(--muted);font-weight:400;line-height:1.25;white-space:nowrap}
+.histtbl td.runs{width:3.5em}
+/* Where a time was run: a line across the row under it, not a column. */
+.histtbl tr.hasdet td{border-bottom:0;padding-bottom:1px}
+.histtbl tr.hdet td{padding-top:0;padding-bottom:7px;color:var(--muted);font-size:11.5px;line-height:1.35}
+.histtbl tr.hdet.expandable{cursor:pointer}
+.histtbl tr.hdet.open td{background:var(--surface-2)}
+/* Every run of a returning runner's: year, time, then place and where, the
+   last wrapping in its own column. Scoped under .histtbl because a team
+   group's list rule (.tgroup li) otherwise lays these out as standings. */
+.histtbl .hruns{list-style:none;margin:0;padding:6px 0 8px;display:grid;gap:4px}
+.histtbl .hruns li{display:grid;grid-template-columns:3em 4.6em minmax(0,1fr);gap:0 8px;
+  align-items:baseline;padding:0;border:0;font-size:12px}
+.histtbl .hruns b{font:600 12px var(--mono)}
+.histtbl .hruns .tm{font:500 12px var(--mono)}
+.histtbl .hruns .w{color:var(--muted);font-size:11.5px;line-height:1.35}
 .histtbl tr.expandable{cursor:pointer}
 .histtbl tr.expandable .caret{display:inline-block;margin-left:6px;color:var(--muted);
   transition:transform .12s ease}
@@ -163,9 +180,7 @@ td.pl{font:600 15px var(--mono);width:40px;text-align:right;color:var(--ink)}
 .histtbl tr.expandable.open td{background:var(--surface-2)}
 /* An estimate sits next to real times, so it says it is one. */
 .mv .est{font-size:10px;margin-left:3px;opacity:.7;font-weight:400}
-.histtbl tr.subrow td{padding:0 0 0 38px;background:var(--surface-2);border-bottom:1px solid var(--line)}
-.histtbl table.sub{width:auto;margin:2px 0 6px}
-.histtbl table.sub td{border:0;padding:2px 10px 2px 0}
+.histtbl tr.subrow td{padding:0 8px 0 22px;background:var(--surface-2);border-bottom:1px solid var(--line)}
 .recstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:6px;margin:0 0 10px}
 .rec{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 8px;min-width:0;
   background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--line-strong);
@@ -596,7 +611,8 @@ td.pl .mvx{display:none}
   .results-table:not(.compiled) .ath > div{min-width:0}
   /* The athlete column takes what the others leave, and no more: without
      this a school kept on one line widened the table past the screen. */
-  .results-table:not(.compiled):not(.startlist) td:nth-child(3){width:100%;max-width:0}
+  .results-table:not(.compiled):not(.startlist):not(.histtbl) td:nth-child(3){width:100%;max-width:0}
+  /* The history tables put a time in that column, not a name. */
   .results-table:not(.compiled) .ath .meta{white-space:nowrap}
 }
 /* A team's group heading on a phone: place, logo, school and score on one
@@ -1882,63 +1898,90 @@ function athleteHistory(host,a){
   const runs=[...r0.history].sort((x,y)=>(y.year||0)-(x.year||0));
   const note=runs.length+(runs.length===1?" run here":" runs here")
     +(r0.rank!=null?" · best stands "+ord(r0.rank)+" all-time":"");
+  // Year, place and time on a row, where it was run on a line under it (see
+  // markRow): a third column for the meet was one word wide on a phone.
+  HIST_HOME=homeMeet(HIST);
   const tb=h("table","results-table histtbl");
   const th=h("thead"),hr=h("tr");
-  ["Pl","Time","Year"].forEach(c=>hr.appendChild(h("th",null,c)));
+  [["Year"],["Pl"],["Time","r"]].forEach(([c,k])=>hr.appendChild(h("th",k||null,c)));
   th.appendChild(hr);tb.appendChild(th);
   const b=h("tbody");
   runs.forEach(m=>{
     const r=h("tr");
+    r.appendChild(h("td","tm",m.year!=null?String(m.year):""));
     r.appendChild(h("td","pl",m.place!=null?ord(m.place):""));
-    const tc=h("td","tm",m.mark);
+    const tc=h("td","tm r",m.mark);
     if(m.seconds===r0.best.seconds)tc.appendChild(h("small",null,"best here"));
-    r.appendChild(tc);
-    const y=h("td","yr");y.appendChild(h("b",null,m.year!=null?String(m.year):""));
-    const sm=h("small");sm.textContent=[m.meetName,m.raceName].filter(Boolean).join(" · ");
-    y.appendChild(sm);r.appendChild(y);
-    b.appendChild(r);});
+    r.appendChild(tc);b.appendChild(r);
+    const w=whereRun(m,false);
+    if(w){r.classList.add("hasdet");const d=h("tr","hdet");const c=h("td",null,w);c.colSpan=3;d.appendChild(c);b.appendChild(d);}
+  });
   tb.appendChild(b);
-  const panel=h("div","panel tscroll");panel.appendChild(tb);
+  const panel=h("div","panel");panel.appendChild(tb);
   host.appendChild(histGroup("Been here before",note,panel));
 }
 /* A past run, on one line: where they finished, who they are, the time, and
    which year and meet it was. Tight enough that two of these sit side by side
    and a top ten is taken in without scrolling. */
-function markRow(m,i,o){
+/* Where a past time was run, in words, leaving out what every row would
+   repeat: this meet's own name (it has been "Gans Creek Classic" for years)
+   and this race's. What is left is the exception worth reading - a state
+   final, another race on the course - and often nothing at all. */
+let HIST_HOME=null;
+function whereRun(m,withPlace){
+  const race=m.raceName&&m.raceName!==RACE.name&&m.raceName!==(HIST&&HIST.knownAs)?m.raceName:"";
+  const meet=m.meetName&&m.meetName!==HIST_HOME?m.meetName:"";
+  return [withPlace&&m.place!=null?ord(m.place):"",meet,race].filter(Boolean).join(" \u00b7 ");
+}
+function homeMeet(d){
+  const n={};[...d.raceTop,...d.allTimeTop,...d.winners,...d.returning.map(r=>r.best)]
+    .forEach(m=>{if(m&&m.meetName)n[m.meetName]=(n[m.meetName]||0)+1;});
+  let best=null;Object.keys(n).forEach(k=>{if(best==null||n[k]>n[best])best=k;});return best;
+}
+/* One past time: rank, who, and the time with its year under it, then where
+   it was run on a line of its own across the row. The table had a fourth
+   column for the year and the meet, which on a phone was a strip one word
+   wide running the height of the screen. */
+function markRow(m,i,o,b){
   const r=h("tr");
   // The rank is their standing on THIS list, not where they finished on the
   // day; the two were conflated and the column read 1, 2, 3, 4, 1, 5 - the
   // fifth-fastest ever having won the year she ran it. Where she finished
-  // still matters, so it goes beside the year, which is where it means
+  // still matters, so it goes with where it was run, which is where it means
   // something.
   //
   // Past winners want neither: the list runs down the years, so a 1-to-7
   // ranks nothing, and every one of them finished first, so saying "1st"
   // seven times says nothing either.
   if(o.rank!==false)r.appendChild(h("td","pl",i+1));
-  const ac=h("td");const w=h("div");
-  w.appendChild(h("div","nm",m.name));
-  w.appendChild(h("div","meta",[m.team,m.grade].filter(Boolean).join(" \u00b7 ")));
-  ac.appendChild(w);r.appendChild(ac);
-  r.appendChild(h("td","tm",m.mark));
-  const yc=h("td","yr");
-  yc.appendChild(h("b",null,m.year!=null?String(m.year):""));
-  const sm=h("small");
-  const place=(o.place!==false&&m.place!=null)?ord(m.place):"";
-  sm.textContent=[place,m.meetName,m.raceName].filter(Boolean).join(" \u00b7 ");
-  yc.appendChild(sm);r.appendChild(yc);
-  return r;
+  const ac=h("td");
+  ac.appendChild(h("div","nm",m.name));
+  const meta=[m.team,m.grade].filter(Boolean).join(" \u00b7 ");
+  if(meta)ac.appendChild(h("div","meta",meta));
+  r.appendChild(ac);
+  // The year and where they finished that day under the time; a line across
+  // the row only for the times run somewhere other than this race.
+  const tc=h("td","tm r",m.mark);
+  const when=[m.year!=null?String(m.year):"",o.place!==false&&m.place!=null?ord(m.place):""].filter(Boolean).join(" · ");
+  if(when)tc.appendChild(h("small",null,when));
+  r.appendChild(tc);b.appendChild(r);
+  const where=whereRun(m,false);
+  if(where){
+    r.classList.add("hasdet");
+    const d=h("tr","hdet");if(o.rank!==false)d.appendChild(h("td"));
+    const c=h("td",null,where);c.colSpan=2;d.appendChild(c);b.appendChild(d);
+  }
 }
 function markTable(marks,opt){
   const o=opt||{};
   const tb=h("table","results-table histtbl");
   const th=h("thead"),hr=h("tr");
-  (o.rank===false?["Athlete","Time","Year"]:["#","Athlete","Time","Year"])
-    .forEach(c=>hr.appendChild(h("th",null,c)));
+  (o.rank===false?["Athlete","Time"]:["#","Athlete","Time"])
+    .forEach((c,i,a)=>hr.appendChild(h("th",i===a.length-1?"r":null,c)));
   th.appendChild(hr);tb.appendChild(th);
-  const b=h("tbody");marks.forEach((m,i)=>b.appendChild(markRow(m,i,o)));
+  const b=h("tbody");marks.forEach((m,i)=>markRow(m,i,o,b));
   tb.appendChild(b);
-  const panel=h("div","panel tscroll");panel.appendChild(tb);return panel;
+  const panel=h("div","panel");panel.appendChild(tb);return panel;
 }
 function histGroup(title,note,body){
   const g=h("div","tgroup");
@@ -1954,6 +1997,7 @@ function renderHistory(){
   const line=[d.venue,d.years?"run "+d.years+(d.years===1?" time":" times"):"",
     d.knownAs&&d.knownAs!==RACE.name?"also run as "+d.knownAs:""].filter(Boolean).join(" \u00b7 ");
   if(line)host.appendChild(h("p","note",line));
+  HIST_HOME=homeMeet(d);
 
   // Quick hits first: the two ten-deep lists side by side, then who has won
   // it. Who is here today comes last, because it is the long one and the only
@@ -1978,51 +2022,54 @@ function renderHistory(){
 function returningTable(list){
   const tb=h("table","results-table histtbl");
   const th=h("thead"),hr=h("tr");
-  ["Bib","Athlete","Best here","When","Runs","All-time"].forEach((c,i)=>{
-    const x=h("th",null,c);if(i===5)x.style.textAlign="right";hr.appendChild(x);});
+  // Who, their best here with its year, and how many times they have run it.
+  // Bib goes under the name and the all-time standing with where the best was
+  // run: six columns on a phone left the meet one word wide.
+  [["Athlete"],["Best here","r"],["Runs","r"]].forEach(([c,k])=>hr.appendChild(h("th",k||null,c)));
   th.appendChild(hr);tb.appendChild(th);
   const b=h("tbody");
   list.forEach(r0=>{
     const many=r0.history.length>1;
     const r=h("tr",many?"expandable":null);
-    r.appendChild(h("td","tm",r0.bib!=null?r0.bib:""));
-    const ac=h("td");const w=h("div");
+    const ac=h("td");
     const nm=h("div","nm",r0.name);
     if(many)nm.appendChild(h("span","caret","\u203a"));
-    w.appendChild(nm);
-    if(r0.team)w.appendChild(h("div","meta",r0.team));
-    ac.appendChild(w);r.appendChild(ac);
-    r.appendChild(h("td","tm",r0.best.mark));
-    const yc=h("td","yr");yc.appendChild(h("b",null,r0.best.year!=null?String(r0.best.year):""));
-    const sm=h("small");sm.textContent=[r0.best.meetName,r0.best.raceName].filter(Boolean).join(" \u00b7 ");
-    yc.appendChild(sm);r.appendChild(yc);
-    r.appendChild(h("td","tm",r0.history.length));
-    const rk=h("td","pts");rk.textContent=r0.rank!=null?ord(r0.rank):"";r.appendChild(rk);
+    ac.appendChild(nm);
+    const meta=[r0.team,r0.bib!=null?"#"+r0.bib:""].filter(Boolean).join(" \u00b7 ");
+    if(meta)ac.appendChild(h("div","meta",meta));
+    r.appendChild(ac);
+    const tc=h("td","tm r",r0.best.mark);
+    const when=[r0.best.year!=null?String(r0.best.year):"",r0.best.place!=null?ord(r0.best.place):""].filter(Boolean).join(" · ");
+    if(when)tc.appendChild(h("small",null,when));
+    r.appendChild(tc);
+    r.appendChild(h("td","tm r runs",String(r0.history.length)));
     b.appendChild(r);
+    const where=[r0.rank!=null?ord(r0.rank)+" fastest here all-time":"",whereRun(r0.best,false)].filter(Boolean).join(" \u00b7 ");
+    let det=null;
+    if(where){r.classList.add("hasdet");det=h("tr","hdet"+(many?" expandable":""));
+      const c=h("td",null,where);c.colSpan=3;det.appendChild(c);b.appendChild(det);}
     if(!many)return;
+    // Every run of theirs here, newest first: year, time, and where.
     const sub=h("tr","subrow");sub.hidden=true;
-    const cell=h("td");cell.colSpan=6;
-    const inner=h("table","results-table histtbl sub");
-    const ib=h("tbody");
+    const cell=h("td");cell.colSpan=3;
+    const ul=h("ul","hruns");
     [...r0.history].sort((a,b2)=>(b2.year||0)-(a.year||0)).forEach(m=>{
-      const ir=h("tr");
-      ir.appendChild(h("td","pl",m.place!=null?ord(m.place):""));
-      ir.appendChild(h("td","tm",m.mark));
-      const y=h("td","yr");y.appendChild(h("b",null,m.year!=null?String(m.year):""));
-      const s2=h("small");s2.textContent=[m.meetName,m.raceName].filter(Boolean).join(" \u00b7 ");
-      y.appendChild(s2);ir.appendChild(y);
-      ib.appendChild(ir);});
-    inner.appendChild(ib);cell.appendChild(inner);sub.appendChild(cell);b.appendChild(sub);
+      const li=h("li");
+      li.appendChild(h("b",null,m.year!=null?String(m.year):""));
+      li.appendChild(h("span","tm",m.mark));
+      const w=whereRun(m,true);if(w)li.appendChild(h("span","w",w));
+      ul.appendChild(li);});
+    cell.appendChild(ul);sub.appendChild(cell);b.appendChild(sub);
     r.tabIndex=0;r.setAttribute("role","button");
     r.setAttribute("aria-expanded","false");
     r.title="See every run of theirs here";
     const toggle=()=>{const open=sub.hidden;sub.hidden=!open;
-      r.setAttribute("aria-expanded",String(open));r.classList.toggle("open",open);};
-    r.addEventListener("click",toggle);
+      r.setAttribute("aria-expanded",String(open));r.classList.toggle("open",open);if(det)det.classList.toggle("open",open);};
+    r.addEventListener("click",toggle);if(det)det.addEventListener("click",toggle);
     r.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();toggle();}});
   });
   tb.appendChild(b);
-  const panel=h("div","panel tscroll");panel.appendChild(tb);return panel;
+  const panel=h("div","panel");panel.appendChild(tb);return panel;
 }
 function renderAthlete(){
   const host=$("#v-athlete");host.replaceChildren();
