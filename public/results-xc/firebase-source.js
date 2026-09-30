@@ -347,6 +347,35 @@
       return s.ready;
     }
 
+    /*
+     * A tab nobody is looking at lets its streams go. The two-stream cap above
+     * is per tab, and the browser's six connections to one server are shared
+     * by all of them: with three results tabs open, a fourth sat on "Loading
+     * the schedule..." because every connection it could use was held by a
+     * tab in the background. After PARK_MS hidden, this tab closes its
+     * streams and keeps what it has; shown again, it opens them, and each
+     * one's first message is the whole of what it covers, so nothing that
+     * changed meanwhile is missed.
+     */
+    const PARK_MS = 10000;
+    let parkTimer = null;
+    function park() {
+      for (const k of Object.keys(subs)) {
+        const s = subs[k];
+        if (s && s.es) s.es.close();
+        delete subs[k];
+      }
+    }
+    if (typeof document !== "undefined" && document.addEventListener) {
+      document.addEventListener("visibilitychange", () => {
+        clearTimeout(parkTimer);
+        if (document.hidden) { parkTimer = setTimeout(park, PARK_MS); return; }
+        if (!opened) return;
+        subscribe("head");
+        if (raceSub) subscribe(raceSub);
+      });
+    }
+
     function notOn() { const e = new Error("Live results are not switched on for this meet."); e.status = 404; return e; }
     function unreachable() { return new Error("The results could not be reached."); }
 
