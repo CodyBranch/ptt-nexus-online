@@ -81,6 +81,10 @@ nav.views button:focus-visible,button:focus-visible,select:focus-visible,input:f
 h2{font-family:var(--display);font-weight:700;font-size:22px;letter-spacing:.01em;margin:0;line-height:1.1}
 h3{font-family:var(--display);font-weight:600;font-size:18px;margin:0;letter-spacing:.01em}
 .note{color:var(--muted);font-size:12.5px;max-width:70ch}
+/* A header card's summary line ("48 entered across 4 races · 1st in ...")
+   is one line of facts, not a paragraph: it uses the card's width rather than
+   breaking at the reading measure with room to spare. */
+.athhead .note{max-width:none}
 .num{font-variant-numeric:tabular-nums;font-family:var(--mono)}
 section.view[hidden]{display:none}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
