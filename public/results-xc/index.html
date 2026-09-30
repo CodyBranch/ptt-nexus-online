@@ -3439,18 +3439,22 @@ function renderTeams(){
   /* On a phone each school takes two lines - its name and score, then its
      runners on the full width beneath - because the three side by side (name,
      score, strip) left each a third of a phone and they ran into each other. */
-  const teams=SCORE[k].teams;const rowH=N?46:cw(28,26),W=cw(980,470),ml=N?12:cw(240,132),mr=N?12:cw(110,56),mt=10,H=mt+teams.length*rowH+30;
+  const teams=SCORE[k].teams;const rowH=N?46:cw(30,26),W=cw(980,470),ml=N?12:cw(240,132),mr=N?12:cw(110,56),mt=N?10:24,H=mt+teams.length*rowH+30;
   const times=teams.flatMap(t=>t.ids.map(id=>byId[id].cum[k]));const lo=Math.floor(Math.min(...times)/5)*5-2,hi=Math.ceil(Math.max(...times)/5)*5+2;
   const sx=v=>ml+(v-lo)/(hi-lo)*(W-ml-mr);
   const svg=el("svg",{viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":"Pack spread by team"},host);
   const ax=el("g",{class:"axis"},svg);const tks=niceTicks(lo,hi,N?4:7);tks.forEach(v=>{el("line",{x1:sx(v),x2:sx(v),y1:mt,y2:H-24},ax);el("text",{x:sx(v),y:H-8,"text-anchor":"middle"},ax,fmt(v,0));});
-  if(!narrow())el("text",{x:W-mr+12,y:mt+2,class:"lbl2"},svg,"1–"+SC+" spread");
-  teams.forEach((t,i)=>{const top=mt+i*rowH;const y=N?top+33:top+rowH/2+4;const s=state.teams[t.team];const col=s?slotColor(s):"var(--ink-2)";
+  if(!narrow())el("text",{x:W-mr+12,y:mt-8,class:"lbl2"},svg,"1–"+SC+" spread");
+  teams.forEach((t,i)=>{const top=mt+i*rowH;const y=N?top+33:top+rowH/2;const s=state.teams[t.team];const col=s?slotColor(s):"var(--ink-2)";
     const g=el("g",{style:"cursor:pointer"},svg);g.addEventListener("click",()=>toggleTeam(t.team));
     el("rect",{x:0,y:top,width:W,height:rowH,fill:"transparent"},g);
-    if(s)el("rect",{x:0,y:top+2,width:W,height:rowH-4,rx:4,style:"fill:var(--surface-2)"},g);
+    // A picked team is marked with a bar in its color at the start of the
+    // row, like the line by a runner's name in the results. It used to be a
+    // grey band the full width of the chart, and two or three picked teams
+    // in a row ran together into one grey block.
+    if(s)el("rect",{x:0,y:top+(N?4:5),width:4,height:rowH-(N?8:10),rx:2,style:`fill:${col}`},g);
     const ly=N?top+17:y+4;
-    if(showLogos()){const lg=el("g",{transform:`translate(${8},${ly-15}) scale(0.7)`},g);svgTeamLogo(lg,t.team);}
+    if(showLogos()){const lg=el("g",{transform:`translate(${10},${ly-15}) scale(0.7)`},g);svgTeamLogo(lg,t.team);}
     // A team still coming home has no place and no final score. Say what it
     // does have, or nothing — never the word "undefined" in front of a school.
     const ts=t.ids.map(id=>byId[id].cum[k]);
@@ -3458,10 +3462,10 @@ function renderTeams(){
     const scoreTxt=t.score!=null?ptsLabel(t.score):t.points!=null?t.points+" so far":"";
     const nameTxt=(t.place!=null?t.place+". ":"")+teamById[t.team].name;
     if(N){
-      el("text",{x:showLogos()?34:8,y:ly,class:"lbl"},g,fitText(nameTxt,Math.floor((W-(showLogos()?34:8)-110)/6.6)));
+      el("text",{x:showLogos()?36:12,y:ly,class:"lbl",style:s?"font-weight:700":""},g,fitText(nameTxt,Math.floor((W-(showLogos()?36:12)-110)/6.6)));
       el("text",{x:W-mr,y:ly,"text-anchor":"end",class:"lbl2"},g,[scoreTxt,sp0!=null?sp0.toFixed(1)+" s":""].filter(Boolean).join(" · "));
     }else{
-      el("text",{x:showLogos()?34:8,y:y+4,class:"lbl"},g,nameTxt);
+      el("text",{x:showLogos()?36:12,y:y+4,class:"lbl",style:s?"font-weight:700":""},g,nameTxt);
       el("text",{x:ml-16,y:y+4,"text-anchor":"end",class:"lbl2"},g,scoreTxt);
     }
     el("line",{x1:sx(ts[0]),x2:sx(ts[Math.min(SC-1,ts.length-1)]),y1:y,y2:y,style:`stroke:${col};opacity:${s?0.9:0.45}`,"stroke-width":s?6:4,"stroke-linecap":"round"},g);
