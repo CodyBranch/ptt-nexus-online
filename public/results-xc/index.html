@@ -155,6 +155,8 @@ td.pl{font:600 15px var(--mono);width:40px;text-align:right;color:var(--ink)}
    handed the spare width to them (the long line under a row spans them) and
    the names wrapped in what was left. */
 .histtbl th.r,.histtbl td.r{text-align:right;width:1%}
+.tentries td.tm{width:1%;padding-right:12px}
+.tentries td.r{white-space:nowrap}
 .histtbl td.tm{white-space:nowrap}
 .histtbl td.tm small{display:block;font-size:11px;color:var(--muted);font-weight:400;line-height:1.25;white-space:nowrap}
 .histtbl td.runs{width:3.5em}
@@ -1840,6 +1842,12 @@ function teamRace(d,r0){
     }
   }
 
+  // Before any mat has reported there is no place, time or points to show,
+  // and the table was three empty columns. Until then it is the team's entry:
+  // their box, who is declared and checked in, and whether they can score.
+  const pre=!(r0.progress&&r0.progress.length)&&!r0.runners.some(x=>x.place!=null||x.ms!=null||x.status==="finished");
+  if(pre){g.appendChild(teamEntries(r0));return g;}
+
   // Every runner: place, time, team points, and their way through the field.
   const tb=h("table","results-table histtbl trun");
   const th=h("thead"),hr=h("tr");
@@ -1888,7 +1896,44 @@ function teamRace(d,r0){
   tb.appendChild(b);
   const panel=h("div","tscroll");panel.appendChild(tb);g.appendChild(panel);
   return g;
-}/* ============ History ============ */
+}
+/* A school's entry in a race that has not started: the same things the
+   race's Entries view says, for this one team. */
+function teamEntries(r){
+  const wrap=h("div");
+  const box=r.box??(RACE&&RACE.id===r.id&&RACE.boxOf?RACE.boxOf[TEAMID]:undefined);
+  const inRace=r.runners.filter(a=>a.entry!=="scratched");
+  const scratched=r.runners.length-inRace.length;
+  const checked=inRace.filter(a=>a.entry==="checked_in").length;
+  const SCn=r.scorers||0;
+  const sum=h("div","tsum");
+  const tile=(v,unit,l)=>{const b=h("div","box2");const vv=h("div","v",v);if(unit)vv.appendChild(h("small",null,unit));b.appendChild(vv);b.appendChild(h("div","l",l));sum.appendChild(b);};
+  if(box!=null)tile(String(box),"","Start box");
+  tile(String(inRace.length),scratched?scratched+" scratched":"","Running");
+  if(checked)tile(checked+"/"+inRace.length,"","Checked in");
+  if(SCn)tile(inRace.length>=SCn?"Yes":"No",inRace.length>=SCn?"":"needs "+(SCn-inRace.length)+" more","Can score");
+  wrap.appendChild(sum);
+  const tb=h("table","results-table histtbl tentries");
+  const th=h("thead"),hr=h("tr");
+  [["Bib"],["Athlete"],["Entry","r"]].forEach(([c,k])=>hr.appendChild(h("th",k||null,c)));
+  th.appendChild(hr);tb.appendChild(th);
+  const b=h("tbody");
+  [...r.runners].sort((x,y)=>(x.entry==="scratched")-(y.entry==="scratched")||(x.bib??1e9)-(y.bib??1e9)||x.name.localeCompare(y.name))
+    .forEach(a=>{
+      const row=h("tr");if(a.entry==="scratched")row.style.opacity=".55";
+      row.appendChild(h("td","tm",a.bib!=null?String(a.bib):""));
+      const ac=h("td");const btn=h("button","hit");btn.type="button";
+      const w=h("div","w");w.appendChild(h("div","nm",a.name));
+      if(a.year)w.appendChild(h("div","meta",a.year));
+      btn.appendChild(w);btn.addEventListener("click",()=>openAthleteInRace(r.id,a.id,"team"));
+      ac.appendChild(btn);row.appendChild(ac);
+      const ec=h("td","r");ec.appendChild(entryPill(a.entry));row.appendChild(ec);
+      b.appendChild(row);});
+  tb.appendChild(b);
+  const panel=h("div","tscroll");panel.appendChild(tb);wrap.appendChild(panel);
+  return wrap;
+}
+/* ============ History ============ */
 /* Where a past run of theirs was at a given distance.
    Exact when that run has a split at the same place - the mats do not always
    sit where an older timing plan put them, so that is not to be counted on.
