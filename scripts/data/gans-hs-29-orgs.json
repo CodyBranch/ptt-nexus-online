@@ -1,0 +1,2029 @@
+[
+  {
+    "order": 1,
+    "meetName": "ADM Adel",
+    "submissionId": "b4715ba5-df86-4269-9426-a9081a55d712",
+    "abbreviation": "ADEL",
+    "athletesEnteredAtMeet": 13,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "ADM High School",
+      "abbreviation": "ADEL",
+      "shortName": "ADM",
+      "mascot": "Tigers",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Raccoon River Conference",
+      "subConference": null,
+      "stateAssociation": "IHSAA",
+      "city": "Adel",
+      "state": "IA",
+      "country": "USA",
+      "primaryColor": "#D02030",
+      "secondaryColor": "#000000",
+      "website": "https://www.admactivities.org/",
+      "athleticNetId": "17229",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Adel-DeSoto-Minburn CSD, Adel, Iowa. Girls compete under IGHSAU. Iowa XC class 3A.",
+      "isActive": true,
+      "logoFile": "adm-high-school.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "adm-high-school.png",
+      "sourceUrl": "https://www.admactivities.org/assets/Tiger_Headv2.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "Tiger head used as the activities-site navbar logo; 500x500 transparent PNG.",
+      "suggestedStorageKey": "hs/adm-high-school.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "IHSAA",
+      "classification": "IHSAA 3A (cross country)",
+      "conference": "Raccoon River Conference"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/17229/cross-country",
+      "athleticNetListing": {
+        "name": "ADM Adel",
+        "address": "801 Nile Kinnick Dr S, Adel, IA 50003-2024",
+        "mascot": "Tigers",
+        "colors": [
+          "Red",
+          "Black"
+        ]
+      },
+      "colorSource": "Hex sampled from the tiger-head logo on admactivities.org (red #D02030, black); district site theme also uses #C8102E. School colours are scarlet and black.",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 17229 on the Gans Creek HS 2026 meet is \"ADM Adel\", Adel, IA (Adel-DeSoto-Minburn).",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": []
+    }
+  },
+  {
+    "order": 2,
+    "meetName": "Ankeny Centennial",
+    "submissionId": "86226e2c-d3b0-450c-8db3-11ed47e88770",
+    "abbreviation": "ANKC",
+    "athletesEnteredAtMeet": 19,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Ankeny Centennial High School",
+      "abbreviation": "ANKC",
+      "shortName": "Ankeny Centennial",
+      "mascot": "Jaguars",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Central Iowa Metro League",
+      "subConference": null,
+      "stateAssociation": "IHSAA",
+      "city": "Ankeny",
+      "state": "IA",
+      "country": "USA",
+      "primaryColor": "#1A1919",
+      "secondaryColor": "#9E9F9E",
+      "website": "https://achs.ankenyschools.org/",
+      "athleticNetId": "51412",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Ankeny CSD. Colours black and silver with a maroon accent. Girls compete under IGHSAU. Iowa XC class 4A.",
+      "isActive": true,
+      "logoFile": "ankeny-centennial-high-school.svg",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "ankeny-centennial-high-school.svg",
+      "sourceUrl": "https://www.ankenyschools.org/app/themes/ankeny/img/logos/ankeny-centennial.svg",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "Cropped (viewBox only) to the jaguar head from the district's \"Ankeny Centennial High School\" horizontal lockup; artwork unchanged.",
+      "suggestedStorageKey": "hs/ankeny-centennial-high-school.svg"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "IHSAA",
+      "classification": "IHSAA 4A (cross country)",
+      "conference": "Central Iowa Metro League"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/51412/cross-country",
+      "athleticNetListing": {
+        "name": "Ankeny Centennial",
+        "address": "2220 NW State St, Ankeny, IA 50023",
+        "mascot": "Jaguars",
+        "colors": [
+          "Black",
+          "Gray",
+          "Maroon"
+        ]
+      },
+      "colorSource": "Hex sampled from the jaguar mark in the district SVG (black #1A1919, silver #9E9F9E). Maroon accent has no published hex.",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 51412, Ankeny, IA; only Ankeny Centennial in the country.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": []
+    }
+  },
+  {
+    "order": 3,
+    "meetName": "Bentonville",
+    "submissionId": "d91ba245-7d87-4027-b0c4-07d7e182a2b7",
+    "abbreviation": "BTVL",
+    "athletesEnteredAtMeet": 48,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Bentonville High School",
+      "abbreviation": "BTVL",
+      "shortName": "Bentonville",
+      "mascot": "Tigers",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "7A West",
+      "subConference": null,
+      "stateAssociation": "AAA",
+      "city": "Bentonville",
+      "state": "AR",
+      "country": "USA",
+      "primaryColor": "#000000",
+      "secondaryColor": "#BE9E62",
+      "website": "https://www.gobentonvilletigers.com/",
+      "athleticNetId": "14086",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Bentonville Public Schools. Colours black, white and Vegas gold. Not Bentonville West (Wolverines), a separate school.",
+      "isActive": true,
+      "logoFile": "bentonville-high-school.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "bentonville-high-school.png",
+      "sourceUrl": "https://5starassets.blob.core.windows.net/athleticsites/178/71/images/7f47d3db-0882-4f8c-b2f6-b65630a6d7df.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "Header logo of the official athletics site; only 200x169 — a larger original would be better.",
+      "suggestedStorageKey": "hs/bentonville-high-school.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "AAA",
+      "classification": "AAA 7A",
+      "conference": "7A West"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/14086/cross-country",
+      "athleticNetListing": {
+        "name": "Bentonville",
+        "address": "1702 SE J St, Bentonville, AR 72712",
+        "mascot": "Tigers",
+        "colors": [
+          "Black",
+          "Vegas Gold"
+        ]
+      },
+      "colorSource": "Hex sampled from the tiger logo on gobentonvilletigers.com (black, Vegas gold #BE9E62).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 14086, Bentonville, AR (1702 SE J St). Arkansas is next door and sends several teams to Gans Creek.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": []
+    }
+  },
+  {
+    "order": 4,
+    "meetName": "Bridgeland",
+    "submissionId": "8052d9af-de59-43c3-ba63-1a4ae9f8158e",
+    "abbreviation": "BRGL",
+    "athletesEnteredAtMeet": 20,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Bridgeland High School",
+      "abbreviation": "BRGL",
+      "shortName": "Bridgeland",
+      "mascot": "Bears",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "District 16-6A",
+      "subConference": null,
+      "stateAssociation": "UIL",
+      "city": "Cypress",
+      "state": "TX",
+      "country": "USA",
+      "primaryColor": "#13284B",
+      "secondaryColor": "#E24725",
+      "website": "https://bridgeland.cfisd.net/",
+      "athleticNetId": "74012",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Cypress-Fairbanks ISD (Houston area). Colours navy and orange. 2025 District 16-6A cross country champions (boys and girls).",
+      "isActive": true,
+      "logoFile": "bridgeland-high-school.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "bridgeland-high-school.png",
+      "sourceUrl": "https://resources.finalsite.net/images/v1714659845/cfisdnet/f32ninykzmmm4e53funu/BridgelandHighSchoolPrimaryLogoImage.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "School primary logo (\"Home of the Bears\" badge), 3007x2854 transparent, 1.2 MB — may want downscaling before upload. Athletic.net has the simpler \"B\" mark.",
+      "suggestedStorageKey": "hs/bridgeland-high-school.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "UIL",
+      "classification": "UIL 6A, Region II (2025 cross country)",
+      "conference": "District 16-6A"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/74012/cross-country",
+      "athleticNetListing": {
+        "name": "Bridgeland",
+        "address": "10707 Mason Rd, Cypress, TX 77433",
+        "mascot": "Bear",
+        "colors": [
+          "Navy",
+          "Orange"
+        ]
+      },
+      "colorSource": "Hex sampled from the school's primary logo on bridgeland.cfisd.net (navy #13284B, orange #E24725).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 74012, 10707 Mason Rd, Cypress, TX. Only Bridgeland HS in the country.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": [
+        "Athletic.net lists the team under Region 3 / district 23; CFISD's own 2025 news says District 16-6A, Region II — used the CFISD version."
+      ]
+    }
+  },
+  {
+    "order": 5,
+    "meetName": "Conroe Woodlands College Park",
+    "submissionId": "9b3425dc-ae5e-44ae-bdc7-83599a11a6fd",
+    "abbreviation": "WCP",
+    "athletesEnteredAtMeet": 20,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "The Woodlands College Park High School",
+      "abbreviation": "WCP",
+      "shortName": "College Park",
+      "mascot": "Cavaliers",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "District 13-6A",
+      "subConference": null,
+      "stateAssociation": "UIL",
+      "city": "The Woodlands",
+      "state": "TX",
+      "country": "USA",
+      "primaryColor": "#0F2C52",
+      "secondaryColor": "#2A5235",
+      "website": "https://twcp.conroeisd.net/",
+      "athleticNetId": "4187",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Conroe ISD; home of the Conroe ISD Academy of Science and Technology. Meet name follows Athletic.net's \"Conroe Woodlands College Park\" (district + city prefix). Colours blue and green. Not College Park HS in Pleasant Hill, CA, or College Park Christian Academy (already in the table, MSHSAA).",
+      "isActive": true,
+      "logoFile": "the-woodlands-college-park-high-school.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "the-woodlands-college-park-high-school.png",
+      "sourceUrl": "https://cmsv2-assets.apptegy.net/uploads/25234/logo/28047/The_Woodlands_College_Park_High_School_logo_template_300.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "Interlocking CP from the school site, 1194x1080 transparent.",
+      "suggestedStorageKey": "hs/the-woodlands-college-park-high-school.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "UIL",
+      "classification": "UIL 6A",
+      "conference": "District 13-6A"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/4187/cross-country",
+      "athleticNetListing": {
+        "name": "Conroe Woodlands College Park",
+        "address": "3701 College Park Dr, The Woodlands, TX 77384",
+        "mascot": "Cavaliers",
+        "colors": [
+          "Royal",
+          "Silver",
+          "Hunter Green"
+        ]
+      },
+      "colorSource": "Hex sampled from the CP logo on twcp.conroeisd.net (navy/blue #0F2C52, green #2A5235).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 4187 \"Conroe Woodlands College Park\" is at 3701 College Park Dr, The Woodlands, TX — The Woodlands College Park HS (Conroe ISD). The existing \"College Park Christian Acad Jr\" (MO) is unrelated.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": [
+        "shortName: \"College Park\" is ambiguous nationally; \"TW College Park\" or \"Woodlands College Park\" is an alternative."
+      ]
+    }
+  },
+  {
+    "order": 6,
+    "meetName": "Dallas Center-Grimes",
+    "submissionId": "bca339f2-c4c0-4645-9776-3bd85d5a5f88",
+    "abbreviation": "DCG",
+    "athletesEnteredAtMeet": 12,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Dallas Center-Grimes High School",
+      "abbreviation": "DCG",
+      "shortName": "Dallas Center-Grimes",
+      "mascot": "Mustangs",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Little Hawkeye Conference",
+      "subConference": null,
+      "stateAssociation": "IHSAA",
+      "city": "Grimes",
+      "state": "IA",
+      "country": "USA",
+      "primaryColor": "#E31838",
+      "secondaryColor": "#2C2C2C",
+      "website": "https://dcgschools.com/",
+      "athleticNetId": "17389",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Dallas Center-Grimes CSD. Girls compete under IGHSAU. Iowa XC class 4A.",
+      "isActive": true,
+      "logoFile": "dallas-center-grimes-high-school.webp",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "dallas-center-grimes-high-school.webp",
+      "sourceUrl": "https://dcgschools.com/wp-content/themes/dcg-activities/assets/images/footer-logo-border.webp",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "Round district badge with the mustang head (847x847, transparent). A mustang-only mark exists at https://dcgschools.com/wp-content/uploads/2024/11/logo-with-border.png (294x300).",
+      "suggestedStorageKey": "hs/dallas-center-grimes-high-school.webp"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "IHSAA",
+      "classification": "IHSAA 4A (cross country)",
+      "conference": "Little Hawkeye Conference"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/17389/cross-country",
+      "athleticNetListing": {
+        "name": "Dallas Center-Grimes",
+        "address": "3353 240TH St, Grimes, IA 50111-8005",
+        "mascot": "Mustangs",
+        "colors": [
+          "Red",
+          "White"
+        ]
+      },
+      "colorSource": "Hex sampled from the district mustang badge (red #E31838, charcoal #2C2C2C, grey #898F96). Colours are usually given as red and white.",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 17389, Grimes, IA.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": []
+    }
+  },
+  {
+    "order": 7,
+    "meetName": "Edwardsville (Metro-East Lutheran)",
+    "submissionId": "003103ac-347b-49d6-90e8-98738f93ce78",
+    "abbreviation": "MELU",
+    "athletesEnteredAtMeet": 22,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Metro-East Lutheran High School",
+      "abbreviation": "MELU",
+      "shortName": "Metro-East Lutheran",
+      "mascot": "Knights",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Gateway Metro Conference",
+      "subConference": null,
+      "stateAssociation": "IHSA",
+      "city": "Edwardsville",
+      "state": "IL",
+      "country": "USA",
+      "primaryColor": "#1E4220",
+      "secondaryColor": "#FFC960",
+      "website": "https://www.melhs.org/",
+      "athleticNetId": "16321",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Lutheran (LCMS) high school at 6305 Center Grove Rd, Edwardsville, Ill. \"Edwardsville (Metro-East Lutheran)\" is Athletic.net's disambiguated team name, not a sign that this is Edwardsville High School (Tigers, a different, much larger school). Colours green and gold. IHSA 1A.",
+      "isActive": true,
+      "logoFile": "metro-east-lutheran-high-school.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "metro-east-lutheran-high-school.png",
+      "sourceUrl": "https://www.melhs.org/wp-content/uploads/2024/08/Logo.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "Round green/gold \"L\" medallion cropped from the school's 2024 header lockup (305x305).",
+      "suggestedStorageKey": "hs/metro-east-lutheran-high-school.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "IHSA",
+      "classification": "IHSA 1A (cross country)",
+      "conference": "Gateway Metro Conference"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/16321/cross-country",
+      "athleticNetListing": {
+        "name": "Edwardsville (Metro-East Lutheran)",
+        "address": "6305 Center Grove Rd, Edwardsville, IL 62025-3317",
+        "mascot": "Knights",
+        "colors": [
+          "Forest Green",
+          "Gold"
+        ]
+      },
+      "colorSource": "Hex sampled from the school logo on melhs.org (green #1E4220, gold #FFC960 from the \"Metro East\" script).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 16321 \"Edwardsville (Metro-East Lutheran)\", 6305 Center Grove Rd, Edwardsville, IL, mascot Knights, forest green/gold; a sampled entrant resolves to it. That address, mascot and colours are Metro-East Lutheran HS; Edwardsville High School is the Tigers (orange and black) and has its own Athletic.net team.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": []
+    }
+  },
+  {
+    "order": 8,
+    "meetName": "Fayetteville",
+    "submissionId": "c43ea746-ecc0-4367-83f6-5d4477f8288e",
+    "abbreviation": "FAYE",
+    "athletesEnteredAtMeet": 49,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Fayetteville High School",
+      "abbreviation": "FAYE",
+      "shortName": "Fayetteville",
+      "mascot": "Purple Bulldogs",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "7A West",
+      "subConference": null,
+      "stateAssociation": "AAA",
+      "city": "Fayetteville",
+      "state": "AR",
+      "country": "USA",
+      "primaryColor": "#3A0273",
+      "secondaryColor": "#FFFFFF",
+      "website": "https://www.fhsbulldogs.com/",
+      "athleticNetId": "14164",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Fayetteville Public Schools, Fayetteville, Ark. Not Fayetteville-Manlius (NY) or any Fayetteville, NC/TN/GA school.",
+      "isActive": true,
+      "logoFile": "fayetteville-high-school.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "fayetteville-high-school.png",
+      "sourceUrl": "https://5starassets.blob.core.windows.net/athleticsites/106/158/images/793e11cb-ce94-433d-ba3a-28b041781a6c.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "Bulldog head from the official athletics site header; only 201x169.",
+      "suggestedStorageKey": "hs/fayetteville-high-school.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "AAA",
+      "classification": "AAA 7A",
+      "conference": "7A West"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/14164/cross-country",
+      "athleticNetListing": {
+        "name": "Fayetteville",
+        "address": "1000 W Stone St, Fayetteville, AR 72701-5653",
+        "mascot": "Bulldogs",
+        "colors": [
+          "Purple",
+          "White"
+        ]
+      },
+      "colorSource": "Purple #3A0273 is the primary colour configured on the official athletics site (fhsbulldogs.com); the school site fhs.fayar.net uses #59118E. Colours purple and white.",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 14164 on the 2026 meet is Fayetteville, AR (1000 W Stone St), the Purple Bulldogs. Nearest and most frequent Fayetteville at Missouri meets.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": []
+    }
+  },
+  {
+    "order": 9,
+    "meetName": "Gardner Edgerton",
+    "submissionId": "d1c04617-fb93-4eb6-b977-f76f1b071cf9",
+    "abbreviation": "GE",
+    "athletesEnteredAtMeet": 26,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Gardner Edgerton High School",
+      "abbreviation": "GE",
+      "shortName": "Gardner Edgerton",
+      "mascot": "Trailblazers",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Sunflower League",
+      "subConference": null,
+      "stateAssociation": "KSHSAA",
+      "city": "Gardner",
+      "state": "KS",
+      "country": "USA",
+      "primaryColor": "#2E3192",
+      "secondaryColor": "#FFFFFF",
+      "website": "https://www.usd231.com/o/gardner-edgerton-hs/",
+      "athleticNetId": "17729",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Gardner Edgerton USD 231. Colours blue and white (black accent). KSHSAA 6A.",
+      "isActive": true,
+      "logoFile": "gardner-edgerton-high-school.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "gardner-edgerton-high-school.png",
+      "sourceUrl": "https://cmsv2-assets.apptegy.net/uploads/2342/logo/2488/Gardner_Edgerton_logo_template_300.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "School roundel (\"Gardner Edgerton High School, Est. 2000\" around the horned GE), 1200x1200 transparent.",
+      "suggestedStorageKey": "hs/gardner-edgerton-high-school.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "KSHSAA",
+      "classification": "KSHSAA 6A",
+      "conference": "Sunflower League"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/17729/cross-country",
+      "athleticNetListing": {
+        "name": "Gardner Edgerton",
+        "address": "425 N Waverly Rd, Gardner, KS 66030-8600",
+        "mascot": "Trailblazers",
+        "colors": [
+          "Royal",
+          "White",
+          "Royal"
+        ]
+      },
+      "colorSource": "Hex sampled from the school roundel on usd231.com (blue #2E3192).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 17729, Gardner, KS.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": []
+    }
+  },
+  {
+    "order": 10,
+    "meetName": "Johnson Ferry Christian Academy",
+    "submissionId": "69d36d18-e50c-4d4b-a2aa-2db904a95f81",
+    "abbreviation": "JFBC",
+    "athletesEnteredAtMeet": 1,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Johnson Ferry Christian Academy",
+      "abbreviation": "JFBC",
+      "shortName": "Johnson Ferry",
+      "mascot": "Saints",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": null,
+      "subConference": null,
+      "stateAssociation": "GAPPS",
+      "city": "Marietta",
+      "state": "GA",
+      "country": "USA",
+      "primaryColor": "#064C7F",
+      "secondaryColor": "#BEBEC0",
+      "website": "https://www.jfca.org/",
+      "athleticNetId": "53552",
+      "milesplitId": "28843",
+      "mshsaaId": null,
+      "notes": "Christian school of Johnson Ferry Baptist Church, 955 Johnson Ferry Rd, Marietta, Ga. Athletics compete in GAPPS (Georgia Association of Private and Parochial Schools). One entry at Gans Creek 2026.",
+      "isActive": true,
+      "logoFile": "johnson-ferry-christian-academy.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "johnson-ferry-christian-academy.png",
+      "sourceUrl": "https://www.jfca.org/wp-content/uploads/sites/48/2023/10/cropped-favicon.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "School shield mark (site icon), 512x512 transparent. No separate Saints athletic mark found.",
+      "suggestedStorageKey": "hs/johnson-ferry-christian-academy.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "GAPPS",
+      "classification": null,
+      "conference": null
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/53552/cross-country",
+      "athleticNetListing": {
+        "name": "Johnson Ferry Christian Academy",
+        "address": "955 Johnson Ferry Rd, Marietta, GA 30068",
+        "mascot": null,
+        "colors": []
+      },
+      "colorSource": "Hex from the school shield icon on jfca.org (blue #064C7F, grey #BEBEC0).",
+      "confidence": "high",
+      "reasoning": "The school's one entrant resolves on Athletic.net to Johnson Ferry Christian Academy (HS), Marietta, GA, team 53552. The team is not on the meet's Athletic.net team list (entered alone).",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": [
+        "GAPPS membership comes from secondary sources (MaxPreps tournaments) — confirm.",
+        "Athletic.net also has a \"Johnson Ferry Saints Athletic Program\" club (42421); the runner is on the HS team."
+      ]
+    }
+  },
+  {
+    "order": 11,
+    "meetName": "Johnston",
+    "submissionId": "a171349f-8ca5-4712-8dc7-ab7b8afdfd11",
+    "abbreviation": "JOHN",
+    "athletesEnteredAtMeet": 27,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Johnston High School",
+      "abbreviation": "JOHN",
+      "shortName": "Johnston",
+      "mascot": "Dragons",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Central Iowa Metro League",
+      "subConference": null,
+      "stateAssociation": "IHSAA",
+      "city": "Johnston",
+      "state": "IA",
+      "country": "USA",
+      "primaryColor": "#593F98",
+      "secondaryColor": "#FFC324",
+      "website": "https://www.johnstoncsd.org/",
+      "athleticNetId": "17422",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Johnston CSD, Johnston, Iowa. Girls compete under IGHSAU. Iowa XC class 4A. Not Johnston HS (Austin, TX) or Johnston (RI).",
+      "isActive": true,
+      "logoFile": "johnston-high-school.jpg",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "johnston-high-school.jpg",
+      "sourceUrl": "https://johnstoncsd.b-cdn.net/wp-content/uploads/2022/09/FireJ.jpg",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "District Fire J trademark from the logo-usage page; 1650px JPEG on white (no transparency). Athletic.net has the same art as a 206px transparent PNG.",
+      "suggestedStorageKey": "hs/johnston-high-school.jpg"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "IHSAA",
+      "classification": "IHSAA 4A (cross country)",
+      "conference": "Central Iowa Metro League"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/17422/cross-country",
+      "athleticNetListing": {
+        "name": "Johnston",
+        "address": "6500 NW 100th Street, Johnston, IA 50131-0010",
+        "mascot": "JOHNSTON DRAGOONZ",
+        "colors": [
+          "Purple",
+          "Gold"
+        ]
+      },
+      "colorSource": "Hex sampled from the district \"Fire J\" trademark (purple #593F98, gold #FFC324).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 17422, Johnston, IA; sampled entrants resolve to Johnston HS, Iowa.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": []
+    }
+  },
+  {
+    "order": 12,
+    "meetName": "Millard West",
+    "submissionId": "8f23dcad-510e-4b4b-9abb-a6370f4ceec8",
+    "abbreviation": "MILW",
+    "athletesEnteredAtMeet": 23,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Millard West High School",
+      "abbreviation": "MILW",
+      "shortName": "Millard West",
+      "mascot": "Wildcats",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Metro Conference",
+      "subConference": null,
+      "stateAssociation": "NSAA",
+      "city": "Omaha",
+      "state": "NE",
+      "country": "USA",
+      "primaryColor": "#000000",
+      "secondaryColor": "#258C40",
+      "website": "https://mwhs.mpsomaha.org/",
+      "athleticNetId": "10930",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Millard Public Schools, Omaha, Neb. Colours black and green. NSAA Class A.",
+      "isActive": true,
+      "logoFile": "millard-west-high-school.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "millard-west-high-school.png",
+      "sourceUrl": "https://mwhs.mpsomaha.org/sites/mwhs.mpsomaha.org/files/logo/Millard%20West%20HS.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "Wildcat head over \"Millard West Wildcats\" from the school site; 200x200 transparent (small).",
+      "suggestedStorageKey": "hs/millard-west-high-school.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "NSAA",
+      "classification": "NSAA Class A",
+      "conference": "Metro Conference"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/10930/cross-country",
+      "athleticNetListing": {
+        "name": "Millard West",
+        "address": "5710 S 176TH Ave, Omaha, NE 68135-2268",
+        "mascot": "Wildcats",
+        "colors": [
+          "Forest Green",
+          "Black",
+          "White"
+        ]
+      },
+      "colorSource": "Black from the school wildcat logo; green #258C40 sampled from the logo's thin green outline (approximate).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 10930, 5710 S 176th Ave, Omaha, NE.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": [
+        "Green hex is approximate."
+      ]
+    }
+  },
+  {
+    "order": 13,
+    "meetName": "Murphysboro",
+    "submissionId": "1ff4a9cd-3f58-4d6b-b604-065b6468ab3d",
+    "abbreviation": "MHS2",
+    "athletesEnteredAtMeet": 18,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Murphysboro High School",
+      "abbreviation": "MHS2",
+      "shortName": "Murphysboro",
+      "mascot": "Red Devils",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Southern Illinois River-to-River Conference",
+      "subConference": "Ohio Division",
+      "stateAssociation": "IHSA",
+      "city": "Murphysboro",
+      "state": "IL",
+      "country": "USA",
+      "primaryColor": "#990000",
+      "secondaryColor": "#C4A638",
+      "website": "https://mhs.cusd186.org/",
+      "athleticNetId": "16544",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Murphysboro CUSD 186, southern Illinois. Colours red and gold. IHSA 1A in cross country.",
+      "isActive": true,
+      "logoFile": "murphysboro-high-school.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "murphysboro-high-school.png",
+      "sourceUrl": "https://cdn.schoolblocks.com/organizations/30b62726-8ccf-4c53-bf86-79f3445683bc/30b62726-8ccf-4c53-bf86-79f3445683bc_top_nav_logo_1709313605050241.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "Red Devil roundel cropped from the school site header lockup (270x268, raster with baked-in shading).",
+      "suggestedStorageKey": "hs/murphysboro-high-school.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "IHSA",
+      "classification": "IHSA 1A (cross country)",
+      "conference": "Southern Illinois River-to-River Conference"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/16544/cross-country",
+      "athleticNetListing": {
+        "name": "Murphysboro",
+        "address": "50 Blackwood Dr, Murphysboro, IL 62966-2999",
+        "mascot": "Red Devils",
+        "colors": [
+          "Red",
+          "Gold"
+        ]
+      },
+      "colorSource": "Hex sampled from the Red Devil roundel on mhs.cusd186.org (red #990000, gold #C4A638).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 16544, Murphysboro, IL; a sampled entrant resolves to it. Not Murfreesboro (TN).",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": []
+    }
+  },
+  {
+    "order": 14,
+    "meetName": "Nolensville",
+    "submissionId": "ffcfe75c-4672-404c-83b5-1603e732300a",
+    "abbreviation": "NOLE",
+    "athletesEnteredAtMeet": 44,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Nolensville High School",
+      "abbreviation": "NOLE",
+      "shortName": "Nolensville",
+      "mascot": "Knights",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": null,
+      "subConference": null,
+      "stateAssociation": "TSSAA",
+      "city": "Nolensville",
+      "state": "TN",
+      "country": "USA",
+      "primaryColor": "#0033A1",
+      "secondaryColor": "#231F20",
+      "website": "https://nhs.wcs.edu/",
+      "athleticNetId": "72695",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Williamson County Schools, Tenn. Colours royal, black and silver. TSSAA Division I, Middle section, District 6.",
+      "isActive": true,
+      "logoFile": "nolensville-high-school.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "nolensville-high-school.png",
+      "sourceUrl": "https://resources.finalsite.net/images/v1709037304/wcsedu/ua0ffkaeqp8tsmbfuf71/NolensvilleHighPrimaryThumbnailImage.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "Shield-and-sword N with \"Nolensville Knights\" banner, 256x256 transparent.",
+      "suggestedStorageKey": "hs/nolensville-high-school.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "TSSAA",
+      "classification": "TSSAA Division I (Athletic.net: Class AAA, Section 7)",
+      "conference": null
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/72695/cross-country",
+      "athleticNetListing": {
+        "name": "Nolensville",
+        "address": "1600 Summerlyn Dr, Nolensville, TN 37135",
+        "mascot": "Knights",
+        "colors": []
+      },
+      "colorSource": "Hex sampled from the school primary logo on nhs.wcs.edu (royal #0033A1, black #231F20, silver #8D9091).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 72695, Nolensville, TN.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": []
+    }
+  },
+  {
+    "order": 15,
+    "meetName": "North Polk",
+    "submissionId": "2c6930a0-2830-4864-8c5e-234a844d980d",
+    "abbreviation": "NP",
+    "athletesEnteredAtMeet": 10,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "North Polk High School",
+      "abbreviation": "NP",
+      "shortName": "North Polk",
+      "mascot": "Comets",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Raccoon River Conference",
+      "subConference": null,
+      "stateAssociation": "IHSAA",
+      "city": "Alleman",
+      "state": "IA",
+      "country": "USA",
+      "primaryColor": "#D4231B",
+      "secondaryColor": "#252422",
+      "website": "https://www.northpolkcometsathletics.com/",
+      "athleticNetId": "17236",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "North Polk CSD, Alleman, Iowa. Colours red, black and silver. Rejoined the Raccoon River Conference 2020-21. Girls compete under IGHSAU. Iowa XC class 3A.",
+      "isActive": true,
+      "logoFile": "north-polk-high-school.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "north-polk-high-school.png",
+      "sourceUrl": "https://logos.vnn-prod.zone/19795.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "Official athletics-site (PlayOn/VNN) logo; small, 136x136. Athletic.net has the same art at 221px.",
+      "suggestedStorageKey": "hs/north-polk-high-school.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "IHSAA",
+      "classification": "IHSAA 3A (cross country)",
+      "conference": "Raccoon River Conference"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/17236/cross-country",
+      "athleticNetListing": {
+        "name": "North Polk",
+        "address": "315 Ne 141ST Ave, Alleman, IA 50007-9727",
+        "mascot": "Comets",
+        "colors": [
+          "Red",
+          "Black",
+          "Silver"
+        ]
+      },
+      "colorSource": "Hex sampled from the NP logo on the official athletics site (red #D4231B, black #252422).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 17236, Alleman, IA.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": []
+    }
+  },
+  {
+    "order": 16,
+    "meetName": "Olathe East",
+    "submissionId": "7a443bac-38f3-4b4b-bfa7-e3d37d0d04fe",
+    "abbreviation": "OLEA",
+    "athletesEnteredAtMeet": 24,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Olathe East High School",
+      "abbreviation": "OLEA",
+      "shortName": "Olathe East",
+      "mascot": "Hawks",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Sunflower League",
+      "subConference": null,
+      "stateAssociation": "KSHSAA",
+      "city": "Olathe",
+      "state": "KS",
+      "country": "USA",
+      "primaryColor": "#0C233F",
+      "secondaryColor": "#F05023",
+      "website": "https://east.olatheschools.org/",
+      "athleticNetId": "17860",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Olathe USD 233. Sunflower League. KSHSAA 6A. Colours navy and orange.",
+      "isActive": true,
+      "logoFile": "olathe-east-high-school.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "olathe-east-high-school.png",
+      "sourceUrl": "https://resources.finalsite.net/images/v1721301206/olatheschoolsorg/bxrfz7cyricalcceahhg/OlatheEastHighSchoolPrimaryLogoImage.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "School primary logo (hawk roundel), 300x300 transparent. An 800px version on white is at OE-hawk-SHOWCASE.png.",
+      "suggestedStorageKey": "hs/olathe-east-high-school.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "KSHSAA",
+      "classification": "KSHSAA 6A",
+      "conference": "Sunflower League"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/17860/cross-country",
+      "athleticNetListing": {
+        "name": "Olathe East",
+        "address": "14545 W 127TH St, Olathe, KS 66062-1486",
+        "mascot": "Hawks",
+        "colors": [
+          "Orange",
+          "Royal"
+        ]
+      },
+      "colorSource": "Hex sampled from the school primary logo (navy #0C233F, orange #F05023).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 17860, Olathe, KS.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": []
+    }
+  },
+  {
+    "order": 17,
+    "meetName": "Olathe West",
+    "submissionId": "8eb065f8-5b66-4dc8-88a6-d5b3d3437e47",
+    "abbreviation": "OLWE",
+    "athletesEnteredAtMeet": 42,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Olathe West High School",
+      "abbreviation": "OLWE",
+      "shortName": "Olathe West",
+      "mascot": "Owls",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Sunflower League",
+      "subConference": null,
+      "stateAssociation": "KSHSAA",
+      "city": "Olathe",
+      "state": "KS",
+      "country": "USA",
+      "primaryColor": "#0262AA",
+      "secondaryColor": "#8F9190",
+      "website": "https://west.olatheschools.org/",
+      "athleticNetId": "74493",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Olathe USD 233. Sunflower League. KSHSAA 6A. Opened 2017. Colours royal blue, silver and navy (#0C2C4C).",
+      "isActive": true,
+      "logoFile": "olathe-west-high-school.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "olathe-west-high-school.png",
+      "sourceUrl": "https://resources.finalsite.net/images/v1721301224/olatheschoolsorg/iyeesedtspkg0wp3boll/OlatheWestHighSchoolPrimaryLogoImage.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "School primary logo (owl head), 300x300 transparent; the owl touches the edges. A full 800px version on white is at OW-owl-logo-SHOWCASE.png.",
+      "suggestedStorageKey": "hs/olathe-west-high-school.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "KSHSAA",
+      "classification": "KSHSAA 6A",
+      "conference": "Sunflower League"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/74493/cross-country",
+      "athleticNetListing": {
+        "name": "Olathe West",
+        "address": "2200 W Santa Fe St, Olathe, KS 66061",
+        "mascot": "Owls",
+        "colors": []
+      },
+      "colorSource": "Hex sampled from the school primary owl logo (royal #0262AA, silver #8F9190, navy #0C2C4C).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 74493, 2200 W Santa Fe St, Olathe, KS.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": [
+        "Separate data issue: the table already has \"Olathe NW High School\" (905c92ba-b7cb-4367-b6a7-66ac8851bdb8) tagged MSHSAA / Columbia, MO — it is Olathe Northwest, Kansas. Not a match for East or West, but its city/state are wrong."
+      ]
+    }
+  },
+  {
+    "order": 18,
+    "meetName": "Owasso",
+    "submissionId": "246c186a-acce-44cb-bdb3-524e93a8bd14",
+    "abbreviation": "OWAS",
+    "athletesEnteredAtMeet": 38,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Owasso High School",
+      "abbreviation": "OWAS",
+      "shortName": "Owasso",
+      "mascot": "Rams",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": null,
+      "subConference": null,
+      "stateAssociation": "OSSAA",
+      "city": "Owasso",
+      "state": "OK",
+      "country": "USA",
+      "primaryColor": "#862633",
+      "secondaryColor": "#27251F",
+      "website": "https://ohs.owassops.org/",
+      "athleticNetId": "7153",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Owasso Public Schools (Tulsa area). Official colours cardinal red, black and white. OSSAA 6A.",
+      "isActive": true,
+      "logoFile": "owasso-high-school.webp",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "owasso-high-school.webp",
+      "sourceUrl": "https://resources.finalsite.net/images/v1716534479/owassopsorg/doiqjgy5fhsntwnchf7l/BrandingLogos-05.webp",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "The \"3D Ram\" head — named in the style guide as one of the two primary logos. 1859x1438 transparent WebP.",
+      "suggestedStorageKey": "hs/owasso-high-school.webp"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "OSSAA",
+      "classification": "OSSAA 6A",
+      "conference": null
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/7153/cross-country",
+      "athleticNetListing": {
+        "name": "Owasso",
+        "address": "12901 E 86TH St N, Owasso, OK 74055-8734",
+        "mascot": "Rams",
+        "colors": [
+          "Cardinal",
+          "White"
+        ]
+      },
+      "colorSource": "Official hex from the Owasso Public Schools Logo Use & Style Guide: Cardinal Red #862633 (Pantone 202 C), Black #27251F; accent Anthracite Gray #5F6062.",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 7153, Owasso, OK.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": []
+    }
+  },
+  {
+    "order": 19,
+    "meetName": "Pella",
+    "submissionId": "5e2142b8-33fb-42e4-9972-e37c2c335215",
+    "abbreviation": "PELL",
+    "athletesEnteredAtMeet": 13,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Pella High School",
+      "abbreviation": "PELL",
+      "shortName": "Pella",
+      "mascot": "Dutch",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Little Hawkeye Conference",
+      "subConference": null,
+      "stateAssociation": "IHSAA",
+      "city": "Pella",
+      "state": "IA",
+      "country": "USA",
+      "primaryColor": "#1E4D2B",
+      "secondaryColor": "#FFFFFF",
+      "website": "https://www.pellaschools.org/",
+      "athleticNetId": "17517",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Pella Community Schools. Not Pella Christian High School (Eagles), a separate school in the same town. Girls compete under IGHSAU. Iowa XC class 3A.",
+      "isActive": true,
+      "logoFile": "pella-high-school.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "pella-high-school.png",
+      "sourceUrl": "https://www.pellaschools.org/wp-content/uploads/2022/04/cropped-pella_p_square.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "District \"P\" mark, 512x512 transparent. A \"Pella Dutch\" wordmark and the windmill (on Athletic.net) also exist.",
+      "suggestedStorageKey": "hs/pella-high-school.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "IHSAA",
+      "classification": "IHSAA 3A (cross country)",
+      "conference": "Little Hawkeye Conference"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/17517/cross-country",
+      "athleticNetListing": {
+        "name": "Pella",
+        "address": "212 E University St, Pella, IA 50219-0468",
+        "mascot": "Dutch /Little",
+        "colors": [
+          "Hunter Green",
+          "White"
+        ]
+      },
+      "colorSource": "Hex sampled from the district green P (#1E4D2B); colours green and white.",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 17517 \"Pella\", Pella, IA (212 E University St = Pella HS). Pella Christian is a different team.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": []
+    }
+  },
+  {
+    "order": 20,
+    "meetName": "Pleasant Valley",
+    "submissionId": "7e1d38a8-5253-48f6-9068-73c197ebce70",
+    "abbreviation": "PLVA",
+    "athletesEnteredAtMeet": 25,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Pleasant Valley High School",
+      "abbreviation": "PLVA",
+      "shortName": "Pleasant Valley",
+      "mascot": "Spartans",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Mississippi Athletic Conference",
+      "subConference": null,
+      "stateAssociation": "IHSAA",
+      "city": "Bettendorf",
+      "state": "IA",
+      "country": "USA",
+      "primaryColor": "#003569",
+      "secondaryColor": "#97999B",
+      "website": "https://www.pleasval.org/",
+      "athleticNetId": "17519",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Pleasant Valley CSD (Quad Cities). School is at 604 Belmont Rd, Bettendorf, Iowa; the district is based in Pleasant Valley, Iowa. Not Pleasant Valley HS in California, Pennsylvania or Alabama. Girls compete under IGHSAU. Iowa XC class 4A.",
+      "isActive": true,
+      "logoFile": "pleasant-valley-high-school.svg",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "pleasant-valley-high-school.svg",
+      "sourceUrl": "https://campussuite-storage.s3.amazonaws.com/prod/1558581/36935742-09df-11e9-a7fa-120325f15f88/2748617/c0ff94ce-d5b1-11ee-861b-0e74db023561/file/logo-2024.svg",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "Cropped to the navy PV roundel from the district 2024 horizontal logo (viewBox changed, two grey frame rules removed). PV letters are knocked out (transparent), so it needs a light tile. A Spartan-helmet athletic mark exists on Athletic.net.",
+      "suggestedStorageKey": "hs/pleasant-valley-high-school.svg"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "IHSAA",
+      "classification": "IHSAA 4A (cross country)",
+      "conference": "Mississippi Athletic Conference"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/17519/cross-country",
+      "athleticNetListing": {
+        "name": "Pleasant Valley",
+        "address": "604 Belmont Rd, Pleasant Valley, IA 52767-0332",
+        "mascot": "Spartans",
+        "colors": [
+          "Royal",
+          "Gray"
+        ]
+      },
+      "colorSource": "Hex from the district logo SVG (navy #003569, grey #97999B).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 17519 is Pleasant Valley, IA; a sampled entrant resolves to it. Several other Pleasant Valley HS exist (CA, PA, AL) but the meet team is Iowa.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": [
+        "city: Bettendorf (school address) or Pleasant Valley (district/Athletic.net)? Chose Bettendorf."
+      ]
+    }
+  },
+  {
+    "order": 21,
+    "meetName": "Providence Classical Christian Academy",
+    "submissionId": "c03f6ab7-8909-4bff-ac3d-58467076579b",
+    "abbreviation": "PCCA",
+    "athletesEnteredAtMeet": 12,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Providence Classical Christian Academy",
+      "abbreviation": "PCCA",
+      "shortName": "Providence Academy",
+      "mascot": "Patriots",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": null,
+      "subConference": null,
+      "stateAssociation": "AAA",
+      "city": "Rogers",
+      "state": "AR",
+      "country": "USA",
+      "primaryColor": "#1F2B62",
+      "secondaryColor": "#D92831",
+      "website": "https://www.providence-academy.com/",
+      "athleticNetId": "47438",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Classical Christian K-12 in Rogers, Ark.; brands itself \"Providence Academy\". Not Providence Academy (MSHSAA, already in the table), nor any Providence Christian Academy (TN, GA, etc.).",
+      "isActive": true,
+      "logoFile": "providence-classical-christian-academy.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "providence-classical-christian-academy.png",
+      "sourceUrl": "https://cdn.prod.website-files.com/679d1e3fcb43581beacae56f/679d3b7dbfb55328a24ceb1c_Providence%20Academy-Webclip.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "School shield (institutional, not an athletics mark), 256x256 transparent.",
+      "suggestedStorageKey": "hs/providence-classical-christian-academy.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "AAA",
+      "classification": null,
+      "conference": null
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/47438/cross-country",
+      "athleticNetListing": {
+        "name": "Providence Classical Christian Academy",
+        "address": "4911 W. Pleasant Grove Rd, Rogers, AR 72758",
+        "mascot": "Patriots",
+        "colors": [
+          "Red",
+          "Navy",
+          "White"
+        ]
+      },
+      "colorSource": "Hex from the school shield webclip (navy #1F2B62, red #D92831).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 47438 is in Rogers, AR; sampled entrants resolve to it. MaxPreps also lists a St. Louis school of this name, but the meet team is the Arkansas one.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": [
+        "Existing org \"Providence Academy High School\" (MSHSAA id 1101, e350acd6-a557-4a82-af1d-60f292fd7c89) is a different school — do not link. Check whether PCCA is actually an AAA member or a private-school association member (classification not confirmed)."
+      ]
+    }
+  },
+  {
+    "order": 22,
+    "meetName": "Pulaski Academy",
+    "submissionId": "8a2414b2-5b3a-4274-8512-70fd452c7820",
+    "abbreviation": "PUAC",
+    "athletesEnteredAtMeet": 1,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Pulaski Academy",
+      "abbreviation": "PUAC",
+      "shortName": "Pulaski Academy",
+      "mascot": "Bruins",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "4A-5",
+      "subConference": null,
+      "stateAssociation": "AAA",
+      "city": "Little Rock",
+      "state": "AR",
+      "country": "USA",
+      "primaryColor": "#013668",
+      "secondaryColor": "#B6985A",
+      "website": "https://www.pulaskiacademy.org/",
+      "athleticNetId": "14255",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Independent school in Little Rock, Ark. Colours navy, Vegas gold and white. Only one entry at Gans Creek 2026.",
+      "isActive": true,
+      "logoFile": "pulaski-academy.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "pulaski-academy.png",
+      "sourceUrl": "https://www.pulaskiacademy.org/Images/Sprites/LG/GB/wSprite2.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "PA shield cropped out of the site header sprite sheet; 200x200. Institutional mark rather than a Bruin athletic logo.",
+      "suggestedStorageKey": "hs/pulaski-academy.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "AAA",
+      "classification": "AAA 4A (per Athletic.net division list; varies by sport)",
+      "conference": "4A-5"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/14255/cross-country",
+      "athleticNetListing": {
+        "name": "Pulaski Academy",
+        "address": "12701 Hinson Rd, Little Rock, AR 72212-3399",
+        "mascot": "Bruins",
+        "colors": [
+          "Navy",
+          "Gold"
+        ]
+      },
+      "colorSource": "Hex sampled from the PA shield on pulaskiacademy.org (navy #013668, gold #B6985A).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 14255, Little Rock, AR; its one entrant resolves to Pulaski Academy.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": [
+        "Conference string \"4A-5\" is from Athletic.net's division list — confirm current AAA conference."
+      ]
+    }
+  },
+  {
+    "order": 23,
+    "meetName": "Salida",
+    "submissionId": "0c712c2f-6014-4b30-acc0-826e5c2d44a9",
+    "abbreviation": "SALD",
+    "athletesEnteredAtMeet": 19,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Salida High School",
+      "abbreviation": "SALD",
+      "shortName": "Salida",
+      "mascot": "Spartans",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Tri-Peaks League",
+      "subConference": null,
+      "stateAssociation": "CHSAA",
+      "city": "Salida",
+      "state": "CO",
+      "country": "USA",
+      "primaryColor": "#3B106A",
+      "secondaryColor": "#000000",
+      "website": "https://www.salidaathletics.com/",
+      "athleticNetId": "14670",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Salida School District R-32-J, Colorado. Colours purple, black and white. CHSAA 3A. Not Salida HS in Salida, California (Modesto area).",
+      "isActive": true,
+      "logoFile": "salida-high-school.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "salida-high-school.png",
+      "sourceUrl": "https://logos.vnn-prod.zone/8742.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "Spartan head from the official athletics site (PlayOn/VNN), 450x450 transparent.",
+      "suggestedStorageKey": "hs/salida-high-school.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "CHSAA",
+      "classification": "CHSAA 3A",
+      "conference": "Tri-Peaks League"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/14670/cross-country",
+      "athleticNetListing": {
+        "name": "Salida",
+        "address": "310 E 9TH St, Salida, CO 81201-2771",
+        "mascot": "Spartans",
+        "colors": [
+          "Purple",
+          "White"
+        ]
+      },
+      "colorSource": "Hex sampled from the Spartan logo on the official athletics site (purple #3B106A, black).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 14670, Salida, CO; a sampled entrant resolves to it. The California Salida HS (Salida, CA) is the other candidate and is not the meet team.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": []
+    }
+  },
+  {
+    "order": 24,
+    "meetName": "Shawnee Mission South",
+    "submissionId": "648835d5-4863-4fe9-8bf5-4c0b85893509",
+    "abbreviation": "SMSO",
+    "athletesEnteredAtMeet": 25,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Shawnee Mission South High School",
+      "abbreviation": "SMSO",
+      "shortName": "SM South",
+      "mascot": "Raiders",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Sunflower League",
+      "subConference": null,
+      "stateAssociation": "KSHSAA",
+      "city": "Overland Park",
+      "state": "KS",
+      "country": "USA",
+      "primaryColor": "#007934",
+      "secondaryColor": null,
+      "website": "https://smsouth.smsd.org/",
+      "athleticNetId": "17931",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Shawnee Mission School District. 5800 W 107th St — mailing city \"Shawnee Mission\", physically Overland Park, Kan. Colours green and gold. KSHSAA 6A.",
+      "isActive": true,
+      "logoFile": "shawnee-mission-south-high-school.svg",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "shawnee-mission-south-high-school.svg",
+      "sourceUrl": "https://resources.finalsite.net/images/v1526483011/smsdorg/kgrj3avbmuaqjn9uugqx/logo-shawnee-mission-south-high.svg",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "Minuteman-on-horseback raider cropped (viewBox only) from the school's horizontal header SVG.",
+      "suggestedStorageKey": "hs/shawnee-mission-south-high-school.svg"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "KSHSAA",
+      "classification": "KSHSAA 6A",
+      "conference": "Sunflower League"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/17931/cross-country",
+      "athleticNetListing": {
+        "name": "Shawnee Mission South",
+        "address": "5800 W 107TH St, Shawnee Mission, KS 66207-3898",
+        "mascot": "Raiders",
+        "colors": [
+          "Hunter Green",
+          "Gold"
+        ]
+      },
+      "colorSource": "Green #007934 from the school logo SVG on smsouth.smsd.org. Gold is not in the logo; no official hex found, so secondary is empty.",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 17931, Shawnee Mission South, Kansas.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": [
+        "city: Overland Park (physical) vs Shawnee Mission (postal, Athletic.net) — chose Overland Park.",
+        "Gold secondary colour hex not found."
+      ]
+    }
+  },
+  {
+    "order": 25,
+    "meetName": "Shawnee Mission West",
+    "submissionId": "580badad-9489-442e-8361-c8b9f74c7b45",
+    "abbreviation": "SMWE",
+    "athletesEnteredAtMeet": 21,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Shawnee Mission West High School",
+      "abbreviation": "SMWE",
+      "shortName": "SM West",
+      "mascot": "Vikings",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Sunflower League",
+      "subConference": null,
+      "stateAssociation": "KSHSAA",
+      "city": "Overland Park",
+      "state": "KS",
+      "country": "USA",
+      "primaryColor": "#231F20",
+      "secondaryColor": "#F5C400",
+      "website": "https://smwest.smsd.org/",
+      "athleticNetId": "17932",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Shawnee Mission School District. 8800 W 85th St — mailing city \"Shawnee Mission\", physically Overland Park, Kan. Colours black and gold. KSHSAA 6A.",
+      "isActive": true,
+      "logoFile": "shawnee-mission-west-high-school.svg",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "shawnee-mission-west-high-school.svg",
+      "sourceUrl": "https://resources.finalsite.net/images/v1526483005/smsdorg/ooso3nbmpzriff7qplrl/logo-shawnee-mission-west-high.svg",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "Viking ship on a gold V, cropped (viewBox only) from the school's horizontal header SVG.",
+      "suggestedStorageKey": "hs/shawnee-mission-west-high-school.svg"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "KSHSAA",
+      "classification": "KSHSAA 6A",
+      "conference": "Sunflower League"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/17932/cross-country",
+      "athleticNetListing": {
+        "name": "Shawnee Mission West",
+        "address": "8800 W 85TH St, Shawnee Mission, KS 66212-3599",
+        "mascot": "Vikings",
+        "colors": [
+          "Gold",
+          "Black"
+        ]
+      },
+      "colorSource": "Hex from the Viking-ship mark in the school logo SVG (black #231F20, gold #F5C400).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 17932, Shawnee Mission West, Kansas.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": [
+        "city: Overland Park vs Shawnee Mission (see SM South)."
+      ]
+    }
+  },
+  {
+    "order": 26,
+    "meetName": "Shiloh Christian",
+    "submissionId": "96394a65-fc73-4434-815e-d5416b4850c1",
+    "abbreviation": "SHCH",
+    "athletesEnteredAtMeet": 20,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Shiloh Christian School",
+      "abbreviation": "SHCH",
+      "shortName": "Shiloh Christian",
+      "mascot": "Saints",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": null,
+      "subConference": null,
+      "stateAssociation": "AAA",
+      "city": "Springdale",
+      "state": "AR",
+      "country": "USA",
+      "primaryColor": "#091E3F",
+      "secondaryColor": "#C4A35A",
+      "website": "https://www.shilohsaints.org/",
+      "athleticNetId": "14365",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Private Christian school, Springdale, Ark. Colours navy and Vegas gold. Not Shiloh Christian (Bismarck, ND) — Athletic.net team 8642 — or other Shilohs.",
+      "isActive": true,
+      "logoFile": "shiloh-christian-school.png",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "shiloh-christian-school.png",
+      "sourceUrl": "https://resources.finalsite.net/images/v1786106555/shilohsaintsorg3/hjkz9sbc8m95dpgywe7x/ShilohNewHeaderLogo.png",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "School crest cropped from the site header lockup (1156x1156). Athletics uses an interlocking \"SC\" (on Athletic.net) that would suit a badge better.",
+      "suggestedStorageKey": "hs/shiloh-christian-school.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "AAA",
+      "classification": "AAA 4A (4A-1 in basketball 2026; football plays up) — confirm for cross country",
+      "conference": null
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/14365/cross-country",
+      "athleticNetListing": {
+        "name": "Shiloh Christian",
+        "address": "1707 Johnson Rd, Springdale, AR 72762-6095",
+        "mascot": "Saints",
+        "colors": [
+          "Navy",
+          "Gold"
+        ]
+      },
+      "colorSource": "Hex sampled from the school crest (navy #091E3F, gold #C4A35A).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 14365 on the meet is Springdale, AR; sampled entrants resolve to it. The ND Shiloh Christian is team 8642.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": [
+        "Conference/classification for XC not confirmed."
+      ]
+    }
+  },
+  {
+    "order": 27,
+    "meetName": "Sioux City North",
+    "submissionId": "abfe112e-1b2d-4a8c-ae13-602f9a6a8f26",
+    "abbreviation": "SCN",
+    "athletesEnteredAtMeet": 1,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "North High School (Sioux City)",
+      "abbreviation": "SCN",
+      "shortName": "Sioux City North",
+      "mascot": "Stars",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Missouri River Activities Conference",
+      "subConference": null,
+      "stateAssociation": "IHSAA",
+      "city": "Sioux City",
+      "state": "IA",
+      "country": "USA",
+      "primaryColor": "#A6192E",
+      "secondaryColor": "#071D49",
+      "website": "https://north-high.siouxcityschools.org/",
+      "athleticNetId": "17555",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Sioux City Community School District. Colours red, white and blue. Girls compete under IGHSAU. Iowa XC class 4A. Only one entry at Gans Creek 2026.",
+      "isActive": true,
+      "logoFile": "sioux-city-north-high-school.png",
+      "logoReversed": false,
+      "logoDarkFile": "sioux-city-north-high-school-dark.png"
+    },
+    "logo": {
+      "file": "sioux-city-north-high-school.png",
+      "sourceUrl": "https://cmsv2-assets.apptegy.net/uploads/13980/logo/15454/North_High_Stars_Primary_RGB_Full_Color.png",
+      "darkFile": "sioux-city-north-high-school-dark.png",
+      "darkSourceUrl": "https://cmsv2-assets.apptegy.net/uploads/13980/file/1547486/f9450a5b-afda-48d1-8704-19a8f173ddb7.png",
+      "note": "Star mark cropped from the primary horizontal lockup (788x640). An all-white reversed version of the same mark from the school site is saved as the -dark file for logoDarkUrl.",
+      "suggestedStorageKey": "hs/sioux-city-north-high-school.png"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "IHSAA",
+      "classification": "IHSAA 4A (cross country)",
+      "conference": "Missouri River Activities Conference"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/17555/cross-country",
+      "athleticNetListing": {
+        "name": "Sioux City North",
+        "address": "4200 Cheyenne Blvd, Sioux City, IA 51104-4399",
+        "mascot": "Stars",
+        "colors": [
+          "Red",
+          "Navy",
+          "White"
+        ]
+      },
+      "colorSource": "Hex from the school's \"North High Stars Primary RGB Full Color\" logo (red #A6192E, navy #071D49, grey #97999A).",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 17555, Sioux City, IA.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": [
+        "Official name \"North High School\" is ambiguous nationally — proposed name adds \"(Sioux City)\"; alternative is \"Sioux City North High School\"."
+      ]
+    }
+  },
+  {
+    "order": 28,
+    "meetName": "Transformed Courageous Christain Homeschoolers",
+    "submissionId": "91f4fb19-0d1c-4fcd-9d37-9a52eb2a5131",
+    "abbreviation": "TCCH",
+    "athletesEnteredAtMeet": 6,
+    "decision": "decide",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Transformed Courageous Christian Homeschoolers",
+      "abbreviation": "TCCH",
+      "shortName": "TCCH",
+      "mascot": "Eagles",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": null,
+      "subConference": null,
+      "stateAssociation": null,
+      "city": "New London",
+      "state": "MO",
+      "country": "USA",
+      "primaryColor": null,
+      "secondaryColor": null,
+      "website": null,
+      "athleticNetId": "100059",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Homeschool athletics group in New London (Ralls County), Mo. A Missouri entity \"Transformed Courageous Christian Homeschool Organization (TCCH)\" appears in business-registry listings (Bizapedia, MO). Submitted name misspells \"Christian\". Not an MSHSAA member school.",
+      "isActive": true,
+      "logoFile": null,
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": null,
+      "sourceUrl": null,
+      "note": "No website; the only logo is the team-uploaded crest on Athletic.net (TCCH shield, burgundy/gold): https://lh3.googleusercontent.com/xVKvk_Ss94XHhJyuHBaUCHh8bdGdTsydGY6SVIay_16DSUfJXNQHU1RPlV4uwi5YKPuGNDG-flGsgeJ_ZOLaXcUFGZ6ZgF1vfDc — not downloaded."
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": null,
+      "classification": null,
+      "conference": null
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/100059/cross-country",
+      "athleticNetListing": {
+        "name": "Transformed Courageous Christain Homeschoolers",
+        "address": "54122 Trabue Lane, New London, MO 63459",
+        "mascot": "Eagles",
+        "colors": [
+          "Burgundy",
+          "Black",
+          "Gold"
+        ]
+      },
+      "colorSource": "None published. Athletic.net lists Burgundy, Black and Gold (self-reported, no hex) — left empty.",
+      "confidence": "medium",
+      "reasoning": "Athletic.net team 100059 (new, New London, MO) with six boys. In 2025 at least two of the same runners were listed under Hannibal Area Home Educators (also New London, MO; already an organisation here). HAHE still has its own 2026 Athletic.net roster and schedule, so TCCH is a separate group that split from HAHE, not a rename. Athletic.net also has a TCCH middle-school team (101319) spelled correctly, \"Christian\".",
+      "duplicateCheck": "No \"Transformed\"/\"Courageous\"/\"TCCH\"/\"New London\" organisation exists. Related existing rows: \"Hannibal Area Home Educators High School Home School Association\" (d6823eb7-b00f-445a-985f-627a79564088) and its junior-high twin (3e84c121-089b-4581-b497-b72ed5728d40).",
+      "openQuestions": [
+        "Create TCCH as its own organisation (recommended: HAHE is still active separately in 2026), or link to Hannibal Area Home Educators (d6823eb7-b00f-445a-985f-627a79564088)?",
+        "organization_type: existing Missouri homeschool associations are stored as high_school (e.g. HAHE, SEMO Homeschool Sports) — kept high_school for consistency; \"club\" is the alternative.",
+        "Official spelling: submission has \"Christain\"; corrected to \"Christian\". Is the group name \"...Homeschoolers\" (Athletic.net) or \"...Homeschool Organization\" (state registration)?"
+      ]
+    }
+  },
+  {
+    "order": 29,
+    "meetName": "Waukee Northwest",
+    "submissionId": "b920f29b-04b4-41c2-a20e-63e955f1b900",
+    "abbreviation": "WANW",
+    "athletesEnteredAtMeet": 23,
+    "decision": "create",
+    "linkToExisting": null,
+    "reject": null,
+    "org": {
+      "name": "Waukee Northwest High School",
+      "abbreviation": "WANW",
+      "shortName": "Waukee Northwest",
+      "mascot": "Wolves",
+      "organizationType": "high_school",
+      "genderDesignation": null,
+      "ncaaDivision": null,
+      "naiaMember": false,
+      "jucoMember": false,
+      "conference": "Central Iowa Metro League",
+      "subConference": null,
+      "stateAssociation": "IHSAA",
+      "city": "Waukee",
+      "state": "IA",
+      "country": "USA",
+      "primaryColor": "#25408F",
+      "secondaryColor": null,
+      "website": "https://wolves.waukeeschools.org/",
+      "athleticNetId": "81383",
+      "milesplitId": null,
+      "mshsaaId": null,
+      "notes": "Waukee CSD's second high school (opened 2021), officially \"Northwest High School\". Colours royal blue, silver, black and white. Girls compete under IGHSAU. Iowa XC class 4A.",
+      "isActive": true,
+      "logoFile": "waukee-northwest-high-school.svg",
+      "logoReversed": false,
+      "logoDarkFile": null
+    },
+    "logo": {
+      "file": "waukee-northwest-high-school.svg",
+      "sourceUrl": "https://waukeeschools.b-cdn.net/app/themes/waukee-activities/favicon/wolves/safari-pinned-tab.svg",
+      "darkFile": null,
+      "darkSourceUrl": null,
+      "note": "DERIVED: the Wolves Activities pinned-tab paw/NW icon (single-colour trace) with its fill changed from black to the site royal #25408F so it matches the site's colour app icon. The primary wolf-head mark was only found as a 273x87 lockup (nw-wolves.png) on the school site or as a coach upload on Athletic.net.",
+      "suggestedStorageKey": "hs/waukee-northwest-high-school.svg"
+    },
+    "tags": {
+      "level": "High School",
+      "governingBody": "IHSAA",
+      "classification": "IHSAA 4A (cross country)",
+      "conference": "Central Iowa Metro League"
+    },
+    "research": {
+      "athleticNetTeamUrl": "https://www.athletic.net/team/81383/cross-country",
+      "athleticNetListing": {
+        "name": "Waukee Northwest",
+        "address": "655 NW 10th St, Waukee, IA 50263",
+        "mascot": "Wolves",
+        "colors": []
+      },
+      "colorSource": "Royal #25408F from the Wolves Activities site icon (site theme #294089). Silver has no published hex, so secondary is left empty.",
+      "confidence": "high",
+      "reasoning": "Athletic.net team 81383, Waukee, IA.",
+      "duplicateCheck": "No organization with this or a similar name exists (read-only ILIKE search on name, short_name and city; the table holds only Missouri high schools).",
+      "openQuestions": [
+        "Logo is a recoloured favicon trace — replace with the wolf-head mark if the district can supply it.",
+        "Name: \"Waukee Northwest High School\" (as known in meets) vs official \"Northwest High School\"."
+      ]
+    }
+  }
+]
