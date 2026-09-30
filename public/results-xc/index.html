@@ -1247,6 +1247,19 @@ function applyRace(r,keep){
   if(!keep){if(r.status==="live")state.t=T_END;else if(r.status!=="upcoming"&&MATS.length)state.t=timeForLead(DIST*0.6);}
   else if(wasNow||state.t>T_END)state.t=T_END;
 }
+/* A race opened from the schedule (or a school's page) starts fresh: the top
+   of the page, Individuals, the furthest mat anybody has reached, and no
+   search left over from the last race. It used to keep the scroll position,
+   so on a phone it opened halfway down a results table, and whichever split
+   and pane the last race was left on. */
+function openRace(id){
+  return loadRace(id).then(()=>{
+    state.pane="ind";state.choseEntries=false;
+    state.split=MATS.length?LASTK:"E";
+    const q=$("#resSearch");if(q)q.value="";
+    setView("results");scrollTo({top:0});
+  });
+}
 async function loadRace(id,keep){
   const r=RACES.find(x=>x.id===id)||RACES[0];if(!r)return;
   if(!r.loaded||r.docVersion!==r.version){
@@ -1419,7 +1432,10 @@ function setView(v){
   const bk=$("#backSched");if(bk)bk.hidden=(v==="events");
   const am=$("#allMeets");if(am&&FBSRC)am.hidden=(v!=="events");
   try{history.replaceState(null,"","#view="+v);}catch(e){}if(v==="replay"){if(RACE&&MATS.length){buildMap();buildProgress();}drawReplay(true);}if(v==="compare")renderCompare();if(v==="teams")renderTeams();if(v==="history")renderHistory();if(v==="team")renderTeam();if(v==="results")renderResults();if(v==="events")renderEvents();if(v==="athlete")renderAthlete();}
-document.querySelectorAll("nav.views button[data-view]").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
+// A different tab starts at its top; tapping the one already showing leaves
+// the page where it is.
+document.querySelectorAll("nav.views button[data-view]").forEach(b=>b.addEventListener("click",()=>{
+  const v=b.dataset.view,changed=v!==state.view;setView(v);if(changed)scrollTo({top:0});}));
 $("#backSched").addEventListener("click",()=>{setView("events");scrollTo({top:0});});
 
 // Light unless somebody says otherwise. This is read at a course in daylight,
@@ -1504,7 +1520,7 @@ function renderEvents(){
     // best thing on the page and the wrong place to be put: somebody clicking a
     // race wants to know who is winning, and arrived instead at a map they had
     // not asked for and a tab bar they then had to find their way out of.
-    row.addEventListener("click",()=>{loadRace(r.id).then(()=>setView("results"));});
+    row.addEventListener("click",()=>openRace(r.id));
     host.appendChild(row);});
 }
 function avatarFor(r,a,size){return avatar(a,size);}
@@ -1714,7 +1730,7 @@ function teamRace(d,r0){
   const when=[r.startLocal,r.atLabel&&r.status==="live"?"at "+r.atLabel:""].filter(Boolean).join(" \u00b7 ");
   if(when)hd.appendChild(h("span","sp",when));
   const go=h("button","btn");go.type="button";go.textContent="Open race";
-  go.addEventListener("click",e=>{e.stopPropagation();loadRace(r.id).then(()=>setView("results"));});
+  go.addEventListener("click",e=>{e.stopPropagation();openRace(r.id);});
   hd.appendChild(go);
   g.appendChild(hd);
 
