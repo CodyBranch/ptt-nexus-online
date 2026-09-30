@@ -2221,17 +2221,17 @@ function logoAbs(url){
 }
 /* Where a logo is fetched from.
    On primetime-nexus.com a logo from our store or from MSHSAA goes through
-   the site's image resizer: MSHSAA's files run to 2,000 pixels and 2 MB for a
+   the site's /logo-badge: MSHSAA's files run to 3,000 pixels and 2 MB for a
    badge drawn at 24, and a meet has 150 of them, which a phone at the course
-   never finishes. Resized, each is a few kilobytes and cached by the site.
-   `plain` is the file as it is, which a logo falls back to if the resizer
-   cannot fetch it; SVGs are always plain (the resizer does not take them). */
+   never finishes. Shrunk, each is a few kilobytes and cached by the site.
+   `plain` is the file as it is, which a logo falls back to if it cannot be
+   shrunk. */
 function logoSrc(url,plain){
   if(!url)return url;url=logoAbs(url);
   if(!FBSRC)return url;
   const m=LOGO_STORE.exec(url);
-  if(!plain&&!/\.svg(\?|$)/i.test(url)&&(m||LOGO_MSHSAA.test(url)))
-    return "/_next/image?url="+encodeURIComponent(url)+"&w=128&q=70";
+  if(!plain&&(m||LOGO_MSHSAA.test(url)))
+    return "/logo-badge?w=128&src="+encodeURIComponent(url);
   return m?"/logos/"+m[1]:url;
 }
 // An <img> for a logo: resized first, then the file as it is, then onFail.
