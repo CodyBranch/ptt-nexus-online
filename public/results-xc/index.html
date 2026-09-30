@@ -2288,6 +2288,24 @@ function teamLogo(tid,size){
   w.appendChild(svg);w.title=t.name+(t.hasLogo?"":" — no logo on file");return w;
 }
 function showLogos(){return MEET.showLogos!==false;}
+/* The same badge inside an SVG chart, in a 32-unit box: the school's logo,
+   or its initials when there is none or the logo will not load (tried resized,
+   then as it is, like teamLogo). The pack spread drew only the initials, even
+   for schools with a logo on file. */
+function svgTeamLogo(g,tid){
+  const t=teamById[tid];if(!t)return;
+  const initials=()=>{
+    if(!t.hasLogo){el("rect",{x:3,y:3,width:26,height:26,rx:6,style:"fill:var(--surface-2);stroke:var(--line-strong)"},g);el("text",{x:16,y:21,"text-anchor":"middle",style:"font:600 12px var(--mono);fill:var(--ink-2)"},g,t.abbr);}
+    else{if(t.shape==="circle")el("circle",{cx:16,cy:16,r:14,style:`fill:${t.color}`},g);else el("path",{d:SHAPE_D[t.shape],style:`fill:${t.color}`},g);
+      el("text",{x:16,y:20,"text-anchor":"middle",style:`font:700 11px var(--display);fill:${t.color2}`},g,t.abbr);}
+  };
+  if(!t.logoUrl||t.logoFailed){initials();return;}
+  const first=logoSrc(t.logoUrl),plain=logoSrc(t.logoUrl,true);
+  const im=el("image",{x:0,y:0,width:32,height:32,preserveAspectRatio:"xMidYMid meet",href:first},g);
+  im.addEventListener("error",function retry(){
+    if(im.getAttribute("href")!==plain&&first!==plain){im.setAttribute("href",plain);return;}
+    im.removeEventListener("error",retry);t.logoFailed=true;im.remove();initials();});
+}
 function teamMark(tid,size){const w=h("span","tmark");if(showLogos())w.appendChild(teamLogo(tid,size||24));return w;}
 function showPhotos(){return !!(RACE&&RACE.photos&&MEET.showPhotos!==false);}
 function athCell(a,compact){const d=h("div","ath");const sw=h("span","team-sw");if(showPhotos()&&!compact)d.appendChild(avatar(a,30));if(showLogos()&&a.team)d.appendChild(teamLogo(a.team,compact?20:26));if(a.team&&state.teams[a.team])sw.style.background=slotColor(state.teams[a.team]);d.appendChild(sw);const w=h("div");const nmw=h("div","nm");nmw.appendChild(nameBtn(a));w.appendChild(nmw);if(compact!=="name"){const m=h("div","meta");m.appendChild(schoolText(a.team,a.school));m.appendChild(h("span","rest",compact?` · ${a.bib}`:` · ${[a.yr,a.bib].filter(x=>x!==""&&x!=null).join(" · ")}`));w.appendChild(m);}d.appendChild(w);return d;}
@@ -3385,10 +3403,7 @@ function renderTeams(){
     el("rect",{x:0,y:top,width:W,height:rowH,fill:"transparent"},g);
     if(s)el("rect",{x:0,y:top+2,width:W,height:rowH-4,rx:4,style:"fill:var(--surface-2)"},g);
     const ly=N?top+17:y+4;
-    if(showLogos()){const lg=el("g",{transform:`translate(${8},${ly-15}) scale(0.7)`},g);const tt=teamById[t.team];
-      if(!tt.hasLogo){el("rect",{x:3,y:3,width:26,height:26,rx:6,style:"fill:var(--surface-2);stroke:var(--line-strong)"},lg);el("text",{x:16,y:21,"text-anchor":"middle",style:"font:600 12px var(--mono);fill:var(--ink-2)"},lg,tt.abbr);}
-      else{if(tt.shape==="circle")el("circle",{cx:16,cy:16,r:14,style:`fill:${tt.color}`},lg);else el("path",{d:SHAPE_D[tt.shape],style:`fill:${tt.color}`},lg);
-        el("text",{x:16,y:20,"text-anchor":"middle",style:`font:700 11px var(--display);fill:${tt.color2}`},lg,tt.abbr);}}
+    if(showLogos()){const lg=el("g",{transform:`translate(${8},${ly-15}) scale(0.7)`},g);svgTeamLogo(lg,t.team);}
     // A team still coming home has no place and no final score. Say what it
     // does have, or nothing — never the word "undefined" in front of a school.
     const ts=t.ids.map(id=>byId[id].cum[k]);
