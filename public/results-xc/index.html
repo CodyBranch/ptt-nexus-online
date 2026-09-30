@@ -1552,7 +1552,7 @@ function meetFind(){
       d.teams.forEach(t=>{
         const row=li();row.setAttribute("role","option");
         const b=h("button","hit");b.type="button";
-        if(showLogos()&&t.logoUrl){const im=document.createElement("img");im.src=logoSrc(t.logoUrl);im.alt="";
+        if(showLogos()&&t.logoUrl){const im=logoImg(t.logoUrl,x=>x.remove());
           im.style.cssText="width:22px;height:22px;object-fit:contain;flex:none";b.appendChild(im);}
         const w=h("div","w");
         w.appendChild(h("div","nm",t.name));
@@ -1642,7 +1642,7 @@ function renderTeam(){
   const d=TEAMDOC;
 
   const head=h("div","panel athhead");const htop=h("div","athtop");head.appendChild(htop);
-  if(showLogos()&&d.logoUrl){const im=document.createElement("img");im.src=logoSrc(d.logoUrl);im.alt="";
+  if(showLogos()&&d.logoUrl){const im=logoImg(d.logoUrl,x=>x.remove());
     im.style.cssText="width:56px;height:56px;object-fit:contain;flex:none";htop.appendChild(im);}
   const who=h("div","w");
   who.appendChild(h("h2",null,d.name));
@@ -2211,18 +2211,45 @@ const SHAPE_D={shield:"M16 2 L29 7 V15 C29 23 23 28.5 16 31 C9 28.5 3 23 3 15 V7
    a phone asking again for each one, and on a weak signal some went blank.
    The laptop page keeps the address as it is. */
 const LOGO_STORE=/\/storage\/v1\/object\/public\/Logos\/(.+)$/;
-function logoSrc(url){
-  if(!url||!FBSRC)return url;
+// Logos on MSHSAA's site: some meets imported from it carry a relative path.
+const LOGO_MSHSAA=/^https?:\/\/(www\.)?mshsaa\.org\//i;
+// Theirs also come with a doubled slash after the host, which the resizer's
+// list of allowed addresses does not match.
+function logoAbs(url){
+  if(/^\.\.\/Resources\//.test(url))return "https://www.mshsaa.org/"+url.slice(3);
+  return LOGO_MSHSAA.test(url)?url.replace(/^(https?:\/\/[^/]+)\/\/+/,"$1/"):url;
+}
+/* Where a logo is fetched from.
+   On primetime-nexus.com a logo from our store or from MSHSAA goes through
+   the site's image resizer: MSHSAA's files run to 2,000 pixels and 2 MB for a
+   badge drawn at 24, and a meet has 150 of them, which a phone at the course
+   never finishes. Resized, each is a few kilobytes and cached by the site.
+   `plain` is the file as it is, which a logo falls back to if the resizer
+   cannot fetch it; SVGs are always plain (the resizer does not take them). */
+function logoSrc(url,plain){
+  if(!url)return url;url=logoAbs(url);
+  if(!FBSRC)return url;
   const m=LOGO_STORE.exec(url);
+  if(!plain&&!/\.svg(\?|$)/i.test(url)&&(m||LOGO_MSHSAA.test(url)))
+    return "/_next/image?url="+encodeURIComponent(url)+"&w=128&q=75";
   return m?"/logos/"+m[1]:url;
+}
+// An <img> for a logo: resized first, then the file as it is, then onFail.
+function logoImg(url,onFail){
+  const im=document.createElement("img");im.alt="";im.decoding="async";
+  const first=logoSrc(url),plain=logoSrc(url,true);im.src=first;
+  im.addEventListener("error",function retry(){
+    if(im.src!==new URL(plain,location.href).href&&first!==plain){im.src=plain;return;}
+    im.removeEventListener("error",retry);if(onFail)onFail(im);});
+  return im;
 }
 function teamLogo(tid,size){
   const t=teamById[tid];const w=h("span","logo");w.style.width=size+"px";w.style.height=size+"px";
   if(!t){w.style.visibility="hidden";return w;}
-  if(t.logoUrl&&!t.logoFailed){const im=document.createElement("img");im.src=logoSrc(t.logoUrl);im.alt="";
+  if(t.logoUrl&&!t.logoFailed){
     // A logo that does not load becomes the school's initials, here and for
     // the rest of the visit, rather than a blank where the badge should be.
-    im.addEventListener("error",()=>{t.logoFailed=true;const rep2=teamLogo(tid,size);w.replaceWith(rep2);},{once:true});
+    const im=logoImg(t.logoUrl,()=>{t.logoFailed=true;const rep2=teamLogo(tid,size);w.replaceWith(rep2);});
     w.appendChild(im);w.title=t.name;return w;}
   const svg=el("svg",{viewBox:"0 0 32 32","aria-hidden":"true"});
   if(!t.hasLogo){ // no logo on file: initials tile
