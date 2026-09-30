@@ -462,7 +462,11 @@ nav.views button:disabled{opacity:.4;cursor:not-allowed}
 .toast{color:var(--down);font-size:12.5px;min-height:18px}
 footer{margin-top:32px;padding-block:16px 28px;border-top:1px solid var(--line);
   display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px;color:var(--muted);font-size:12px}
-footer .footnote{margin:0;flex:1 1 240px;min-width:0}
+/* The wordmark and the theme switch share a row, at any width; the footnote,
+   when there is one, gets a line of its own under them. Between them it wanted
+   240px, which on a phone pushed the switch down onto a line by itself. */
+footer .footnote{margin:0;order:3;flex:1 1 100%;min-width:0}
+footer .footnote:empty{display:none}
 footer .themesw{margin-left:auto}
 /* A background rather than an <img> so only the wordmark for the theme in use
    is ever fetched; the other arrives if and when somebody switches. */
