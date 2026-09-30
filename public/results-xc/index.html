@@ -1530,13 +1530,13 @@ function renderEvents(){
       st.appendChild(lb);}
     row.appendChild(st);
     const win=h("div","who");
-    if(r.winner){if(r.photos)win.appendChild(avatarFor(r,r.winner,32));if(r.winner.team)win.appendChild(teamLogo(r.winner.team,26));const n=h("div","n");const b=h("b",null,r.winner.name);n.appendChild(b);const sp=h("span");sp.appendChild(r.winner.team&&teamById[r.winner.team]?schoolText(r.winner.team,teamById[r.winner.team].name):document.createTextNode(r.winner.school));sp.appendChild(document.createTextNode(` · ${fmt(r.winTime)}`));n.appendChild(sp);win.appendChild(n);}
+    if(r.winner){if(r.photos)win.appendChild(avatarFor(r,r.winner,32));if(r.winner.team&&showLogos())win.appendChild(teamLogo(r.winner.team,26));const n=h("div","n");const b=h("b",null,r.winner.name);n.appendChild(b);const sp=h("span");sp.appendChild(r.winner.team&&teamById[r.winner.team]?schoolText(r.winner.team,teamById[r.winner.team].name):document.createTextNode(r.winner.school));sp.appendChild(document.createTextNode(` · ${fmt(r.winTime)}`));n.appendChild(sp);win.appendChild(n);}
     // Nobody to name yet: a start list says so, and otherwise the space is
     // left empty rather than filled with a dash that means nothing.
     else if(r.status==="upcoming"&&r.entries){const n=h("div","n");n.appendChild(h("span",null,"Start list posted"));win.appendChild(n);}
     if(win.childNodes.length)row.appendChild(win);
     if(r.teamLead){
-      const tm=h("div","who");tm.appendChild(teamLogo(r.teamLead.team,26));const n2=h("div","n");
+      const tm=h("div","who");if(showLogos())tm.appendChild(teamLogo(r.teamLead.team,26));const n2=h("div","n");
       const tb=h("b");tb.appendChild(teamLink(r.teamLead.team,(teamById[r.teamLead.team]||{name:r.teamLead.name}).name));n2.appendChild(tb);const sp=h("span");sp.textContent=ptsLabel(r.teamLead.score)+(r.status==="live"?" · projected":"");n2.appendChild(sp);
       tm.appendChild(n2);row.appendChild(tm);}
     row.appendChild(h("div","go",r.status==="upcoming"?"Start list →":r.status==="live"?"Follow live →":"Results →"));
