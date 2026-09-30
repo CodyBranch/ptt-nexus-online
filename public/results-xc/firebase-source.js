@@ -226,6 +226,29 @@
     const at = (sub) => base + "/" + split(sub).map(encodeURIComponent).join("/") + ".json";
     const tree = {};
     const subs = {};
+
+    /*
+     * One WebSocket, through the Firebase library, when the page has it.
+     *
+     * The plain REST streams below are each an HTTP connection, and a browser
+     * allows about six to one server across every tab and window - so a few
+     * results pages open at once stalled the next one on "Loading". The
+     * library multiplexes every listener over a single WebSocket, which that
+     * limit does not count (it is how live.pttiming.com has always worked).
+     * The REST streams stay as the fallback, for a page without the library
+     * and for the checks, which drive this in Node against a stand-in.
+     */
+    const lib = cfg.sdk || (typeof firebase !== "undefined" && firebase && firebase.database ? firebase : null);
+    let sdkDb = null;
+    if (lib) {
+      try {
+        const name = "live-" + encodeKey(cfg.meet);
+        const app = (lib.apps || []).find((a) => a.name === name)
+          || lib.initializeApp({ databaseURL: String(cfg.db).replace(/\/$/, "") }, name);
+        sdkDb = app.database();
+      } catch (e) { sdkDb = null; }
+    }
+    const refOf = (sub) => sdkDb.ref(["live", encodeKey(cfg.meet)].concat(split(sub)).join("/"));
     const listeners = [];
     let skew = null;
     let searchIndex = null, searchAt = 0;
@@ -283,6 +306,7 @@
       if (raceSub && raceSub !== sub) {
         const old = subs[raceSub];
         if (old && old.es) old.es.close();
+        if (old && old.off) old.off();
         delete subs[raceSub];
         setDeep(tree, split(raceSub), null);
       }
@@ -307,12 +331,33 @@
     function reopen(sub) {
       const s = subs[sub];
       if (s && s.es) s.es.close();
+      if (s && s.off) s.off();
       delete subs[sub];
       return subscribe(sub);
     }
     function subscribe(sub) {
       const have = subs[sub];
+      if (have && have.off) return have.ready;
       if (have && have.es && have.es.readyState !== 2) return have.ready;
+      if (sdkDb) {
+        // The library keeps the socket up and resyncs after a drop itself, so
+        // none of the staleness handling below is needed for it.
+        const s = { es: null, off: null, ready: null, last: Date.now() };
+        s.ready = new Promise((resolve, reject) => {
+          let first = true;
+          const ref = refOf(sub);
+          const cb = (snap) => {
+            s.last = Date.now();
+            apply(sub, "put", { path: "/", data: snap.val() });
+            if (first) { first = false; resolve(); }
+          };
+          ref.on("value", cb, () => { if (first) { first = false; reject(notOn()); } });
+          s.off = () => ref.off("value", cb);
+        });
+        s.ready.catch(() => {});
+        subs[sub] = s;
+        return s.ready;
+      }
       const s = { es: null, ready: null, failed: null, last: Date.now() };
       s.ready = new Promise((resolve, reject) => {
         const es = new EventSource(at(sub));
@@ -360,6 +405,9 @@
     const PARK_MS = 10000;
     let parkTimer = null;
     function park() {
+      // The library's socket is one connection however many tabs there are,
+      // so a hidden tab only goes offline; its listeners stay and catch up.
+      if (sdkDb) { sdkDb.goOffline(); return; }
       for (const k of Object.keys(subs)) {
         const s = subs[k];
         if (s && s.es) s.es.close();
@@ -370,6 +418,7 @@
       document.addEventListener("visibilitychange", () => {
         clearTimeout(parkTimer);
         if (document.hidden) { parkTimer = setTimeout(park, PARK_MS); return; }
+        if (sdkDb) { sdkDb.goOnline(); return; }
         if (!opened) return;
         subscribe("head");
         if (raceSub) subscribe(raceSub);
@@ -380,6 +429,14 @@
     function unreachable() { return new Error("The results could not be reached."); }
 
     async function getOnce(path) {
+      if (sdkDb) {
+        try {
+          const snap = await refOf(path).get();
+          return snap.val();
+        } catch (e) {
+          throw /permission/i.test(String(e && e.message)) ? notOn() : unreachable();
+        }
+      }
       const res = await fetch(at(path));
       if (res.status === 401 || res.status === 403) throw notOn();
       if (!res.ok) throw unreachable();
