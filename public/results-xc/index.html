@@ -245,6 +245,23 @@ td.pl{font:600 15px var(--mono);width:40px;text-align:right;color:var(--ink)}
 .side{display:flex;flex-direction:column;gap:16px}
 .side .panel{padding:14px}
 .lb{width:100%}
+/* Who the replay is following: found by typing, shown as a card with the
+   same ring the map draws round them. A plain select of three hundred names
+   in alphabetical order was the only way in. */
+.follow{margin:4px 0 12px}
+.follow .eyebrow{display:block;margin-bottom:6px}
+.follow .fbox{flex:none;width:100%}
+.fcard{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 10px;margin-bottom:8px;
+  border:1px solid var(--accent);border-radius:10px;background:var(--accent-soft)}
+.fcard .ring{flex:none;width:14px;height:14px;border-radius:50%;border:2.5px solid var(--ink);box-sizing:border-box}
+.fcard .w{min-width:0;flex:1}
+.fcard b{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fcard .m{display:block;font:11.5px var(--mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fcard .pg{flex:none;font:500 12px var(--body);color:var(--accent);background:none;border:0;padding:4px 2px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.fcard .x{flex:none;width:28px;height:28px;border-radius:7px;border:1px solid var(--line-strong);background:var(--surface);
+  color:var(--ink-2);cursor:pointer;font-size:15px;line-height:1;display:grid;place-items:center}
+.fcard .x:hover{border-color:var(--ink);color:var(--ink)}
+.fcard .pg:focus-visible,.fcard .x:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .lb td{padding:5px 4px;font-size:13px}
 .lb td.p{font:600 13px var(--mono);width:28px;text-align:right}
 .lb td.g{font:500 12px var(--mono);color:var(--ink-2);text-align:right;white-space:nowrap}
@@ -860,8 +877,14 @@ td.pl .mvx{display:none}
       <div class="side">
         <div class="panel">
           <div class="hdr"><h3>Running order</h3><span class="eyebrow" id="lbWhen"></span></div>
-          <label class="eyebrow" for="followSel">Follow athlete</label>
-          <select id="followSel" style="width:100%;margin:4px 0 10px"></select>
+          <div class="follow">
+            <div class="eyebrow" id="followLbl">Follow athlete</div>
+            <div class="fcard" id="followCard" hidden></div>
+            <div class="sbox fbox">
+              <input type="search" id="followFind" placeholder="Search name, school or bib" aria-labelledby="followLbl" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="followList" aria-autocomplete="list">
+              <ul class="suggest" id="followList" role="listbox" hidden></ul>
+            </div>
+          </div>
           <table class="lb" id="lb"></table>
         </div>
         <div class="panel">
@@ -2085,7 +2108,7 @@ function renderAthlete(){
   if(a.team){const tb=h("button","btn");tb.type="button";tb.textContent=teamById[a.team].name+" →";tb.title="See "+teamById[a.team].name+"'s meet";
     tb.addEventListener("click",()=>openTeam(a.team));bar.appendChild(tb);}
   if(MATS.length){const fol=h("button","btn");fol.type="button";fol.textContent=state.follow===a.id?"Following in replay":"Follow in replay";
-    fol.addEventListener("click",()=>{state.follow=a.id;$("#followSel").value=a.id;setView("replay");});bar.appendChild(fol);}
+    fol.addEventListener("click",()=>{state.follow=a.id;renderFollowCard();setView("replay");});bar.appendChild(fol);}
   host.appendChild(bar);
 
   // Who they are, then how it went: place, time and what they are worth to
@@ -3205,7 +3228,7 @@ function buildMap(){
       const lx=m.x+(m.start?0:Math.cos(m.ang)*off),ly=m.y+(m.start?off:Math.sin(m.ang)*off)+(4+i*14)*MK;
       el("text",{x:lx,y:ly,"text-anchor":"middle",class:"lbl",style:`font-size:${13*MK}px;fill:var(--ink)`},map,t);});});
   const gd=el("g",{},map);dots={};
-  ATH.forEach(a=>{const c=el("circle",{r:5.5*MK,cx:sx,cy:sy,style:"fill:var(--dot);stroke:var(--surface);stroke-width:1.5;cursor:pointer"},gd);c.addEventListener("pointermove",ev=>{const d=distAt(a,state.t);showTip(ev,a.school,[{v:a.name,l:a.bib},{v:(d/1000).toFixed(2)+" km",l:"covered"}]);});c.addEventListener("pointerleave",hideTip);c.addEventListener("click",()=>{state.follow=a.id;$("#followSel").value=a.id;drawReplay(true);});dots[a.id]=c;});
+  ATH.forEach(a=>{const c=el("circle",{r:5.5*MK,cx:sx,cy:sy,style:"fill:var(--dot);stroke:var(--surface);stroke-width:1.5;cursor:pointer"},gd);c.addEventListener("pointermove",ev=>{const d=distAt(a,state.t);showTip(ev,a.school,[{v:a.name,l:a.bib},{v:(d/1000).toFixed(2)+" km",l:"covered"}]);});c.addEventListener("pointerleave",hideTip);c.addEventListener("click",()=>setFollow(a.id));dots[a.id]=c;});
   folRing=el("circle",{r:11*MK,fill:"none",style:`stroke:var(--ink);stroke-width:${2.5*MK};pointer-events:none`},map);
   folLabel=el("g",{style:"pointer-events:none"},map);
   leadTag=el("g",{style:"pointer-events:none"},map);
@@ -3307,15 +3330,64 @@ function drawBoards(t){
   const o=orderAt(t);const lb=$("#lb");lb.replaceChildren();const top=o[0];
   const leadPace=top?(top.d>0?t/top.d:0):0;
   const rows=o.slice(0,10);const fi=o.findIndex(r=>r.a.id===state.follow);if(fi>=10)rows.push(o[fi]);
-  rows.forEach(r=>{const i=o.indexOf(r);const tr=h("tr");if(r.a.id===state.follow)tr.className="fol";tr.appendChild(h("td","p",i+1));const nc=h("td");nc.style.cssText="display:flex;align-items:center;gap:6px";if(showPhotos())nc.appendChild(avatar(r.a,22));else if(showLogos()&&r.a.team)nc.appendChild(teamLogo(r.a.team,20));const col=teamDotColor(r.a);const k=h("span");k.style.cssText=`display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:${col||"var(--line-strong)"}`;nc.appendChild(k);const w2=h("div");w2.style.minWidth="0";const nmw=h("div","nm");nmw.appendChild(nameBtn(r.a));w2.appendChild(nmw);const tn=h("div","sub2");tn.textContent=r.a.team?teamById[r.a.team].name:r.a.school;w2.appendChild(tn);nc.appendChild(w2);tr.appendChild(nc);
+  rows.forEach(r=>{const i=o.indexOf(r);const tr=h("tr");if(r.a.id===state.follow)tr.className="fol";tr.appendChild(h("td","p",i+1));const nc=h("td");nc.style.cssText="display:flex;align-items:center;gap:6px";if(showPhotos())nc.appendChild(avatar(r.a,22));else if(showLogos()&&r.a.team)nc.appendChild(teamLogo(r.a.team,20));const col=teamDotColor(r.a);const k=h("span");k.style.cssText=`display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:${col||"var(--line-strong)"}`;nc.appendChild(k);const w2=h("div");w2.style.minWidth="0";const nmw=h("div","nm");const fb=h("button","lnk",r.a.name);fb.type="button";fb.title=r.a.id===state.follow?"Following":"Follow "+r.a.name+" in the replay";fb.addEventListener("click",e=>{e.stopPropagation();setFollow(r.a.id);});nmw.appendChild(fb);w2.appendChild(nmw);const tn=h("div","sub2");tn.textContent=r.a.team?teamById[r.a.team].name:r.a.school;w2.appendChild(tn);nc.appendChild(w2);tr.appendChild(nc);
     let g;const fin=lastIdx(r.a)===NKM&&r.d>=DIST;if(fin)g=fmt(r.a.cum[NKM]);else if(i===0)g=(r.d/1000).toFixed(2)+" km";else{const gap=Math.round(top.d-r.d);g=gap<1?"level":"−"+gap+" m";}tr.appendChild(h("td","g",g));lb.appendChild(tr);});
   $("#lbWhen").textContent=t<=0?"start line":clock(t,0);
   const sc=scoreOrder(o.filter(r=>r.d>0&&(lastIdx(r.a)===NKM||stillOut(r.a)||t<=r.a.cum[lastIdx(r.a)])).map(r=>r.a.id),byId);const tl=$("#lbTeams");tl.replaceChildren();
   sc.teams.slice(0,8).forEach(tm=>{const tr=h("tr");const col=state.teams[tm.team]?slotColor(state.teams[tm.team]):null;tr.appendChild(h("td","p",tm.place));const nc=h("td");nc.style.cssText="display:flex;align-items:center;gap:6px";if(showLogos())nc.appendChild(teamLogo(tm.team,20));const k=h("span");k.style.cssText=`display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:${col||"var(--line-strong)"}`;nc.appendChild(k);nc.appendChild(h("span","nm",teamById[tm.team].name));tr.appendChild(nc);tr.appendChild(h("td","g",tm.score));tl.appendChild(tr);});
 }
 function teamChips(container){container.replaceChildren();(SCORE[LASTK]?SCORE[LASTK].teams.map(t=>t.team):Object.keys(RACE.teamRoster||{})).forEach(tid=>{const b=h("button","chip");const s=state.teams[tid];b.setAttribute("aria-pressed",String(!!s));b.title=teamById[tid].name;const k=h("span","key");if(s)k.style.background=slotColor(s);if(showLogos())b.appendChild(teamLogo(tid,16));b.appendChild(k);b.appendChild(document.createTextNode(teamById[tid].name));b.addEventListener("click",()=>toggleTeam(tid,container.id==="teamChips"?$("#toast"):null));container.appendChild(b);});}
-function buildFollow(){const s=$("#followSel");s.replaceChildren();const o0=h("option",null,"No one");o0.value="";s.appendChild(o0);[...ATH].sort((a,b)=>a.name.localeCompare(b.name)).forEach(a=>{const o=h("option",null,`${a.name} — ${a.team?teamById[a.team].name:a.school}`);o.value=a.id;s.appendChild(o);});s.value=state.follow||"";s.onchange=()=>{state.follow=s.value||null;drawReplay(true);};}
-segButtons($("#speedSeg"),[[10,"10×"],[30,"30×"],[60,"60×"]],state.speed,function on(v){state.speed=v;segButtons($("#speedSeg"),[[10,"10×"],[30,"30×"],[60,"60×"]],v,on);});
+/* ---- Follow an athlete ---- */
+function setFollow(id){state.follow=id&&byId[id]?id:null;renderFollowCard();if(RACE&&MATS.length)drawReplay(true);}
+function renderFollowCard(){
+  const c=$("#followCard");if(!c)return;c.replaceChildren();
+  const a=state.follow&&byId[state.follow];c.hidden=!a;if(!a)return;
+  c.appendChild(h("span","ring"));
+  const w=h("div","w");w.appendChild(h("b",null,a.name));
+  w.appendChild(h("span","m",[a.team?teamById[a.team].name:a.school,a.bib!=null&&a.bib!==""?"#"+a.bib:""].filter(Boolean).join(" \u00b7 ")));
+  c.appendChild(w);
+  const pg=h("button","pg","Their page");pg.type="button";pg.addEventListener("click",()=>openAthlete(a.id));c.appendChild(pg);
+  const x=h("button","x","\u00d7");x.type="button";x.setAttribute("aria-label","Stop following "+a.name);x.title="Stop following";
+  x.addEventListener("click",()=>setFollow(null));c.appendChild(x);
+}
+const fbox=$("#followList"),finp=$("#followFind");let folItems=[],folIdx=-1;
+function closeFollow(){fbox.hidden=true;fbox.replaceChildren();folItems=[];folIdx=-1;finp.setAttribute("aria-expanded","false");}
+function pickFollow(a){finp.value="";closeFollow();setFollow(a.id);}
+function buildFollowList(){
+  const q=finp.value.trim().toLowerCase();
+  if(!q||!RACE){closeFollow();return;}
+  const k=LASTK;
+  const school=a=>(a.team?teamById[a.team].name:a.school)||"";
+  const rank=a=>{const n=a.name.toLowerCase();return n.startsWith(q)||n.split(/\s+/).some(p=>p.startsWith(q))?0:String(a.bib)===q?1:n.includes(q)?2:3;};
+  const hits=ATH.filter(a=>a.name.toLowerCase().includes(q)||String(a.bib).includes(q)||school(a).toLowerCase().includes(q))
+    .sort((a,b)=>rank(a)-rank(b)||(((k&&PLACE[k][a.id])||999)-((k&&PLACE[k][b.id])||999))).slice(0,8);
+  folItems=hits;folIdx=hits.length?0:-1;fbox.replaceChildren();
+  if(!hits.length){const li=h("li","none","No runner in this race matches");fbox.appendChild(li);}
+  hits.forEach((a,i)=>{const li=h("li",i===0?"active":null);li.setAttribute("role","option");li.id="fol-opt-"+i;
+    if(showPhotos())li.appendChild(avatar(a,22));else if(showLogos()&&a.team)li.appendChild(teamLogo(a.team,22));
+    const w=h("div","sg");w.appendChild(h("b",null,a.name));
+    const pl=k&&PLACE[k][a.id];
+    w.appendChild(h("span",null,[school(a),a.bib!=null&&a.bib!==""?"#"+a.bib:"",pl?ord(pl):""].filter(Boolean).join(" \u00b7 ")));
+    li.appendChild(w);
+    li.addEventListener("mousedown",e=>{e.preventDefault();pickFollow(a);});
+    fbox.appendChild(li);});
+  fbox.hidden=false;finp.setAttribute("aria-expanded","true");
+}
+function moveFollow(d){if(!folItems.length)return;folIdx=(folIdx+d+folItems.length)%folItems.length;
+  [...fbox.children].forEach((li,i)=>li.classList.toggle("active",i===folIdx));
+  finp.setAttribute("aria-activedescendant","fol-opt-"+folIdx);}
+finp.addEventListener("input",buildFollowList);
+finp.addEventListener("keydown",e=>{
+  if(e.key==="ArrowDown"){e.preventDefault();moveFollow(1);}
+  else if(e.key==="ArrowUp"){e.preventDefault();moveFollow(-1);}
+  else if(e.key==="Enter"){if(folIdx>=0&&folItems[folIdx]){e.preventDefault();pickFollow(folItems[folIdx]);}}
+  else if(e.key==="Escape"){finp.value="";closeFollow();}});
+finp.addEventListener("blur",()=>setTimeout(closeFollow,150));
+finp.addEventListener("focus",buildFollowList);
+function buildFollow(){finp.value="";closeFollow();renderFollowCard();}
+// 1× is the race as it happened, second for second.
+const SPEEDS=[[1,"1×"],[10,"10×"],[30,"30×"],[60,"60×"]];
+segButtons($("#speedSeg"),SPEEDS,state.speed,function on(v){state.speed=v;segButtons($("#speedSeg"),SPEEDS,v,on);});
 $("#playBtn").addEventListener("click",()=>{if(state.t>=T_END)state.t=0;state.playing=!state.playing;$("#playBtn").textContent=state.playing?"Pause":"Play";last=null;});
 $("#scrub").addEventListener("input",e=>{state.t=e.target.value/1000*T_END;state.playing=false;$("#playBtn").textContent="Play";drawReplay(true);});
 $("#dimOthers").addEventListener("change",e=>{state.dim=e.target.checked;drawReplay(true);});
