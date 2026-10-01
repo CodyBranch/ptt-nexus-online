@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Logo from './Logo';
+import { explainFailure } from './explain';
 import {
   ignoreTeam, linkMany, linkTeam, searchColleges, unlinkTeam,
   type Suggestion, type TeamRow, type TeamTab,
@@ -32,9 +33,13 @@ export default function ReviewList({ tab, teams }: { tab: TeamTab; teams: TeamRo
     if (!window.confirm(`Link ${withGuess.length} teams to the school suggested for each (every suggestion scored ${STRONG} or more)? Look down the list first: this is ${withGuess.length} links in one go.`)) return;
     setBulkNote(`Linking ${withGuess.length}…`);
     start(async () => {
-      const r = await linkMany(withGuess.map((t) => ({ ustfcccaTeamId: t.ustfcccaTeamId, organizationId: t.suggestions[0].id })));
-      setBulkNote(`Linked ${r.linked}.${r.errors.length ? ` ${r.errors.length} could not be: ${r.errors[0]}` : ''}`);
-      router.refresh();
+      try {
+        const r = await linkMany(withGuess.map((t) => ({ ustfcccaTeamId: t.ustfcccaTeamId, organizationId: t.suggestions[0].id })));
+        setBulkNote(`Linked ${r.linked}.${r.errors.length ? ` ${r.errors.length} could not be: ${r.errors[0]}` : ''}`);
+        router.refresh();
+      } catch (e) {
+        setBulkNote(explainFailure(e));
+      }
     });
   };
 
@@ -101,15 +106,21 @@ function Row({ team, tab, onDone }: { team: TeamRow; tab: TeamTab; onDone: () =>
 
   const act = (fn: () => Promise<{ ok: true } | { ok: false; error: string }>) => start(async () => {
     setError(null);
-    const r = await fn();
-    if (!r.ok) { setError(r.error); return; }
-    onDone();
-    router.refresh();
+    try {
+      const r = await fn();
+      if (!r.ok) { setError(r.error); return; }
+      onDone();
+      router.refresh();
+    } catch (e) {
+      setError(explainFailure(e));
+    }
   });
   const search = (q: string) => {
     setQuery(q);
     if (q.trim().length < 2) { setFound(null); return; }
-    start(async () => setFound(await searchColleges(q)));
+    start(async () => {
+      try { setFound(await searchColleges(q)); } catch (e) { setError(explainFailure(e)); }
+    });
   };
 
   const btn = 'px-2.5 py-1 rounded text-sm disabled:opacity-50';

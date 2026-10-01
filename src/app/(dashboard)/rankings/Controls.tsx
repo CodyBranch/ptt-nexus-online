@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { matchAgain, pullNow, setAutoPullOn } from './actions';
+import { explainFailure } from './explain';
 
 /**
  * Pull now, Match again, and the daily read's switch.
@@ -19,7 +20,8 @@ export default function Controls({ autoPull }: { autoPull: { on: boolean; by: st
   const pull = () => {
     setMessage('Reading the USTFCCCA and matching teams…');
     start(async () => {
-      const r = await pullNow();
+      let r: Awaited<ReturnType<typeof pullNow>>;
+      try { r = await pullNow(); } catch (e) { setMessage(explainFailure(e)); return; }
       setMessage(r.status === 'failed'
         ? `The read failed: ${r.error ?? 'no reason given'}`
         : r.status === 'unchanged'
@@ -31,7 +33,8 @@ export default function Controls({ autoPull }: { autoPull: { on: boolean; by: st
   const rematch = () => {
     setMessage('Matching teams…');
     start(async () => {
-      const r = await matchAgain();
+      let r: Awaited<ReturnType<typeof matchAgain>>;
+      try { r = await matchAgain(); } catch (e) { setMessage(explainFailure(e)); return; }
       setMessage(`Linked ${r.autoMatched}; ${r.review} to review, ${r.unmatched} not found.`);
       router.refresh();
     });
@@ -40,7 +43,8 @@ export default function Controls({ autoPull }: { autoPull: { on: boolean; by: st
     const on = !autoPull.on;
     setMessage(on ? 'Turning the daily read on…' : 'Turning the daily read off…');
     start(async () => {
-      const r = await setAutoPullOn(on);
+      let r: Awaited<ReturnType<typeof setAutoPullOn>>;
+      try { r = await setAutoPullOn(on); } catch (e) { setMessage(explainFailure(e)); return; }
       setMessage(r.ok ? (on ? 'The daily read is on.' : 'The daily read is off until it is switched back on. Pull now still works.') : r.error);
       router.refresh();
     });
