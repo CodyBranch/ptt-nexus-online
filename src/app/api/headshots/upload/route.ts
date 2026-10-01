@@ -64,9 +64,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'That file is not a picture we can read' }, { status: 400 });
   }
 
-  const [org] = await db.select({ name: organizations.name, shortName: organizations.shortName })
+  const [org] = await db.select({ name: organizations.name, shortName: organizations.shortName, type: organizations.organizationType })
     .from(organizations).where(eq(organizations.id, organizationId));
   if (!org) return NextResponse.json({ error: 'No such school' }, { status: 404 });
+  // "Unattached" is a placeholder, not a school: everyone filed under it
+  // would share one roster, and two people of the same name one photo.
+  if (org.type === 'unattached') {
+    return NextResponse.json({ error: 'unattached runners are not filed by school; kept in this meet only' }, { status: 422 });
+  }
 
   const hash = createHash('sha256').update(webp).digest('hex');
   const path = `${season}/originals/${slug(org.shortName || org.name)}/${slug(`${lastName}-${firstName}`)}-${hash.slice(0, 8)}.webp`;
