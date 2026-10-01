@@ -117,18 +117,25 @@ export interface BoardRow {
 
 export interface BoardList {
   id: string;
+  divisionId: number;
+  gender: 'men' | 'women';
+  kind: 'national' | 'regional';
   title: string;
   regionName: string | null;
   week: number;
-  releasedAt: Date | null;
+  releasedAt: string | null;
   listType: string | null;
   rows: BoardRow[];
 }
 
-/** The current lists for one division, gender and kind, with who each team is here. */
-export async function boardLists(divisionId: number, gender: string, kind: string): Promise<BoardList[]> {
+/**
+ * Every current list, with who each team is here: the whole season's
+ * rankings are about a thousand rows, so they come down once and switching
+ * division, gender or kind happens in the browser, without a trip back.
+ */
+export async function allBoardLists(): Promise<BoardList[]> {
   const rows = rowsOf<{
-    list_id: string; division_name: string | null; region_name: string | null; week: number; released_at: Date | null;
+    list_id: string; division_id: number; gender: 'men' | 'women'; kind: 'national' | 'regional'; division_name: string | null; region_name: string | null; week: number; released_at: Date | null;
     list_type: string | null; ustfccca_team_id: number; rank: number | null; is_rv: boolean; score: number | null;
     first_place_votes: number | null; prev_rank: number | null; prev_is_rv: boolean; rank_change: number | null;
     team_name: string; team_short: string | null; conference: string | null; match_status: string;
@@ -137,10 +144,10 @@ export async function boardLists(divisionId: number, gender: string, kind: strin
     WITH cur AS (
       SELECT DISTINCT ON (gender, type_id, division_id, region_id) *
       FROM ranking_lists
-      WHERE season = ${SEASON} AND division_id = ${divisionId} AND gender = ${gender} AND kind = ${kind}
+      WHERE season = ${SEASON}
       ORDER BY gender, type_id, division_id, region_id, week DESC
     )
-    SELECT cur.id AS list_id, cur.division_name, cur.region_name, cur.week, cur.released_at, cur.list_type,
+    SELECT cur.id AS list_id, cur.division_id, cur.gender, cur.kind, cur.division_name, cur.region_name, cur.week, cur.released_at, cur.list_type,
            e.ustfccca_team_id, e.rank, e.is_rv, e.score, e.first_place_votes, e.prev_rank, e.prev_is_rv, e.rank_change,
            t.team_name, t.team_short, coalesce(e.conference, t.conference) AS conference, t.match_status,
            t.organization_id, o.name AS org_name, o.logo_url, o.logo_dark_url
@@ -148,7 +155,7 @@ export async function boardLists(divisionId: number, gender: string, kind: strin
     JOIN ranking_entries e ON e.list_id = cur.id
     JOIN ranking_teams t ON t.ustfccca_team_id = e.ustfccca_team_id
     LEFT JOIN organizations o ON o.id = t.organization_id
-    ORDER BY cur.region_name NULLS FIRST, e.position`));
+    ORDER BY cur.division_id, cur.gender, cur.kind, cur.region_name NULLS FIRST, e.position`));
 
   const lists = new Map<string, BoardList>();
   for (const r of rows) {
@@ -156,10 +163,13 @@ export async function boardLists(divisionId: number, gender: string, kind: strin
     if (!list) {
       list = {
         id: r.list_id,
+        divisionId: r.division_id,
+        gender: r.gender,
+        kind: r.kind,
         title: r.region_name ?? r.division_name ?? '',
         regionName: r.region_name,
         week: r.week,
-        releasedAt: r.released_at,
+        releasedAt: r.released_at ? new Date(r.released_at).toISOString() : null,
         listType: r.list_type,
         rows: [],
       };
