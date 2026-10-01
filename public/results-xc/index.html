@@ -140,8 +140,13 @@ td.pl{font:600 15px var(--mono);width:40px;text-align:right;color:var(--ink)}
   background:var(--accent-soft);color:var(--accent);white-space:nowrap;display:inline-block;line-height:1.5}
 .rk.reg{background:var(--surface-2);color:var(--ink-2)}
 .rk.rv{background:transparent;color:var(--muted);border:1px solid var(--line-strong);padding:0 5px}
-.rkline{font:600 12px var(--mono);color:var(--ink-2);margin-top:4px}
-.rkline b{color:var(--accent)}
+.rkgrid{display:grid;grid-template-columns:auto auto auto;justify-content:start;gap:3px 18px;margin:6px 0 4px;font-size:13px;color:var(--ink-2)}
+.rkgrid .rkl{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);align-self:center}
+.rkgrid .rkc b{font:700 15px var(--mono);color:var(--accent);margin-right:2px}
+.rkgrid .rkc .mv{font-size:11px;margin-left:2px}
+.rkgrid .rks{grid-column:1/-1;font-size:11px;margin-top:2px}
+/* A phone: the regional ranking under the national, beside its side's label. */
+@media (max-width:520px){.rkgrid{grid-template-columns:auto 1fr;gap:2px 10px}.rkgrid .rkc + .rkc{grid-column:2}}
 .mv.up{color:var(--up)} .mv.down{color:var(--down)} .mv.same{color:var(--muted)}
 .pin{width:28px;height:28px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;display:grid;place-items:center;flex:none}
 .pin[aria-pressed="true"]{color:#fff;border-color:transparent}
@@ -2459,16 +2464,25 @@ function rankBadge(tid,g){
   b.title=rankTitle(rk);b.setAttribute("aria-label",b.title.replace(/\n/g,"; "));return b;
 }
 /* One line for a school's page: both sides of the meet it is ranked on. */
+/* A school's rankings on its own page: a row for each side of the meet,
+   national and regional in their own columns, and the source underneath.
+   Strung along one line, four rankings and the week ran together. */
 function rankLine(rankings){
   if(MEET.showRankings===false||!rankings)return null;
   const sides=[["M","Men"],["F","Women"]].filter(([g])=>rankingsOf(rankings[g]));if(!sides.length)return null;
-  const d=h("div","rkline");let week=null;
-  sides.forEach(([g,label],i)=>{const rk=rankings[g],n=rk.national,r=rk.regional;if(i)d.appendChild(document.createTextNode("  \u00b7  "));
-    d.appendChild(document.createTextNode(label+" "));
-    if(n){const b=h("b",null,n.rv?"RV":"#"+n.rank);d.appendChild(b);d.appendChild(document.createTextNode(n.division?" "+n.division:" national"));}
-    if(r){d.appendChild(document.createTextNode((n?", ":"")));const b=h("b",null,r.rv?"RV":"#"+r.rank);d.appendChild(b);d.appendChild(document.createTextNode(" "+(r.region||"")));}
-    week=week??(n||r).week;});
-  d.appendChild(h("span","note"," \u00b7 USTFCCCA "+weekWord(week)));d.title="USTFCCCA coaches' polls and regional rankings";
+  const d=h("div","rkgrid");d.title="USTFCCCA coaches' polls and regional rankings";
+  const cell=(x,what)=>{const c=h("span","rkc");if(!x)return c;
+    c.appendChild(h("b",null,x.rv?"RV":"#"+x.rank));c.appendChild(document.createTextNode(" "+what));
+    if(x.change&&!x.rv)c.appendChild(h("span","mv "+(x.change>0?"up":"down"),(x.change>0?" \u25b2":" \u25bc")+Math.abs(x.change)));
+    return c;};
+  const weeks=new Set();
+  sides.forEach(([g,label])=>{const rk=rankings[g],n=rk.national,r=rk.regional;
+    d.appendChild(h("span","rkl",label));
+    d.appendChild(cell(n,n&&n.division?n.division:"national"));
+    d.appendChild(cell(r,r?(r.region||"")+" region":""));
+    weeks.add((n||r).week);});
+  const w=weeks.size===1?weekWord([...weeks][0]):"";
+  d.appendChild(h("span","rks note","USTFCCCA coaches' polls and regional rankings"+(w?" \u00b7 "+w:"")));
   return d;
 }
 /* The same badge inside an SVG chart, in a 32-unit box: the school's logo,
