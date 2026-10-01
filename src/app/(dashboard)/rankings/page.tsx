@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { Suspense } from 'react';
 import { requireAdmin } from '@/lib/admin-auth';
 import {
@@ -84,7 +83,10 @@ export default async function RankingsPage({ searchParams }: PageProps) {
 
       <div className="flex items-center gap-1 mb-4 border-b border-gray-800">
         {TABS.map(([value, label]) => (
-          <Link key={value} href={`/rankings?tab=${value}`}
+          // A plain link, so a tab is a whole page load: it either arrives or
+          // shows why not, where an in-page navigation could fail and leave
+          // the old page sitting there.
+          <a key={value} href={`/rankings?tab=${value}`}
             className={`px-3 py-2 -mb-px text-sm border-b-2 transition-colors ${
               tab === value ? 'border-blue-500 text-gray-100' : 'border-transparent text-gray-400 hover:text-gray-200'}`}>
             {label}
@@ -93,7 +95,7 @@ export default async function RankingsPage({ searchParams }: PageProps) {
                 {counts[value]}
               </span>
             ) : null}
-          </Link>
+          </a>
         ))}
       </div>
 
@@ -114,7 +116,30 @@ export default async function RankingsPage({ searchParams }: PageProps) {
 }
 
 async function ReviewTab({ tab }: { tab: TeamTab }) {
-  return <ReviewList tab={tab} teams={await teamsFor(tab)} />;
+  let teams: Awaited<ReturnType<typeof teamsFor>>;
+  try {
+    teams = await teamsFor(tab);
+  } catch (e) {
+    return <LoadFailed what="this list" error={e} />;
+  }
+  return <ReviewList tab={tab} teams={teams} />;
+}
+
+/**
+ * Said on the page, with the reason. In production a failure in here would
+ * otherwise show as nothing at all - Next hides server errors from the
+ * browser - which is no help to anybody working out what went wrong.
+ */
+function LoadFailed({ what, error }: { what: string; error: unknown }) {
+  console.error(`[rankings] could not load ${what}:`, error);
+  const msg = error instanceof Error ? error.message : String(error);
+  return (
+    <div className="bg-red-950/30 border border-red-900/60 rounded-xl px-4 py-4 text-sm">
+      <div className="text-red-300 font-medium">Could not load {what}.</div>
+      <div className="text-red-300/70 mt-1 font-mono text-xs break-all">{msg}</div>
+      <div className="text-gray-500 mt-2">Reload to try again. If it keeps happening, send this message on.</div>
+    </div>
+  );
 }
 
 // ── The lists ────────────────────────────────────────────────────────────────
@@ -125,5 +150,11 @@ async function Board({ choices, div, g, kind }: {
   if (!choices.length) {
     return <div className="text-sm text-gray-500 py-10 text-center">No rankings have been read yet. Use Pull now.</div>;
   }
-  return <RankingsBoard choices={choices} lists={await allBoardLists()} initial={{ div, g, kind }} />;
+  let lists: Awaited<ReturnType<typeof allBoardLists>>;
+  try {
+    lists = await allBoardLists();
+  } catch (e) {
+    return <LoadFailed what="the rankings" error={e} />;
+  }
+  return <RankingsBoard choices={choices} lists={lists} initial={{ div, g, kind }} />;
 }

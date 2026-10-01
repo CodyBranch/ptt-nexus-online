@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import Logo from './Logo';
 import type { BoardChoice, BoardList, BoardRow } from './actions';
@@ -124,10 +123,10 @@ function RankRow({ r, national }: { r: BoardRow; national: boolean }) {
       </td>
       <td className="px-2 py-1.5 text-right whitespace-nowrap">
         {status ? (
-          <Link href={`/rankings?tab=${status}`}
+          <a href={`/rankings?tab=${status}`}
             className={`text-[11px] px-1.5 py-0.5 rounded ${status === 'review' ? 'bg-amber-500/20 text-amber-300' : status === 'ignored' ? 'bg-gray-800 text-gray-500' : 'bg-red-500/15 text-red-300'}`}>
             {status === 'review' ? 'Review' : status === 'ignored' ? 'Set aside' : 'Not found'}
-          </Link>
+          </a>
         ) : national && r.score != null ? (
           <span className="text-xs text-gray-500 tabular-nums">
             {r.score}{r.firstPlaceVotes ? <span className="text-gray-600"> ({r.firstPlaceVotes})</span> : null}
