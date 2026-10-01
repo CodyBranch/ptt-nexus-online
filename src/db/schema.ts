@@ -937,3 +937,11 @@ export const rankingPulls = pgTable('ranking_pulls', {
 }, (table) => [
   index('idx_ranking_pulls_started').on(table.startedAt),
 ]);
+
+/** Switches for the rankings reader: 'auto_pull' is whether the daily read runs. */
+export const rankingSettings = pgTable('ranking_settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  updatedBy: text('updated_by'),
+});
