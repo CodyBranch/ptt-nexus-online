@@ -133,6 +133,15 @@ td.pl{font:600 15px var(--mono);width:40px;text-align:right;color:var(--ink)}
 .tm{font:500 14px var(--mono);white-space:nowrap}
 .tm small{display:block;font-size:11.5px;color:var(--muted);font-weight:400}
 .mv{font:600 12px var(--mono);white-space:nowrap}
+/* A school's USTFCCCA ranking: "#3", or "#2 Mountain" when it is ranked only
+   in its region, or "RV" for receiving votes. Quiet beside the name, never
+   louder than the place. */
+.rk{font:700 10.5px var(--mono);letter-spacing:.02em;padding:1px 6px;border-radius:99px;margin-left:6px;vertical-align:1px;
+  background:var(--accent-soft);color:var(--accent);white-space:nowrap;display:inline-block;line-height:1.5}
+.rk.reg{background:var(--surface-2);color:var(--ink-2)}
+.rk.rv{background:transparent;color:var(--muted);border:1px solid var(--line-strong);padding:0 5px}
+.rkline{font:600 12px var(--mono);color:var(--ink-2);margin-top:4px}
+.rkline b{color:var(--accent)}
 .mv.up{color:var(--up)} .mv.down{color:var(--down)} .mv.same{color:var(--muted)}
 .pin{width:28px;height:28px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;display:grid;place-items:center;flex:none}
 .pin[aria-pressed="true"]{color:#fff;border-color:transparent}
@@ -1081,14 +1090,15 @@ function dayDate(d){return d.toLocaleDateString(undefined,{weekday:"short",month
 function niceDate(iso){const d=new Date(iso+"T12:00:00");return isNaN(d)?iso:dayDate(d)+", "+d.getFullYear();}
 function abbrOf(name){return name.split(/\s+/).map(w=>w[0]).join("").slice(0,3).toUpperCase();}
 function ingestTeams(list){
-  list.forEach((t,i)=>{if(teamById[t.id]){Object.assign(teamById[t.id],{name:t.name,logoUrl:t.logoUrl,logoDarkUrl:t.logoDarkUrl});return;}
+  list.forEach((t,i)=>{if(teamById[t.id]){Object.assign(teamById[t.id],{name:t.name,logoUrl:t.logoUrl,logoDarkUrl:t.logoDarkUrl,rankings:t.rankings||null});return;}
     const x={id:t.id,name:t.name,abbr:(t.shortName||abbrOf(t.name)).slice(0,4),color:t.primaryColor||"#4a544d",color2:t.secondaryColor||"#ffffff",
-      shape:SHAPES[i%4],hasLogo:false,logoUrl:t.logoUrl,logoDarkUrl:t.logoDarkUrl};
+      shape:SHAPES[i%4],hasLogo:false,logoUrl:t.logoUrl,logoDarkUrl:t.logoDarkUrl,rankings:t.rankings||null};
     TEAMS.push(x);teamById[x.id]=x;});
 }
 function ingestMeet(doc){
   MEETV=doc.version;
-  MEET={name:doc.meet.name,venue:doc.meet.venue||"",date:niceDate(doc.meet.date),showLogos:doc.meet.settings.showLogos,showPhotos:doc.meet.settings.showPhotos};
+  MEET={name:doc.meet.name,venue:doc.meet.venue||"",date:niceDate(doc.meet.date),showLogos:doc.meet.settings.showLogos,showPhotos:doc.meet.settings.showPhotos,
+    showRankings:doc.meet.settings.showRankings!==false};
   document.title=doc.meet.name+" — Live Results";
   ingestTeams(doc.teams||[]);
   const next=doc.races.map(sm=>{
@@ -1262,7 +1272,7 @@ function adaptRace(doc){
   const declared=ath.filter(a=>a.entry!=="scratched");
   const checkedIn=ath.filter(a=>a.entry==="checked_in").length;
   const teamRoster={};declared.forEach(a=>{if(a.team)(teamRoster[a.team]=teamRoster[a.team]||[]).push(a);});
-  return{id:r.id,name:r.name,dist:r.distanceM,start:r.startLocal||"",status:r.status,photos:!!r.hasPhotos,gunTime:r.gunTime||null,
+  return{id:r.id,name:r.name,gender:r.gender||null,dist:r.distanceM,start:r.startLocal||"",status:r.status,photos:!!r.hasPhotos,gunTime:r.gunTime||null,
     scorers:r.scorers||5,displacers:r.displacers!=null?r.displacers:2,scoresTeams:r.scoresTeams!==false,noScore,
     n,matm,matl,ath,book,MATS:rec,lastK,ORDER,PLACE,SCORE,TPLACE,FIN:fin,T_END:tEnd,recs:mergeRecords(doc.records||[]),
     declaredCount:declared.length,checkedIn,scratchCount:ath.length-declared.length,indivCount:declared.filter(a=>!a.team).length,
@@ -1720,6 +1730,7 @@ function renderTeam(){
     im.style.cssText="width:56px;height:56px;object-fit:contain;flex:none";htop.appendChild(im);}
   const who=h("div","w");
   who.appendChild(h("h2",null,d.name));
+  {const rl=rankLine(d.rankings||(teamById[d.id]||{}).rankings);if(rl)who.appendChild(rl);}
   const total=d.races.reduce((n,r)=>n+r.runners.length,0);
   const placed=d.races.filter(r=>r.place!=null);
   who.appendChild(h("div","note",total+" entered across "+d.races.length+(d.races.length===1?" race":" races")
@@ -2419,6 +2430,45 @@ function teamLogo(tid,size){
   w.appendChild(svg);w.title=t.name+(t.hasLogo?"":" — no logo on file");return w;
 }
 function showLogos(){return MEET.showLogos!==false;}
+/* USTFCCCA rankings. A school holds them for each side of the meet (M, F);
+   a race shows its own side's. The badge says the most a reader needs:
+   the national rank when ranked, the region's when ranked only there, RV
+   when only receiving votes. Everything else is in its title. */
+function rankingsOf(rk){return rk&&(rk.national||rk.regional)?rk:null;}
+function teamRankings(tid,g){
+  if(MEET.showRankings===false)return null;const t=teamById[tid];
+  if(!t||!t.rankings||!g)return null;return rankingsOf(t.rankings[g]);
+}
+function weekWord(w){return w===0?"preseason":w===99?"final":w!=null?"week "+w:"";}
+function rankTitle(rk){
+  const n=rk.national,r=rk.regional,parts=[];
+  if(n)parts.push((n.division||"National")+" coaches' "+(n.listType==="ranking"?"ranking":"poll")+": "+(n.rv?"receiving votes":"No. "+n.rank)
+    +(n.change?" ("+(n.change>0?"up ":"down ")+Math.abs(n.change)+")":""));
+  if(r)parts.push((r.region||"Regional")+" region: "+(r.rv?"receiving votes":"No. "+r.rank));
+  const w=weekWord((n||r).week);
+  return parts.join("\n")+"\nUSTFCCCA"+(w?" "+w:"");
+}
+/* The badge in team results: the national ranking only ("#16", or "RV").
+   Its classification, and the regional ranking with the region's name, are
+   in the hover; a school's own page spells both out. */
+function rankBadge(tid,g){
+  const rk=teamRankings(tid,g!==undefined?g:(RACE&&RACE.gender));if(!rk||!rk.national)return null;
+  const n=rk.national,b=h("span","rk"+(n.rv?" rv":""),n.rv?"RV":"#"+n.rank);
+  b.title=rankTitle(rk);b.setAttribute("aria-label",b.title.replace(/\n/g,"; "));return b;
+}
+/* One line for a school's page: both sides of the meet it is ranked on. */
+function rankLine(rankings){
+  if(MEET.showRankings===false||!rankings)return null;
+  const sides=[["M","Men"],["F","Women"]].filter(([g])=>rankingsOf(rankings[g]));if(!sides.length)return null;
+  const d=h("div","rkline");let week=null;
+  sides.forEach(([g,label],i)=>{const rk=rankings[g],n=rk.national,r=rk.regional;if(i)d.appendChild(document.createTextNode("  \u00b7  "));
+    d.appendChild(document.createTextNode(label+" "));
+    if(n){const b=h("b",null,n.rv?"RV":"#"+n.rank);d.appendChild(b);d.appendChild(document.createTextNode(n.division?" "+n.division:" national"));}
+    if(r){d.appendChild(document.createTextNode((n?", ":"")));const b=h("b",null,r.rv?"RV":"#"+r.rank);d.appendChild(b);d.appendChild(document.createTextNode(" "+(r.region||"")));}
+    week=week??(n||r).week;});
+  d.appendChild(h("span","note"," \u00b7 USTFCCCA "+weekWord(week)));d.title="USTFCCCA coaches' polls and regional rankings";
+  return d;
+}
 /* The same badge inside an SVG chart, in a 32-unit box: the school's logo,
    or its initials when there is none or the logo will not load (tried resized,
    then as it is, like teamLogo). The pack spread drew only the initials, even
@@ -2495,7 +2545,7 @@ function renderTeamGroups(k,match,host){
     // A team still coming home has no place yet. An empty heading beats
     // "undefined.", which is what this said the moment part-way teams were
     // allowed onto the board.
-    const pl=h("span","sc plc");pl.textContent=t.place!=null?t.place+".":"";hd.appendChild(pl);if(showLogos())hd.appendChild(teamLogo(t.team,28));const h4=h("h4");h4.appendChild(teamLink(t.team,teamById[t.team].name));hd.appendChild(h4);
+    const pl=h("span","sc plc");pl.textContent=t.place!=null?t.place+".":"";hd.appendChild(pl);if(showLogos())hd.appendChild(teamLogo(t.team,28));const h4=h("h4");h4.appendChild(teamLink(t.team,teamById[t.team].name));{const bd=rankBadge(t.team);if(bd)h4.appendChild(bd);}hd.appendChild(h4);
     const ts=t.ids.map(id=>byId[id].cum[k]);const sp=t.spread!=null?t.spread:(ts.length>=SC?ts[SC-1]-ts[0]:null);
     hd.appendChild(h("span","sp",sp!=null?"1–"+SC+" spread "+sp.toFixed(1)+" s":""));hd.appendChild(t.score!=null?h("span","sc tot",ptsLabel(t.score))
       :t.points!=null?h("span","sc tot prov",t.points+" so far")
@@ -2591,7 +2641,7 @@ function renderStartList(match,host){
       const dec=r.teamRoster[tid].length;
       const g=h("div","tgroup");const hd=h("header");
       if(showLogos())hd.appendChild(teamLogo(tid,28));
-      const h4=h("h4");h4.appendChild(teamLink(tid,teamById[tid].name));hd.appendChild(h4);
+      const h4=h("h4");h4.appendChild(teamLink(tid,teamById[tid].name));{const bd=rankBadge(tid);if(bd)h4.appendChild(bd);}hd.appendChild(h4);
       hd.appendChild(h("span","sp","Box "+r.boxOf[tid]));
       hd.appendChild(h("span","sp",dec+" declared"+(dec<SC?" · needs "+(SC-dec)+" more to score":"")));
       if(dec<5)hd.appendChild(h("span","pill scr","Short"));
@@ -3039,7 +3089,7 @@ function renderResults(){
     const short=SCORE[k].teams.filter(t=>t.points==null&&t.score==null);
     const scoring=SCORE[k].teams.filter(t=>t.points!=null||t.score!=null);
     scoring.forEach(t=>{const r=h("tr");r.dataset.team=t.team;if(state.teams[t.team])r.className="sel";r.style.cursor="pointer";r.title="Highlight this team";r.addEventListener("click",()=>toggleTeam(t.team,$("#toast")));
-      const pc=h("td","pl",t.place!=null?t.place:"—");r.appendChild(pc);const nc=h("td");const d=h("div","ath");d.style.minWidth="120px";const sw=h("span","team-sw");if(state.teams[t.team])sw.style.background=slotColor(state.teams[t.team]);d.appendChild(sw);if(showLogos())d.appendChild(teamLogo(t.team,26));const w=h("div");const tn=h("div","nm");tn.appendChild(teamLink(t.team,teamById[t.team].name));w.appendChild(tn);const mv=h("div","meta");const pmt=prevMat(k);if(pmt&&TPLACE[pmt][t.team]){const dd=TPLACE[pmt][t.team]-t.place;const s=h("span","mv "+(dd>0?"up":dd<0?"down":"same"),dd>0?"▲ "+dd:dd<0?"▼ "+(-dd):"–");mv.appendChild(s);}w.appendChild(mv);d.appendChild(w);nc.appendChild(d);r.appendChild(nc);
+      const pc=h("td","pl",t.place!=null?t.place:"—");r.appendChild(pc);const nc=h("td");const d=h("div","ath");d.style.minWidth="120px";const sw=h("span","team-sw");if(state.teams[t.team])sw.style.background=slotColor(state.teams[t.team]);d.appendChild(sw);if(showLogos())d.appendChild(teamLogo(t.team,26));const w=h("div");const tn=h("div","nm");tn.appendChild(teamLink(t.team,teamById[t.team].name));{const bd=rankBadge(t.team);if(bd)tn.appendChild(bd);}w.appendChild(tn);const mv=h("div","meta");const pmt=prevMat(k);if(pmt&&TPLACE[pmt][t.team]){const dd=TPLACE[pmt][t.team]-t.place;const s=h("span","mv "+(dd>0?"up":dd<0?"down":"same"),dd>0?"▲ "+dd:dd<0?"▼ "+(-dd):"–");mv.appendChild(s);}w.appendChild(mv);d.appendChild(w);nc.appendChild(d);r.appendChild(nc);
       // A team still coming home has a real score — the places its runners
       // have actually taken — and it belongs in the same column as a finished
       // one, with what it cannot know yet said underneath rather than left
@@ -3107,7 +3157,15 @@ function renderResults(){
     }
     // One note, replaced each time the table is drawn. Appending it on every
     // redraw — which is every tick of a live race — stacked a copy per update.
-    $("#teamWrap").querySelectorAll("p.short-teams").forEach(n=>n.remove());
+    $("#teamWrap").querySelectorAll("p.short-teams,p.rank-credit").forEach(n=>n.remove());
+    // Rankings shown are the USTFCCCA's, and say so once, under the table.
+    {const ranked=SCORE[k].teams.map(t=>teamRankings(t.team,RACE&&RACE.gender)).filter(x=>x&&x.national);
+      if(ranked.length){
+        // The week only when every school shown is on the same one: NAIA and
+        // NCAA polls come out on different days, and one race can hold both.
+        const weeks=new Set(ranked.map(x=>x.national.week));const w=weeks.size===1?[...weeks][0]:null;
+        const cr=h("p","note rank-credit","# national ranking: USTFCCCA coaches' polls"+(weekWord(w)?", "+weekWord(w):"")+". Hover for the division and region.");
+        $("#teamWrap").appendChild(cr);}}
     if(short.length){
       const note=h("p","note short-teams");
       const names=short.map(t=>teamById[t.team].name).sort();
