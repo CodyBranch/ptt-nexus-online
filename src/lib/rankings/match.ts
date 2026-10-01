@@ -166,7 +166,14 @@ export function scoreCandidate(team: MatchTeam, org: MatchOrg): Candidate | null
   let score = 0;
   let why = '';
   const same = (a: NameKey | null, b: NameKey | null) => !!a && !!b && a.words === b.words && a.words.length > 0;
+  // The main campus named after a comma: "University of Arkansas, Fayetteville"
+  // is our "University of Arkansas". Only with the short names agreeing too,
+  // because "University of California, Irvine" is not our University of
+  // California - its short name is UC Irvine, not California.
+  const campus = team.teamName.includes(',') ? nameKey(team.teamName.slice(0, team.teamName.lastIndexOf(','))) : null;
+  const shortAgrees = same(short, oShort) || same(short, oAbbr) || same(short, oName);
   if (same(full, oName)) { score = 90; why = 'full name'; }
+  else if (same(campus, oName) && shortAgrees) { score = 85; why = 'name without the campus, and short name'; }
   else if (same(full, oShort) || same(short, oName)) { score = 75; why = 'full name and short name'; }
   else if (same(short, oShort) || same(short, oAbbr)) { score = 65; why = 'short name'; }
   else {
@@ -177,10 +184,12 @@ export function scoreCandidate(team: MatchTeam, org: MatchOrg): Candidate | null
 
   if (fits === 'yes') score += 5;
   else { score -= 10; why += ', division not on file'; }
+  // Agreeing conferences help; disagreeing ones do not count against, because
+  // the same conference is written "SEC" on one side and "Southeastern" on
+  // the other far more often than a school is in a different one.
   if (team.conference && org.conference) {
     const c = overlap(nameKey(team.conference).set, nameKey(org.conference).set);
     if (c >= 0.5) { score += 5; why += ', same conference'; }
-    else { score -= 5; why += ', different conference'; }
   }
   return { org, score: Math.min(100, score), why };
 }
