@@ -1,8 +1,8 @@
 'use server';
 
 import { db } from '@/db/client';
-import { organizations, rankingPulls, rankingTeams } from '@/db/schema';
-import { and, asc, desc, eq, ilike, ne, or, sql } from 'drizzle-orm';
+import { organizations, rankingTeams } from '@/db/schema';
+import { and, asc, eq, ilike, ne, or, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/admin-auth';
 import { matchPending, pullRankings, type PullOutcome } from '@/lib/rankings/pull';
@@ -18,30 +18,72 @@ export type TeamTab = 'review' | 'unmatched' | 'linked' | 'ignored';
 
 const rowsOf = <T,>(r: unknown): T[] => ((r as { rows?: unknown[] }).rows ?? r) as T[];
 
+/**
+ * A logo in our storage, by way of /logos/ on this site: the storage serves
+ * them uncached, so a list of a hundred and thirty schools asked for every
+ * logo again on every visit; /logos/ hands the same file on with a long cache.
+ */
+const STORAGE_LOGOS = `${(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '')}/storage/v1/object/public/Logos/`;
+function cachedLogo(url: string | null | undefined): string | null {
+  if (!url) return null;
+  return process.env.NEXT_PUBLIC_SUPABASE_URL && url.startsWith(STORAGE_LOGOS) ? `/logos/${url.slice(STORAGE_LOGOS.length)}` : url;
+}
+
 /** The season the last successful read said it was. */
 const SEASON = sql`(SELECT season FROM ranking_pulls WHERE status = 'ok' AND season IS NOT NULL ORDER BY started_at DESC LIMIT 1)`;
 
-export async function rankingSummary() {
-  const counts = await db
-    .select({ status: rankingTeams.matchStatus, n: sql<number>`count(*)::int` })
-    .from(rankingTeams)
-    .groupBy(rankingTeams.matchStatus);
-  const by: Record<string, number> = {};
-  for (const c of counts) by[c.status] = c.n;
-  const pulls = await db.select().from(rankingPulls).orderBy(desc(rankingPulls.startedAt)).limit(10);
-  const [l] = rowsOf<{ n: number; newest: Date | null }>(await db.execute(sql`
-    SELECT count(*)::int AS n, max(released_at) AS newest FROM (
+export interface PageHead {
+  linked: number;
+  review: number;
+  unmatched: number;
+  ignored: number;
+  currentLists: number;
+  newestRelease: string | null;
+  last: { status: string; error: string | null; startedAt: string } | null;
+  choices: BoardChoice[];
+}
+
+/**
+ * Everything the top of the page shows, in one round trip: the counts, the
+ * last read, the current lists and which divisions have them. Five queries
+ * one after another (the connection takes one at a time) were most of the
+ * wait before anything appeared.
+ */
+export async function pageHead(): Promise<PageHead> {
+  const [row] = rowsOf<{
+    counts: Record<string, number> | null;
+    last: { status: string; error: string | null; started_at: string } | null;
+    lists: { n: number; newest: string | null } | null;
+    choices: Array<{ divisionId: number; divisionName: string | null; gender: 'men' | 'women'; kind: 'national' | 'regional' }> | null;
+  }>(await db.execute(sql`
+    WITH season AS (SELECT ${SEASON} AS s),
+    cur AS (
       SELECT DISTINCT ON (gender, type_id, division_id, region_id) released_at
-      FROM ranking_lists WHERE season = ${SEASON}
-      ORDER BY gender, type_id, division_id, region_id, week DESC) cur`));
+      FROM ranking_lists WHERE season = (SELECT s FROM season)
+      ORDER BY gender, type_id, division_id, region_id, week DESC)
+    SELECT
+      (SELECT json_object_agg(match_status, n) FROM
+        (SELECT match_status, count(*)::int AS n FROM ranking_teams GROUP BY 1) c) AS counts,
+      (SELECT row_to_json(p) FROM
+        (SELECT status, error, started_at FROM ranking_pulls ORDER BY started_at DESC LIMIT 1) p) AS last,
+      (SELECT json_build_object('n', count(*), 'newest', max(released_at)) FROM cur) AS lists,
+      (SELECT json_agg(DISTINCT jsonb_build_object('divisionId', division_id, 'divisionName', division_name, 'gender', gender, 'kind', kind))
+         FROM ranking_lists WHERE season = (SELECT s FROM season)) AS choices`));
+  const by = row?.counts ?? {};
+  // NCAA first, then NAIA, then NJCAA, as the USTFCCCA orders them.
+  const order = [2030, 2031, 2032, 2028, 19781, 19782, 2034];
+  const choices = (row?.choices ?? [])
+    .map((c) => ({ ...c, divisionName: c.divisionName ?? String(c.divisionId) }))
+    .sort((a, b) => (order.indexOf(a.divisionId) - order.indexOf(b.divisionId)) || a.gender.localeCompare(b.gender) || a.kind.localeCompare(b.kind));
   return {
     linked: (by.auto ?? 0) + (by.confirmed ?? 0),
     review: by.review ?? 0,
     unmatched: by.unmatched ?? 0,
     ignored: by.ignored ?? 0,
-    currentLists: l?.n ?? 0,
-    newestRelease: l?.newest ?? null,
-    pulls,
+    currentLists: row?.lists?.n ?? 0,
+    newestRelease: row?.lists?.newest ?? null,
+    last: row?.last ? { status: row.last.status, error: row.last.error, startedAt: row.last.started_at } : null,
+    choices,
   };
 }
 
@@ -52,19 +94,6 @@ export interface BoardChoice {
   divisionName: string;
   gender: 'men' | 'women';
   kind: 'national' | 'regional';
-}
-
-/** Every division, gender and kind with a current list, for the filters. */
-export async function boardChoices(): Promise<BoardChoice[]> {
-  const rows = rowsOf<{ division_id: number; division_name: string | null; gender: 'men' | 'women'; kind: 'national' | 'regional' }>(
-    await db.execute(sql`
-      SELECT DISTINCT division_id, division_name, gender, kind
-      FROM ranking_lists WHERE season = ${SEASON}`));
-  // NCAA first, then NAIA, then NJCAA, as the USTFCCCA orders them.
-  const order = [2030, 2031, 2032, 2028, 19781, 19782, 2034];
-  return rows
-    .map((r) => ({ divisionId: r.division_id, divisionName: r.division_name ?? String(r.division_id), gender: r.gender, kind: r.kind }))
-    .sort((a, b) => (order.indexOf(a.divisionId) - order.indexOf(b.divisionId)) || a.gender.localeCompare(b.gender) || a.kind.localeCompare(b.kind));
 }
 
 export interface BoardRow {
@@ -141,8 +170,8 @@ export async function boardLists(divisionId: number, gender: string, kind: strin
       firstPlaceVotes: r.first_place_votes, prevRank: r.prev_rank, prevIsRv: r.prev_is_rv, rankChange: r.rank_change,
       teamName: r.team_name, teamShort: r.team_short, conference: r.conference, matchStatus: r.match_status,
       organizationId: r.organization_id, organizationName: r.org_name,
-      logoUrl: r.logo_url,
-      logoDarkUrl: r.logo_dark_url,
+      logoUrl: cachedLogo(r.logo_url),
+      logoDarkUrl: cachedLogo(r.logo_dark_url),
     });
   }
   return [...lists.values()];
@@ -194,7 +223,7 @@ function suggestionOf(o: OrgWithLogo, score?: number, why?: string): Suggestion 
   return {
     id: o.id, name: o.name, conference: o.conference, state: o.state,
     division: o.ncaaDivision ?? (o.naiaMember ? 'NAIA' : o.jucoMember ? 'NJCAA' : null),
-    logoUrl: o.logoUrl, logoDarkUrl: o.logoDarkUrl, score, why,
+    logoUrl: cachedLogo(o.logoUrl), logoDarkUrl: cachedLogo(o.logoDarkUrl), score, why,
   };
 }
 
@@ -261,8 +290,8 @@ export async function teamsFor(tab: TeamTab): Promise<TeamRow[]> {
     ustfcccaTeamId: t.ustfcccaTeamId, teamName: t.teamName, teamShort: t.teamShort, division: t.division,
     conference: t.conference, matchStatus: t.matchStatus, matchNote: t.matchNote, matchedBy: t.matchedBy,
     organizationId: t.organizationId, organizationName: t.organizationName,
-    logoUrl: t.logoUrl,
-    logoDarkUrl: t.logoDarkUrl,
+    logoUrl: cachedLogo(t.logoUrl),
+    logoDarkUrl: cachedLogo(t.logoDarkUrl),
     standing: standings.get(t.ustfcccaTeamId)?.text ?? null,
     suggestions: orgs.length
       ? decide(t, orgs).candidates.slice(0, 3).map((c) => suggestionOf(c.org as OrgWithLogo, c.score, c.why))

@@ -1,12 +1,14 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { requireAdmin } from '@/lib/admin-auth';
 import {
-  autoPullState, boardChoices, boardLists, rankingSummary, teamsFor,
-  type BoardList, type BoardRow, type TeamTab,
+  autoPullState, boardLists, pageHead, teamsFor,
+  type BoardChoice, type BoardList, type BoardRow, type TeamTab,
 } from './actions';
 import Controls from './Controls';
 import Logo from './Logo';
 import ReviewList from './ReviewList';
+import ListSkeleton from './ListSkeleton';
 
 export const dynamic = 'force-dynamic';
 // "Pull now" runs here: reading, storing and matching five hundred teams.
@@ -43,10 +45,11 @@ const weekName = (w: number) => (w === 0 ? 'Preseason' : w === 99 ? 'Final' : `W
 export default async function RankingsPage({ searchParams }: PageProps) {
   await requireAdmin();
   const sp = await searchParams;
-  const [summary, choices, autoPull] = await Promise.all([rankingSummary(), boardChoices(), autoPullState()]);
+  const [summary, autoPull] = await Promise.all([pageHead(), autoPullState()]);
+  const choices = summary.choices;
   const tab: Tab = (['rankings', 'review', 'unmatched', 'linked', 'ignored'] as const).find((t) => t === sp.tab) ?? 'rankings';
 
-  const last = summary.pulls[0];
+  const last = summary.last;
   const counts: Record<Tab, number | null> = {
     rankings: null, review: summary.review, unmatched: summary.unmatched, linked: summary.linked, ignored: summary.ignored,
   };
@@ -96,9 +99,14 @@ export default async function RankingsPage({ searchParams }: PageProps) {
         ))}
       </div>
 
-      {tab === 'rankings'
-        ? <Board choices={choices} div={sp.div} g={sp.g} kind={sp.kind} />
-        : <ReviewList tab={tab} teams={await teamsFor(tab)} />}
+      {/* The lists stream in under the header: keyed on what is being shown,
+          so a change of tab or filter shows the placeholder at once rather
+          than the old list sitting there until the new one is ready. */}
+      <Suspense key={`${tab}|${sp.div ?? ''}|${sp.g ?? ''}|${sp.kind ?? ''}`} fallback={<ListSkeleton rows={tab === 'rankings' ? 12 : 8} />}>
+        {tab === 'rankings'
+          ? <Board choices={choices} div={sp.div} g={sp.g} kind={sp.kind} />
+          : <ReviewTab tab={tab} />}
+      </Suspense>
 
       <p className="text-xs text-gray-600 mt-8">
         Source: USTFCCCA Coaches&apos; Polls and Rankings. Shown anywhere, they are attributed to the USTFCCCA.
@@ -107,10 +115,14 @@ export default async function RankingsPage({ searchParams }: PageProps) {
   );
 }
 
+async function ReviewTab({ tab }: { tab: TeamTab }) {
+  return <ReviewList tab={tab} teams={await teamsFor(tab)} />;
+}
+
 // ── The lists ────────────────────────────────────────────────────────────────
 
 async function Board({ choices, div, g, kind }: {
-  choices: Awaited<ReturnType<typeof boardChoices>>; div?: string; g?: string; kind?: string;
+  choices: BoardChoice[]; div?: string; g?: string; kind?: string;
 }) {
   if (!choices.length) {
     return <div className="text-sm text-gray-500 py-10 text-center">No rankings have been read yet. Use Pull now.</div>;
