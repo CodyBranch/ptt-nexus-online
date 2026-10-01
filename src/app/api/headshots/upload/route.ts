@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
   // "Unattached" is a placeholder, not a school: everyone filed under it
   // would share one roster, and two people of the same name one photo.
   if (org.type === 'unattached') {
-    return NextResponse.json({ error: 'unattached runners are not filed by school; kept in this meet only' }, { status: 422 });
+    return NextResponse.json({ error: 'unattached runners have no school to be filed under' }, { status: 422 });
   }
 
   const hash = createHash('sha256').update(webp).digest('hex');
