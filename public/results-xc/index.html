@@ -321,8 +321,10 @@ td.pl{font:600 15px var(--mono);width:40px;text-align:right;color:var(--ink)}
 .acard .gap{font:12.5px var(--mono);color:var(--ink-2)}
 .acard .pin{width:26px;height:26px}
 .tgroup{border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-bottom:10px;overflow:hidden}
-.tgroup > header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;padding:10px 12px;background:var(--surface-2);cursor:pointer}
-.tgroup h4{margin:0;font:600 17px var(--display);letter-spacing:.01em;flex:1 1 auto}
+/* Centered on the logo: lined up on the text's baseline, the name, box and
+   count sat below the middle of a 28px logo beside them. */
+.tgroup > header{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:10px 12px;background:var(--surface-2);cursor:pointer}
+.tgroup h4{margin:0;font:600 17px var(--display);letter-spacing:.01em;flex:1 1 auto;display:flex;align-items:center;flex-wrap:wrap;gap:2px 0;line-height:1.2}
 .tgroup .sc{font:700 18px var(--mono)}
 .tgroup .sp{font:12px var(--mono);color:var(--ink-2)}
 .tgroup ol{list-style:none;margin:0;padding:4px 0}
