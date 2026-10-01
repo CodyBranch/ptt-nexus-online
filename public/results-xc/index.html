@@ -1283,13 +1283,13 @@ function adaptRace(doc){
   const tEnd=r.status==="upcoming"?60:r.status==="live"?(el!=null?Math.max(known,el):known+20):Math.ceil(known)+8;
   const boxes=(doc.boxes||[]).map(b=>({box:b.box,team:b.teamId||null,label:b.label,open:!!b.open}));
   const boxOf={};boxes.forEach(b=>{if(b.team&&boxOf[b.team]==null)boxOf[b.team]=b.box;});
-  const declared=ath.filter(a=>a.entry!=="scratched");
+  const onList=ath.filter(a=>a.entry!=="scratched");
   const checkedIn=ath.filter(a=>a.entry==="checked_in").length;
-  const teamRoster={};declared.forEach(a=>{if(a.team)(teamRoster[a.team]=teamRoster[a.team]||[]).push(a);});
+  const teamRoster={};onList.forEach(a=>{if(a.team)(teamRoster[a.team]=teamRoster[a.team]||[]).push(a);});
   return{id:r.id,name:r.name,gender:r.gender||null,dist:r.distanceM,start:r.startLocal||"",status:r.status,photos:!!r.hasPhotos,gunTime:r.gunTime||null,
     scorers:r.scorers||5,displacers:r.displacers!=null?r.displacers:2,scoresTeams:r.scoresTeams!==false,noScore,
     n,matm,matl,ath,book,MATS:rec,lastK,ORDER,PLACE,SCORE,TPLACE,FIN:fin,T_END:tEnd,recs:mergeRecords(doc.records||[]),
-    declaredCount:declared.length,checkedIn,scratchCount:ath.length-declared.length,indivCount:declared.filter(a=>!a.team).length,
+    onListCount:onList.length,declaredCount:onList.filter(isDeclared).length,checkedIn,scratchCount:ath.length-onList.length,indivCount:onList.filter(a=>!a.team).length,
     boxes,boxOf,teamRoster,
     fullTeams:Object.values(teamRoster).filter(x=>x.length>=(r.scorers||5)).length,
     shortTeams:Object.values(teamRoster).filter(x=>x.length<(r.scorers||5)).length,
@@ -2622,6 +2622,13 @@ function podiumInto(host,k){
   host.appendChild(pod);
 }
 const ENTRY_LABEL={declared:"Declared",entered:"Entered",scratched:"Scratched",checked_in:"Checked in"};
+/* Declared is a coach's answer (a runner who checked in has given it too).
+   Entered is only the entry list: on the start list, not yet confirmed. */
+function isDeclared(a){return a.entry==="declared"||a.entry==="checked_in";}
+/* A squad's line: "10 declared" when every one is, "10 entered" when none
+   is yet, "6 of 10 declared" in between. Scratches are not counted. */
+function squadNote(list){const n=list.filter(a=>a.entry!=="scratched");const d=n.filter(isDeclared).length;
+  return d===n.length?n.length+" declared":d===0?n.length+" entered":d+" of "+n.length+" declared";}
 function entryPill(e){const p=h("span","pill "+(e==="declared"?"final":e==="scratched"?"scr":"up"));p.textContent=ENTRY_LABEL[e]||"Entered";return p;}
 function statTile(label,value,sub){const t=h("div","stat");t.appendChild(h("div","lab",label));t.appendChild(h("div","val",String(value)));if(sub)t.appendChild(h("div","sub",sub));return t;}
 function renderStartList(match,host){
@@ -2638,12 +2645,14 @@ function renderStartList(match,host){
   // "0, 274 still to come" all morning, which is worse than the tile it
   // replaced, so the swap waits for the first scan.
   if(r.checkedIn>0){
-    const left=Math.max(0,r.declaredCount-r.checkedIn);
+    const left=Math.max(0,r.onListCount-r.checkedIn);
     const scratched=r.scratchCount?" · "+r.scratchCount+" scratched":"";
     stats.appendChild(statTile("Checked in",r.checkedIn,
       (left?left+" still to come":"all in")+scratched));
   }else{
-    stats.appendChild(statTile("Declared",r.declaredCount,r.scratchCount?r.scratchCount+" scratched":"none scratched"));
+    const notYet=r.onListCount-r.declaredCount;
+    stats.appendChild(statTile("Declared",r.declaredCount,
+      (notYet?notYet+" not declared yet":"everyone on the list")+(r.scratchCount?" · "+r.scratchCount+" scratched":"")));
   }
   stats.appendChild(statTile("Teams",Object.keys(r.teamRoster).length,r.fullTeams+" can score"+(r.shortTeams?" · "+r.shortTeams+" short of "+SC:"")));
   // A tile reading "0 unattached" is a tile saying nothing happened. Most
@@ -2669,16 +2678,16 @@ function renderStartList(match,host){
       if(showLogos())hd.appendChild(teamLogo(tid,28));
       const h4=h("h4");h4.appendChild(teamLink(tid,teamById[tid].name));{const bd=rankBadge(tid);if(bd)h4.appendChild(bd);}hd.appendChild(h4);
       hd.appendChild(h("span","sp","Box "+r.boxOf[tid]));
-      hd.appendChild(h("span","sp",dec+" declared"+(dec<SC?" · needs "+(SC-dec)+" more to score":"")));
+      hd.appendChild(h("span","sp",squadNote(r.teamRoster[tid])+(dec<SC?" · needs "+(SC-dec)+" more to score":"")));
       if(dec<5)hd.appendChild(h("span","pill scr","Short"));
       g.appendChild(hd);
       const ol=h("ol");roster.sort((a,b)=>a.bib-b.bib).forEach(a=>{const li=h("li");li.appendChild(h("span","pt",a.bib));li.appendChild(h("span","ovr",a.yr));
         const w=h("span","who");w.appendChild(nameBtn(a,"b"));li.appendChild(w);
-        li.appendChild(h("span","t",""));const g2=h("span","g");if(a.entry!=="declared")g2.appendChild(entryPill(a.entry));li.appendChild(g2);ol.appendChild(li);});
+        li.appendChild(h("span","t",""));const g2=h("span","g");g2.appendChild(entryPill(a.entry));li.appendChild(g2);ol.appendChild(li);});
       g.appendChild(ol);host.appendChild(g);});
     const ind=r.ath.filter(a=>!a.team&&keep(a));
     if(ind.length){const g=h("div","tgroup");const hd=h("header");hd.appendChild(h("h4",null,"Individuals"));hd.appendChild(h("span","sp",ind.length+" entered · do not score"));g.appendChild(hd);
-      const ol=h("ol");ind.sort((a,b)=>a.bib-b.bib).forEach(a=>{const li=h("li");li.appendChild(h("span","pt",a.bib));li.appendChild(h("span","ovr",a.yr));const w=h("span","who");w.appendChild(h("b",null,a.name));w.appendChild(document.createTextNode(" "+a.school));li.appendChild(w);li.appendChild(h("span","t",""));const g2=h("span","g");if(a.entry!=="declared")g2.appendChild(entryPill(a.entry));li.appendChild(g2);ol.appendChild(li);});
+      const ol=h("ol");ind.sort((a,b)=>a.bib-b.bib).forEach(a=>{const li=h("li");li.appendChild(h("span","pt",a.bib));li.appendChild(h("span","ovr",a.yr));const w=h("span","who");w.appendChild(h("b",null,a.name));w.appendChild(document.createTextNode(" "+a.school));li.appendChild(w);li.appendChild(h("span","t",""));const g2=h("span","g");g2.appendChild(entryPill(a.entry));li.appendChild(g2);ol.appendChild(li);});
       g.appendChild(ol);host.appendChild(g);}
     return;
   }
@@ -2710,17 +2719,20 @@ function boxDetail(gp){
   bn.textContent=wide?"Boxes "+gp.boxes[0]+"–"+gp.boxes[gp.boxes.length-1]:"Box "+gp.boxes[0];
   hd.appendChild(bn);
   if(shared){
-    hd.appendChild(h("h4",null,units.map(u=>u.team?teamById[u.team].name:u.label).join(" · ")));
+    const h4=h("h4");units.forEach((u,i)=>{if(i)h4.appendChild(document.createTextNode(" · "));
+      h4.appendChild(document.createTextNode(u.team?teamById[u.team].name:u.label));const bd=u.team&&rankBadge(u.team);if(bd)h4.appendChild(bd);});
+    hd.appendChild(h4);
   }else{
     const bx=units[0];
     if(bx.team&&showLogos())hd.appendChild(teamLogo(bx.team,28));
-    hd.appendChild(h("h4",null,bx.team?teamById[bx.team].name:bx.label));
+    const h4=h("h4",null,bx.team?teamById[bx.team].name:bx.label);{const bd=bx.team&&rankBadge(bx.team);if(bd)h4.appendChild(bd);}
+    hd.appendChild(h4);
   }
   const rosterOf=u=>u.team?r.ath.filter(a=>a.team===u.team):r.ath.filter(a=>!a.team);
   const declaredOf=u=>rosterOf(u).filter(a=>a.entry!=="scratched").length;
   if(!units.every(u=>u.open)){
     const tot=units.reduce((n,u)=>n+declaredOf(u),0);
-    let note=tot+" declared";
+    let note=squadNote(units.flatMap(u=>u.open?[]:rosterOf(u)));
     if(shared)note+=" across "+units.length+" teams";
     else if(wide)note+=" · too many for one box, so they take "+gp.boxes.length+" together";
     else if(units[0].team&&tot<SC)note+=" · needs "+(SC-tot)+" more to score";
@@ -2742,15 +2754,16 @@ function boxDetail(gp){
       const sub=h("div","unitrow");
       if(u.team&&showLogos())sub.appendChild(teamLogo(u.team,22));
       sub.appendChild(h("b",null,u.team?teamById[u.team].name:u.label));
+      {const bd=u.team&&rankBadge(u.team);if(bd)sub.appendChild(bd);}
       const d=declaredOf(u);
-      const sp=h("span","sp");sp.textContent=d+" declared"+(u.team&&d<SC?" · needs "+(SC-d)+" more to score":"");
+      const sp=h("span","sp");sp.textContent=squadNote(rosterOf(u))+(u.team&&d<SC?" · needs "+(SC-d)+" more to score":"");
       sub.appendChild(sp);g.appendChild(sub);
     }
     const ol=h("ol");
     rosterOf(u).sort((a,b)=>a.bib-b.bib).forEach(a=>{const li=h("li");if(a.entry==="scratched")li.style.opacity=".55";
       li.appendChild(h("span","pt",a.bib));li.appendChild(h("span","ovr",a.yr));
       const w=h("span","who");w.appendChild(h("b",null,a.name));if(!u.team)w.appendChild(document.createTextNode(" "+a.school));li.appendChild(w);
-      li.appendChild(h("span","t",""));const g2=h("span","g");if(a.entry!=="declared")g2.appendChild(entryPill(a.entry));li.appendChild(g2);ol.appendChild(li);});
+      li.appendChild(h("span","t",""));const g2=h("span","g");g2.appendChild(entryPill(a.entry));li.appendChild(g2);ol.appendChild(li);});
     g.appendChild(ol);});
   return g;
 }
@@ -2795,9 +2808,9 @@ function renderBoxes(host){
       const row=h("div","unit");
       if(bx.team){
         if(showLogos())row.appendChild(teamLogo(bx.team,shared?22:34));
-        row.appendChild(h("div","tn",teamById[bx.team].name));
+        const tn=h("div","tn",teamById[bx.team].name);{const bd=rankBadge(bx.team);if(bd)tn.appendChild(bd);}row.appendChild(tn);
         const dec=(r.teamRoster[bx.team]||[]).length;
-        const d=h("div","dc");d.textContent=dec+" declared";if(dec<SC)d.classList.add("warn");row.appendChild(d);
+        const d=h("div","dc");d.textContent=squadNote(r.teamRoster[bx.team]||[]);if(dec<SC)d.classList.add("warn");row.appendChild(d);
       }else{
         row.appendChild(h("div","tn",bx.label));
         row.appendChild(h("div","dc",bx.open?"no team assigned":r.indivCount+" athletes"));
@@ -2822,7 +2835,7 @@ function renderBoxes(host){
     const gp=groups.find(g=>"box:"+g.boxes[0]===state.boxOpen);
     if(gp)host.appendChild(boxDetail(gp));
   }
-  const note=h("p","note");note.textContent="Assignments come from the meet director. In a live system they'd be posted here as soon as they're set, and a team without a full scoring set declared is flagged so nobody claims a box they can't fill.";
+  const note=h("p","note");note.textContent="Assignments come from the meet director. A team without enough runners to score is flagged in red.";
   host.appendChild(note);
 }
 function recYear(iso){const y=(iso||"").slice(0,4);return /^\d{4}$/.test(y)?y:"";}
