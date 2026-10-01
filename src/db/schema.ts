@@ -945,3 +945,42 @@ export const rankingSettings = pgTable('ranking_settings', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   updatedBy: text('updated_by'),
 });
+
+// ═══════════════════════════════════════════════════════════
+// Athlete headshots
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * A runner's headshot, kept once and found again by school, season and name.
+ * See supabase/migrations/athlete_headshots.sql.
+ */
+export const athleteHeadshots = pgTable('athlete_headshots', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  /** The fall year: 2026 for 2026-27. */
+  season: integer('season').notNull(),
+  firstName: text('first_name').notNull(),
+  lastName: text('last_name').notNull(),
+  /** "last|first", letters only: see headshotNameKey. */
+  nameKey: text('name_key').notNull(),
+  gender: text('gender'),
+  classYear: text('class_year'),
+  rosterUrl: text('roster_url'),
+  rosterPlayerId: text('roster_player_id'),
+  photoSourceUrl: text('photo_source_url'),
+  cutoutPath: text('cutout_path'),
+  originalPath: text('original_path'),
+  width: integer('width'),
+  height: integer('height'),
+  bytes: integer('bytes'),
+  sha256: text('sha256'),
+  /** 'ok' | 'review' | 'hidden' */
+  status: text('status').notNull().default('ok'),
+  review: text('review').array().notNull().default([]),
+  fetchedAt: timestamp('fetched_at', { withTimezone: true }),
+  uploadedAt: timestamp('uploaded_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  uniqueIndex('idx_athlete_headshots_key').on(table.organizationId, table.season, table.nameKey),
+  index('idx_athlete_headshots_season').on(table.season, table.organizationId),
+]);
