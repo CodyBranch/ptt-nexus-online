@@ -3,6 +3,8 @@ import { rankingSummary, teamsFor, type TeamTab } from './actions';
 import RankingsPanel from './RankingsPanel';
 
 export const dynamic = 'force-dynamic';
+// "Pull now" runs here: reading, storing and matching five hundred teams.
+export const maxDuration = 60;
 
 interface PageProps {
   searchParams: Promise<{ tab?: string }>;
@@ -53,7 +55,7 @@ export default async function RankingsPage({ searchParams }: PageProps) {
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
           <div className="text-sm text-gray-500 mb-1">Last read</div>
           <div className={`text-xl font-bold ${last?.status === 'failed' ? 'text-red-400' : 'text-gray-100'}`}>
-            {last ? (last.status === 'failed' ? 'Failed' : last.status === 'unchanged' ? 'No change' : 'Updated') : 'Never'}
+            {last ? (last.status === 'failed' ? 'Failed' : last.status === 'running' ? 'Running…' : last.status === 'unchanged' ? 'No change' : 'Updated') : 'Never'}
           </div>
           <div className="text-xs text-gray-600 mt-2">
             {last ? when(last.startedAt) : 'Use Pull now, or wait for the daily read'}

@@ -93,7 +93,22 @@ function bracketState(inner: string): string | null {
   return STATES[one] ?? null;
 }
 
+/**
+ * Every name is compared against a thousand organizations, so each is worked
+ * out once and kept: the same few thousand names, over and over.
+ */
+const keys = new Map<string, NameKey>();
+
 export function nameKey(name: string): NameKey {
+  const hit = keys.get(name);
+  if (hit) return hit;
+  const key = computeKey(name);
+  if (keys.size > 20_000) keys.clear();
+  keys.set(name, key);
+  return key;
+}
+
+function computeKey(name: string): NameKey {
   let state: string | null = null;
   // "(Minn.)" and "(MN)" are the same thing; anything else in brackets stays a word.
   let text = name.replace(/\(([^)]*)\)/g, (_, inner: string) => {

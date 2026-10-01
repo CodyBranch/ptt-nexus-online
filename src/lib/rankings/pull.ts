@@ -11,6 +11,7 @@
 import { db } from '@/db/client';
 import { organizations, rankingEntries, rankingLists, rankingPulls, rankingTeams } from '@/db/schema';
 import { and, desc, eq, inArray, isNotNull, or, sql } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import { fetchLatestXc, type Snapshot } from './ustfccca';
 import { decide, type MatchOrg } from './match';
 
@@ -65,14 +66,15 @@ export async function storeSnapshot(snap: Snapshot): Promise<{ listsNew: number;
     }
 
     let listsNew = 0;
+    const keyOf = (l: { season: number; gender: string; typeId: number; divisionId: number; regionId: number; week: number }) =>
+      `${l.season}|${l.gender}|${l.typeId}|${l.divisionId}|${l.regionId}|${l.week}`;
+    const knownLists = new Map((await tx.select({
+      id: rankingLists.id, season: rankingLists.season, gender: rankingLists.gender, typeId: rankingLists.typeId,
+      divisionId: rankingLists.divisionId, regionId: rankingLists.regionId, week: rankingLists.week,
+    }).from(rankingLists).where(eq(rankingLists.season, snap.season))).map((l) => [keyOf(l), l.id]));
     for (const list of snap.lists) {
       const { entries, ...head } = list;
-      const [existing] = await tx.select({ id: rankingLists.id }).from(rankingLists).where(and(
-        eq(rankingLists.season, head.season), eq(rankingLists.gender, head.gender),
-        eq(rankingLists.typeId, head.typeId), eq(rankingLists.divisionId, head.divisionId),
-        eq(rankingLists.regionId, head.regionId), eq(rankingLists.week, head.week),
-      ));
-      let listId = existing?.id;
+      let listId = knownLists.get(keyOf(head));
       if (listId) {
         await tx.update(rankingLists).set({
           listType: head.listType, divisionName: head.divisionName, regionName: head.regionName,
@@ -118,22 +120,36 @@ export async function matchPending(): Promise<{ autoMatched: number; review: num
   const taken = new Set((await db.select({ id: rankingTeams.organizationId }).from(rankingTeams)
     .where(isNotNull(rankingTeams.organizationId))).map((r) => r.id!));
 
+  // Decided in memory, then written in a few statements rather than one per
+  // team: one at a time, five hundred teams outlasted the function.
   const out = { autoMatched: 0, review: 0, unmatched: 0 };
+  const writes: Array<{ id: number; org: string | null; status: string; note: string }> = [];
   for (const team of pending) {
     const d = decide(team, orgs, taken);
     if (d.status === 'auto') {
       taken.add(d.org.id);
       out.autoMatched++;
-      await db.update(rankingTeams).set({
-        organizationId: d.org.id, matchStatus: 'auto', matchNote: d.note, matchedAt: new Date(), matchedBy: 'matcher',
-      }).where(eq(rankingTeams.ustfcccaTeamId, team.ustfcccaTeamId));
+      writes.push({ id: team.ustfcccaTeamId, org: d.org.id, status: 'auto', note: d.note });
     } else {
       out[d.status]++;
       if (team.matchStatus !== d.status || team.matchNote !== d.note) {
-        await db.update(rankingTeams).set({ matchStatus: d.status, matchNote: d.note })
-          .where(eq(rankingTeams.ustfcccaTeamId, team.ustfcccaTeamId));
+        writes.push({ id: team.ustfcccaTeamId, org: null, status: d.status, note: d.note });
       }
     }
+  }
+  for (let i = 0; i < writes.length; i += 200) {
+    const rows: SQL[] = writes.slice(i, i + 200).map((w) =>
+      sql`(${w.id}::int, ${w.org}::uuid, ${w.status}::text, ${w.note}::text)`);
+    await db.execute(sql`
+      UPDATE ranking_teams AS t SET
+        organization_id = v.org,
+        match_status = v.status,
+        match_note = v.note,
+        matched_at = CASE WHEN v.status = 'auto' THEN now() ELSE t.matched_at END,
+        matched_by = CASE WHEN v.status = 'auto' THEN 'matcher' ELSE t.matched_by END
+      FROM (VALUES ${sql.join(rows, sql`, `)}) AS v(id, org, status, note)
+      WHERE t.ustfccca_team_id = v.id
+        AND t.match_status IN ('unmatched', 'review')`);
   }
   return out;
 }
@@ -141,6 +157,16 @@ export async function matchPending(): Promise<{ autoMatched: number; review: num
 /** One pull, start to finish, logged. Never throws: a failure is an outcome. */
 export async function pullRankings(trigger: 'cron' | 'manual'): Promise<PullOutcome> {
   const startedAt = new Date();
+  // Written now and finished at the end, so a pull that is cut short shows as
+  // still running rather than leaving no trace.
+  let logId: string | null = null;
+  try {
+    const [row] = await db.insert(rankingPulls).values({ trigger, status: 'running', startedAt })
+      .returning({ id: rankingPulls.id });
+    logId = row?.id ?? null;
+  } catch (e) {
+    console.error('[rankings] could not log the pull:', e);
+  }
   const outcome: PullOutcome = { status: 'failed', listsSeen: 0, listsNew: 0, teamsSeen: 0, teamsNew: 0, autoMatched: 0 };
   let httpStatus: number | null = null;
   let etag: string | null = null;
@@ -171,13 +197,15 @@ export async function pullRankings(trigger: 'cron' | 'manual'): Promise<PullOutc
     console.error('[rankings] pull failed:', outcome.error);
   }
   try {
-    await db.insert(rankingPulls).values({
+    const done = {
       trigger, status: outcome.status, httpStatus, etag, generatedAt, season,
       listsSeen: outcome.listsSeen, listsNew: outcome.listsNew,
       teamsSeen: outcome.teamsSeen, teamsNew: outcome.teamsNew,
       autoMatched: outcome.autoMatched, error: outcome.error ?? null,
       startedAt, finishedAt: new Date(),
-    });
+    };
+    if (logId) await db.update(rankingPulls).set(done).where(eq(rankingPulls.id, logId));
+    else await db.insert(rankingPulls).values(done);
   } catch (e) {
     console.error('[rankings] could not log the pull:', e);
   }

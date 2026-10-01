@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   candidatesFor, ignoreTeam, linkTeam, matchAgain, pullNow, searchColleges, unlinkTeam, type TeamTab,
 } from './actions';
@@ -25,27 +26,38 @@ interface Option { id: string; name: string; conference: string | null; state: s
 export default function RankingsPanel({ tab, teams }: { tab: TeamTab; teams: Team[] }) {
   const [busy, start] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  // The cards and tabs are drawn on the server; after a pull they are drawn
+  // again, rather than trusting the action's revalidation to reach them.
+  const router = useRouter();
 
-  const pull = () => start(async () => {
-    setMessage('Reading the USTFCCCA…');
-    const r = await pullNow();
-    setMessage(r.status === 'failed'
-      ? `The read failed: ${r.error ?? 'no reason given'}`
-      : r.status === 'unchanged'
-        ? `Nothing new since the last read${r.autoMatched ? `; linked ${r.autoMatched} more team(s)` : ''}.`
-        : `Read ${r.listsSeen} lists and ${r.teamsSeen} teams: ${r.listsNew} new list(s), ${r.teamsNew} new team(s), ${r.autoMatched} linked.`);
-  });
-  const rematch = () => start(async () => {
-    const r = await matchAgain();
-    setMessage(`Linked ${r.autoMatched}; ${r.review} to review, ${r.unmatched} not found.`);
-  });
+  const pull = () => {
+    // Said before the transition: updates inside one only show when it ends.
+    setMessage('Reading the USTFCCCA and matching teams. This can take up to a minute…');
+    start(async () => {
+      const r = await pullNow();
+      setMessage(r.status === 'failed'
+        ? `The read failed: ${r.error ?? 'no reason given'}`
+        : r.status === 'unchanged'
+          ? `Nothing new since the last read${r.autoMatched ? `; linked ${r.autoMatched} more team(s)` : ''}.`
+          : `Read ${r.listsSeen} lists and ${r.teamsSeen} teams: ${r.listsNew} new list(s), ${r.teamsNew} new team(s), ${r.autoMatched} linked.`);
+      router.refresh();
+    });
+  };
+  const rematch = () => {
+    setMessage('Matching teams…');
+    start(async () => {
+      const r = await matchAgain();
+      setMessage(`Linked ${r.autoMatched}; ${r.review} to review, ${r.unmatched} not found.`);
+      router.refresh();
+    });
+  };
 
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <button onClick={pull} disabled={busy}
           className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-sm text-white">
-          Pull now
+          {busy ? 'Working…' : 'Pull now'}
         </button>
         <button onClick={rematch} disabled={busy}
           className="px-3 py-1.5 rounded border border-gray-700 hover:border-gray-500 disabled:opacity-50 text-sm text-gray-300">
@@ -86,6 +98,7 @@ function TeamRow({ team, tab }: { team: Team; tab: TeamTab }) {
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
+  const router = useRouter();
 
   const show = () => start(async () => {
     setOpen(true);
@@ -99,6 +112,7 @@ function TeamRow({ team, tab }: { team: Team; tab: TeamTab }) {
     setError(null);
     const r = await fn();
     if (!r.ok) setError(r.error);
+    else router.refresh();
   });
 
   return (
