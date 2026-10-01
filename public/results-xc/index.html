@@ -331,6 +331,13 @@ td.pl{font:600 15px var(--mono);width:40px;text-align:right;color:var(--ink)}
 .tgroup > header{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:10px 12px;background:var(--surface-2);cursor:pointer}
 .tgroup h4{margin:0;font:600 17px var(--display);letter-spacing:.01em;flex:1 1 auto;display:flex;align-items:center;flex-wrap:wrap;gap:2px 0;line-height:1.2}
 .tgroup .sc{font:700 18px var(--mono)}
+/* A race's name on a school's page, which opens the race. */
+.racelink{all:unset;cursor:pointer;color:inherit;font:inherit;display:inline-flex;align-items:center;gap:6px;border-radius:4px}
+.racelink .chev{font-size:1.35em;line-height:1;color:var(--muted);transform:translateY(-1px);transition:transform .15s,color .15s}
+.racelink:hover{text-decoration:underline;text-underline-offset:3px}
+.racelink:hover .chev{color:var(--accent);transform:translate(2px,-1px)}
+.racelink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.racelink .chev{transition:none}}
 .tgroup .sp{font:12px var(--mono);color:var(--ink-2)}
 .tgroup ol{list-style:none;margin:0;padding:4px 0}
 .tgroup li{display:grid;grid-template-columns:34px 26px 1fr auto auto;gap:10px;align-items:center;padding:5px 12px;font-size:13px}
@@ -1801,13 +1808,16 @@ function teamRace(d,r0){
   const viewing=chosen&&chosen!==latest?chosen:latest;
   const g=h("div","tgroup");
   const hd=h("header");hd.style.cursor="default";
-  hd.appendChild(h("h4",null,r.name));
+  // The race's name opens it, with a chevron saying so. An "Open race"
+  // button beside it took a line of its own on a phone.
+  const h4=h("h4");const go=h("button","racelink");go.type="button";
+  go.appendChild(document.createTextNode(r.name));go.appendChild(h("span","chev","\u203a"));
+  go.title="Open "+r.name;
+  go.addEventListener("click",e=>{e.stopPropagation();openRace(r.id);});
+  h4.appendChild(go);hd.appendChild(h4);
   hd.appendChild(statusPill(r));
   const when=[r.startLocal,r.atLabel&&r.status==="live"?"at "+r.atLabel:""].filter(Boolean).join(" \u00b7 ");
   if(when)hd.appendChild(h("span","sp",when));
-  const go=h("button","btn");go.type="button";go.textContent="Open race";
-  go.addEventListener("click",e=>{e.stopPropagation();openRace(r.id);});
-  hd.appendChild(go);
   g.appendChild(hd);
 
   const SCn=r.scorers||5,DPn=r.displacers||0;
