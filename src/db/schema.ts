@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   unique,
   index,
+  primaryKey,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
@@ -830,4 +831,109 @@ export const adminUsers = pgTable('admin_users', {
 }, (table) => [
   uniqueIndex('idx_admin_users_email').on(table.email),
   index('idx_admin_users_active').on(table.isActive),
+]);
+
+// ═══════════════════════════════════════════════════════════
+// Cross Country Polls and Rankings (USTFCCCA)
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Every team the USTFCCCA has ranked, and which organization it is.
+ *
+ * Matched once and kept: their team id is stable across seasons, so a school
+ * matched this year is still matched next year. See supabase/migrations/
+ * xc_rankings.sql for the whole design.
+ */
+export const rankingTeams = pgTable('ranking_teams', {
+  ustfcccaTeamId: integer('ustfccca_team_id').primaryKey(),
+  teamName: text('team_name').notNull(),
+  teamShort: text('team_short'),
+  abbrev: text('abbrev'),
+  divisionId: integer('division_id'),
+  division: text('division'),
+  conference: text('conference'),
+  region: text('region'),
+  athnetTeamId: integer('athnet_team_id'),
+
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'set null' }),
+  /** 'auto' | 'confirmed' | 'review' | 'unmatched' | 'ignored' */
+  matchStatus: text('match_status').notNull().default('unmatched'),
+  matchNote: text('match_note'),
+  matchedAt: timestamp('matched_at', { withTimezone: true }),
+  matchedBy: text('matched_by'),
+
+  firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).defaultNow(),
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('idx_ranking_teams_org').on(table.organizationId),
+  index('idx_ranking_teams_status').on(table.matchStatus),
+]);
+
+/** One released list: season, gender, type, division, region and week. */
+export const rankingLists = pgTable('ranking_lists', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  season: integer('season').notNull(),
+  gender: text('gender').notNull(),
+  /** 'national' | 'regional' */
+  kind: text('kind').notNull(),
+  typeId: integer('type_id').notNull(),
+  listType: text('list_type'),
+  divisionId: integer('division_id').notNull(),
+  divisionName: text('division_name'),
+  /** 0 for a national list. */
+  regionId: integer('region_id').notNull().default(0),
+  regionName: text('region_name'),
+  /** 0 preseason, 99 final. */
+  week: integer('week').notNull(),
+  releaseDateEt: text('release_date_et'),
+  releasedAt: timestamp('released_at', { withTimezone: true }),
+  collectionId: integer('collection_id'),
+  firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  uniqueIndex('idx_ranking_lists_key').on(table.season, table.gender, table.typeId, table.divisionId, table.regionId, table.week),
+  index('idx_ranking_lists_released').on(table.releasedAt),
+]);
+
+/** A team's place on one list. */
+export const rankingEntries = pgTable('ranking_entries', {
+  listId: uuid('list_id').notNull().references(() => rankingLists.id, { onDelete: 'cascade' }),
+  ustfcccaTeamId: integer('ustfccca_team_id').notNull().references(() => rankingTeams.ustfcccaTeamId, { onDelete: 'cascade' }),
+  position: integer('position').notNull(),
+  /** Null when receiving votes; isRv is then true. */
+  rank: integer('rank'),
+  isRv: boolean('is_rv').notNull().default(false),
+  score: real('score'),
+  firstPlaceVotes: integer('first_place_votes'),
+  /** Their 999 sentinel is stored as null with prevIsRv true. */
+  prevRank: integer('prev_rank'),
+  prevIsRv: boolean('prev_is_rv').notNull().default(false),
+  rankChange: integer('rank_change'),
+  conference: text('conference'),
+  region: text('region'),
+}, (table) => [
+  primaryKey({ columns: [table.listId, table.ustfcccaTeamId] }),
+  index('idx_ranking_entries_team').on(table.ustfcccaTeamId),
+]);
+
+/** Each read of the USTFCCCA API. */
+export const rankingPulls = pgTable('ranking_pulls', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  /** 'cron' | 'manual' */
+  trigger: text('trigger').notNull(),
+  /** 'ok' | 'unchanged' | 'failed' */
+  status: text('status').notNull(),
+  httpStatus: integer('http_status'),
+  etag: text('etag'),
+  generatedAt: timestamp('generated_at', { withTimezone: true }),
+  season: integer('season'),
+  listsSeen: integer('lists_seen').default(0),
+  listsNew: integer('lists_new').default(0),
+  teamsSeen: integer('teams_seen').default(0),
+  teamsNew: integer('teams_new').default(0),
+  autoMatched: integer('auto_matched').default(0),
+  error: text('error'),
+  startedAt: timestamp('started_at', { withTimezone: true }).defaultNow(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+}, (table) => [
+  index('idx_ranking_pulls_started').on(table.startedAt),
 ]);
