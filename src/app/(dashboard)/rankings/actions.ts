@@ -3,7 +3,6 @@
 import { db } from '@/db/client';
 import { organizations, rankingTeams } from '@/db/schema';
 import { and, asc, eq, ilike, ne, or, sql } from 'drizzle-orm';
-import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/admin-auth';
 import { matchPending, pullRankings, type PullOutcome } from '@/lib/rankings/pull';
 import { decide, type MatchOrg } from '@/lib/rankings/match';
@@ -327,6 +326,14 @@ export async function searchColleges(q: string): Promise<Suggestion[]> {
 
 type Result = { ok: true } | { ok: false; error: string };
 
+/*
+ * None of these redraws the page. Revalidating made each click re-render the
+ * whole page on the server, review suggestions and all (about a second), and
+ * the site runs one action at a time - so after the first Link every click
+ * waited behind redraws and seemed to do nothing. The review list removes a
+ * row itself; Pull now and Match again ask for one redraw when they finish.
+ */
+
 export async function linkTeam(ustfcccaTeamId: number, organizationId: string): Promise<Result> {
   const session = await requireAdmin();
   const [other] = await db.select({ id: rankingTeams.ustfcccaTeamId, name: rankingTeams.teamName })
@@ -336,7 +343,6 @@ export async function linkTeam(ustfcccaTeamId: number, organizationId: string): 
   await db.update(rankingTeams).set({
     organizationId, matchStatus: 'confirmed', matchNote: null, matchedAt: new Date(), matchedBy: session.email,
   }).where(eq(rankingTeams.ustfcccaTeamId, ustfcccaTeamId));
-  revalidatePath('/rankings');
   return { ok: true };
 }
 
@@ -349,7 +355,6 @@ export async function linkMany(pairs: Array<{ ustfcccaTeamId: number; organizati
     const r = await linkTeam(p.ustfcccaTeamId, p.organizationId);
     if (r.ok) linked++; else errors.push(r.error);
   }
-  revalidatePath('/rankings');
   return { linked, errors };
 }
 
@@ -358,7 +363,6 @@ export async function ignoreTeam(ustfcccaTeamId: number): Promise<Result> {
   await db.update(rankingTeams).set({
     organizationId: null, matchStatus: 'ignored', matchNote: `Set aside by ${session.email}`, matchedAt: new Date(), matchedBy: session.email,
   }).where(eq(rankingTeams.ustfcccaTeamId, ustfcccaTeamId));
-  revalidatePath('/rankings');
   return { ok: true };
 }
 
@@ -368,21 +372,18 @@ export async function unlinkTeam(ustfcccaTeamId: number): Promise<Result> {
   await db.update(rankingTeams).set({
     organizationId: null, matchStatus: 'unmatched', matchNote: null, matchedAt: null, matchedBy: null,
   }).where(eq(rankingTeams.ustfcccaTeamId, ustfcccaTeamId));
-  revalidatePath('/rankings');
   return { ok: true };
 }
 
 export async function pullNow(): Promise<PullOutcome> {
   await requireAdmin();
   const out = await pullRankings('manual');
-  revalidatePath('/rankings');
   return out;
 }
 
 export async function matchAgain(): Promise<{ autoMatched: number; review: number; unmatched: number }> {
   await requireAdmin();
   const out = await matchPending();
-  revalidatePath('/rankings');
   return out;
 }
 
@@ -400,6 +401,5 @@ export async function setAutoPullOn(on: boolean): Promise<Result> {
     console.error('[rankings] auto pull switch:', e);
     return { ok: false, error: 'Could not save the switch. Has supabase/migrations/xc_rankings_settings.sql been run?' };
   }
-  revalidatePath('/rankings');
   return { ok: true };
 }

@@ -101,7 +101,6 @@ function Row({ team, tab, onDone }: { team: TeamRow; tab: TeamTab; onDone: () =>
   const [found, setFound] = useState<Suggestion[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
-  const router = useRouter();
   const best = team.suggestions[0];
 
   const act = (fn: () => Promise<{ ok: true } | { ok: false; error: string }>) => start(async () => {
@@ -109,8 +108,9 @@ function Row({ team, tab, onDone }: { team: TeamRow; tab: TeamTab; onDone: () =>
     try {
       const r = await fn();
       if (!r.ok) { setError(r.error); return; }
+      // Gone from the list at once. No redraw of the page: that queued every
+      // later click behind a second of server work.
       onDone();
-      router.refresh();
     } catch (e) {
       setError(explainFailure(e));
     }
