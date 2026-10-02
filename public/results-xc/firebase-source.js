@@ -86,7 +86,7 @@
       schema: meet.schema || 1,
       meet: {
         id: meet.id, name: meet.name || "", venue: meet.venue, date: meet.date || "",
-        settings: { showLogos: !!obj(meet.settings).showLogos, showPhotos: false, showRankings: obj(meet.settings).showRankings !== false },
+        settings: { showLogos: !!obj(meet.settings).showLogos, showPhotos: !!obj(meet.settings).showPhotos, showRankings: obj(meet.settings).showRankings !== false },
       },
       teams,
       races,
