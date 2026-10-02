@@ -1127,7 +1127,7 @@ function ingestMeet(doc){
       // Seconds since the gun as the server had it, and when we heard. The
       // clock runs on from there by this device's own stopwatch.
       elapsedS:sm.elapsedS!=null?sm.elapsedS:null,elapsedAt:Date.now(),gpsAt:Date.now(),
-      winner:sm.leader?{name:sm.leader.name,team:sm.leader.teamId||null,school:sm.leader.teamName,bib:0}:null,
+      winner:sm.leader?{name:sm.leader.name,team:sm.leader.teamId||null,school:sm.leader.teamName,bib:0,photo:sm.leader.photoUrl||null}:null,
       winTime:sm.leader?sm.leader.timeMs/1000:null,
       teamLead:sm.teamLeader?{team:sm.teamLeader.teamId,name:sm.teamLeader.name,score:sm.teamLeader.score}:null});
     return r;});
