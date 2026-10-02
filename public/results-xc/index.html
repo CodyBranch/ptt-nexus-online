@@ -418,8 +418,10 @@ td.pl{font:600 15px var(--mono);width:40px;text-align:right;color:var(--ink)}
 .tgroup > header .logo{margin-right:2px}
 .evrow .who .logo{flex:none}
 /* ---------- Headshots ---------- */
-.avatar{display:inline-grid;place-items:center;border-radius:50%;overflow:hidden;flex:none;font:600 12px var(--body);color:#fff;background:var(--line-strong);letter-spacing:.02em;text-transform:uppercase;user-select:none}
-.avatar img{width:100%;height:100%;object-fit:cover}
+.avatar{position:relative;display:inline-grid;place-items:center;border-radius:50%;overflow:hidden;flex:none;font:600 12px var(--body);color:#fff;background:var(--line-strong);letter-spacing:.02em;text-transform:uppercase;user-select:none}
+/* Headshots are cut 4:5, and every one here is drawn 4:5 - the same as the
+   desk's Headshots page - so none of the picture is cropped away. */
+.avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 0}
 .avatar.sq{border-radius:8px}
 .podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
 @media (max-width:640px){.podium{grid-template-columns:1fr}}
@@ -2376,7 +2378,7 @@ function segButtons(container,items,current,on){container.replaceChildren();
     container.appendChild(b);});}
 function pinBtn(id){const b=h("button","pin");const s=state.pinned[id];b.setAttribute("aria-pressed",String(!!s));b.setAttribute("aria-label",(s?"Remove ":"Add ")+byId[id].name+(s?" from":" to")+" compare");b.title=s?"In compare":"Add to compare";if(s)b.style.background=slotColor(s);b.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 17h4V7H3zm7 0h4V3h-4zm7 0h4v-7h-4z"/></svg>';b.addEventListener("click",e=>{e.stopPropagation();togglePin(id,$("#cmpToast"));});return b;}
 function initials(n){return n.split(/\s+/).map(w=>w[0]).slice(0,2).join("");}
-function avatar(a,size,sq){const d=h("span","avatar"+(sq?" sq":""));d.style.width=size+"px";d.style.height=size+"px";d.style.fontSize=Math.max(9,Math.round(size*0.36))+"px";
+function avatar(a,size,sq){const d=h("span","avatar"+(sq?" sq":""));d.style.width=size+"px";d.style.height=Math.round(size*1.25)+"px";if(!sq)d.style.borderRadius=Math.max(3,Math.round(size*0.18))+"px";d.style.fontSize=Math.max(9,Math.round(size*0.36))+"px";
   if(a.photo){const im=document.createElement("img");im.src=a.photo;im.alt="";d.appendChild(im);}
   else{d.textContent=initials(a.name);const hue=(a.bib*37)%360;d.style.background=`hsl(${hue} 32% 42%)`;d.title=a.name+" — headshot slot";}
   return d;}
