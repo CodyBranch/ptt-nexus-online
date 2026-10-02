@@ -402,9 +402,11 @@
      * one's first message is the whole of what it covers, so nothing that
      * changed meanwhile is missed.
      */
-    const PARK_MS = 10000;
+    const PARK_MS = cfg.parkMs || 10000;
     let parkTimer = null;
+    let parked = false;
     function park() {
+      parked = true;
       // The library's socket is one connection however many tabs there are,
       // so a hidden tab only goes offline; its listeners stay and catch up.
       if (sdkDb) { sdkDb.goOffline(); return; }
@@ -418,11 +420,52 @@
       document.addEventListener("visibilitychange", () => {
         clearTimeout(parkTimer);
         if (document.hidden) { parkTimer = setTimeout(park, PARK_MS); return; }
-        if (sdkDb) { sdkDb.goOnline(); return; }
+        if (sdkDb) {
+          sdkDb.goOnline();
+          // Back online is not the same as being told again. A tab brought
+          // back after a while in the background sat on what it had until it
+          // was reloaded (Joe Piane); its listeners are made afresh, and a
+          // fresh listener's first answer is the whole of what it covers.
+          if (parked && opened) resubscribe();
+          parked = false;
+          return;
+        }
+        parked = false;
         if (!opened) return;
         subscribe("head");
         if (raceSub) subscribe(raceSub);
       });
+    }
+
+    /** Every listener dropped and made again, so each reads the current state afresh. */
+    function resubscribe() {
+      for (const k of Object.keys(subs)) {
+        const s = subs[k];
+        if (s && s.off) s.off();
+        if (s && s.es) s.es.close();
+        delete subs[k];
+      }
+      subscribe("head");
+      if (raceSub) subscribe(raceSub);
+    }
+
+    /*
+     * While a race is running, Firebase is written every couple of seconds -
+     * its clock, at the least - and the head of the meet hears every one. A
+     * visible page that has heard nothing for LIVE_SILENT_MS while a race is
+     * live has listeners that stopped without saying so, and they are made
+     * again. The page asks for the meet every few seconds, which is what runs
+     * this.
+     */
+    const LIVE_SILENT_MS = cfg.liveSilentMs || 20000;
+    let lastResubscribe = 0;
+    function liveSilent() {
+      if (!sdkDb || typeof document === "undefined" || document.hidden) return false;
+      const head = subs.head;
+      if (!head || !head.last || Date.now() - head.last < LIVE_SILENT_MS) return false;
+      if (Date.now() - lastResubscribe < LIVE_SILENT_MS) return false;
+      const sums = obj(obj(tree.head).summaries);
+      return Object.values(sums).some((r) => r && r.status === "live");
     }
 
     function notOn() { const e = new Error("Live results are not switched on for this meet."); e.status = 404; return e; }
@@ -463,6 +506,7 @@
       // here, and so is one that has gone quiet.
       if (stale("head")) reopen("head");
       if (raceSub && stale(raceSub)) reopen(raceSub);
+      if (liveSilent()) { lastResubscribe = Date.now(); resubscribe(); }
       await subscribe("head");
       const [p, q] = String(path).split("?");
       const parts = split(p).map(decodeURIComponent);
