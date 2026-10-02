@@ -347,6 +347,10 @@ td.pl{font:600 15px var(--mono);width:40px;text-align:right;color:var(--ink)}
 .tgroup li .ovr{font:11px var(--mono);color:var(--muted);text-align:right}
 .tgroup li .t{font:500 13px var(--mono)}
 .tgroup li .g{font:12px var(--mono);color:var(--muted);min-width:56px;text-align:right}
+/* A headshot beside the name, inside the name's own column: the five columns
+   of a team's list stay where they are, with or without pictures. */
+.tgroup li .who.ph{display:flex;align-items:center;gap:8px;min-width:0}
+.tgroup li .who.ph > span:last-child{min-width:0}
 .packwrap{padding:14px}
 
 /* ---------- Events ---------- */
@@ -1894,6 +1898,7 @@ function teamRace(d,r0){
     if(i===3)x.style.textAlign="right";hr.appendChild(x);});
   th.appendChild(hr);tb.appendChild(th);
   const b=h("tbody");
+  const faces=teamFaces(r);
   r.runners.forEach(a=>{
     const row=h("tr");if(a.entry==="scratched")row.style.opacity=".55";
     const out=a.status==="dnf"?"DNF":a.status==="dq"?"DQ":a.status==="dns"?"DNS":"";
@@ -1906,6 +1911,7 @@ function teamRace(d,r0){
     w.appendChild(nm);
     const meta=[a.year,a.bib!=null?"#"+a.bib:"",a.entry!=="declared"&&a.entry!=="entered"&&a.entry!=="checked_in"?a.entry:""].filter(Boolean).join(" \u00b7 ");
     if(meta)w.appendChild(h("div","meta",meta));
+    if(faces)btn.appendChild(avatar({name:a.name,bib:a.bib||0,photo:a.photoUrl||null},30));
     btn.appendChild(w);
     btn.addEventListener("click",()=>openAthleteInRace(r.id,a.id,"team"));
     ac.appendChild(btn);row.appendChild(ac);
@@ -1936,6 +1942,10 @@ function teamRace(d,r0){
   const panel=h("div","tscroll");panel.appendChild(tb);g.appendChild(panel);
   return g;
 }
+/* Headshots on a school's page: when the meet shows them and this race has
+   any, every runner gets the slot - a face, or their initials - so the
+   names still line up. */
+function teamFaces(r){return MEET.showPhotos===true&&r.runners.some(x=>x.photoUrl);}
 /* A school's entry in a race that has not started: the same things the
    race's Entries view says, for this one team. */
 function teamEntries(r){
@@ -1957,6 +1967,7 @@ function teamEntries(r){
   [["Bib"],["Athlete"],["Entry","r"]].forEach(([c,k])=>hr.appendChild(h("th",k||null,c)));
   th.appendChild(hr);tb.appendChild(th);
   const b=h("tbody");
+  const faces=teamFaces(r);
   [...r.runners].sort((x,y)=>(x.entry==="scratched")-(y.entry==="scratched")||(x.bib??1e9)-(y.bib??1e9)||x.name.localeCompare(y.name))
     .forEach(a=>{
       const row=h("tr");if(a.entry==="scratched")row.style.opacity=".55";
@@ -1964,6 +1975,7 @@ function teamEntries(r){
       const ac=h("td");const btn=h("button","hit");btn.type="button";
       const w=h("div","w");w.appendChild(h("div","nm",a.name));
       if(a.year)w.appendChild(h("div","meta",a.year));
+      if(faces)btn.appendChild(avatar({name:a.name,bib:a.bib||0,photo:a.photoUrl||null},30));
       btn.appendChild(w);btn.addEventListener("click",()=>openAthleteInRace(r.id,a.id,"team"));
       ac.appendChild(btn);row.appendChild(ac);
       const ec=h("td","r");ec.appendChild(entryPill(a.entry));row.appendChild(ec);
@@ -2582,7 +2594,8 @@ function renderTeamGroups(k,match,host){
       const worth=ptsOf(k,id);const pv=worth?worth.n:"";
       li.appendChild(h("span","pt"+(worth&&!worth.firm?" prov":""),pv===""?"":(i>=SC?"("+pv+")":String(pv))));
       const pn=h("span","ovr");pn.textContent=ord(PLACE[k][id]);li.appendChild(pn);
-      const w=h("span","who");w.appendChild(nameBtn(a,"b"));w.appendChild(document.createTextNode(" "));const y=h("span","meta");y.style.color="var(--muted)";y.style.fontSize="12px";y.textContent=a.yr+" · #"+a.bib;w.appendChild(y);li.appendChild(w);
+      const w=h("span","who");const wt=showPhotos()?h("span"):w;wt.appendChild(nameBtn(a,"b"));wt.appendChild(document.createTextNode(" "));const y=h("span","meta");y.style.color="var(--muted)";y.style.fontSize="12px";y.textContent=a.yr+" · #"+a.bib;wt.appendChild(y);
+      if(wt!==w){w.classList.add("ph");w.appendChild(avatar(a,26));w.appendChild(wt);}li.appendChild(w);
       li.appendChild(h("span","t",fmt(a.cum[k])));li.appendChild(h("span","g",i===0?"":"+"+(a.cum[k]-byId[t.ids[0]].cum[k]).toFixed(1)));ol.appendChild(li);});
     g.appendChild(ol);host.appendChild(g);});
   // Runners holding no place at all — a team too small to score, or unattached.
@@ -2590,7 +2603,8 @@ function renderTeamGroups(k,match,host){
   // whole field.
   const ind=ORDER[k].filter(id=>!ptsOf(k,id)&&match(byId[id]));
   if(ind.length){const g=h("div","tgroup");const hd=h("header");hd.appendChild(h("h4",null,"Individuals"));hd.appendChild(h("span","sp","do not score"));g.appendChild(hd);const ol=h("ol");
-    ind.forEach(id=>{const a=byId[id];const li=h("li");li.appendChild(h("span","pt",""));li.appendChild(h("span","ovr",ord(PLACE[k][id])));const w=h("span","who");w.appendChild(h("b",null,a.name));w.appendChild(document.createTextNode(" "+a.school));li.appendChild(w);li.appendChild(h("span","t",fmt(a.cum[k])));li.appendChild(h("span","g",""));ol.appendChild(li);});
+    ind.forEach(id=>{const a=byId[id];const li=h("li");li.appendChild(h("span","pt",""));li.appendChild(h("span","ovr",ord(PLACE[k][id])));const w=h("span","who");const wt=showPhotos()?h("span"):w;wt.appendChild(h("b",null,a.name));wt.appendChild(document.createTextNode(" "+a.school));
+      if(wt!==w){w.classList.add("ph");w.appendChild(avatar(a,26));w.appendChild(wt);}li.appendChild(w);li.appendChild(h("span","t",fmt(a.cum[k])));li.appendChild(h("span","g",""));ol.appendChild(li);});
     g.appendChild(ol);host.appendChild(g);}
 }
 function renderPacks(k,match,host){
