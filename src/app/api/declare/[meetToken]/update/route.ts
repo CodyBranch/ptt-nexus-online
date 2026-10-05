@@ -8,6 +8,7 @@ import {
 import { and, eq, inArray } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
 import { checkRelayAuth } from '@/lib/relay-auth';
+import { knownOrganizations } from '@/lib/declare-orgs';
 
 // ── Types (the same payload /api/declare/publish takes) ──────────────────────
 
@@ -37,6 +38,8 @@ interface RosterAthlete {
 interface TeamPayload {
   id: string;
   name: string;
+  /** The school's Nexus Online organization, when the desk has matched one. */
+  organizationId?: string | null;
   roster: RosterAthlete[];
 }
 
@@ -55,7 +58,7 @@ interface TeamPayload {
 // only for a runner the coach has not answered for, the same rule publish
 // follows — otherwise a republish would quietly take back what the coach said.
 //
-// Returns: { updated: true, newTeams: [{ teamId, teamName, teamToken }] }
+// Returns: { updated: true, newTeams: [{ teamId, teamName, teamToken }], dashboardToken }
 
 export async function POST(
   request: NextRequest,
@@ -86,13 +89,19 @@ export async function POST(
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
+    // A session published before the dashboard existed gets its link now;
+    // one that has one keeps it, as every link here does.
+    const dashboardToken = session.dashboardToken ?? randomBytes(16).toString('hex');
     await db.update(meetDeclarationSessions).set({
       meetName,
       meetDate: meetDate ?? null,
       genderTerms: genderTerms === 'men_women' ? 'men_women' : 'boys_girls',
       racesJson: JSON.stringify(races),
+      dashboardToken,
       updatedAt: new Date(),
     }).where(eq(meetDeclarationSessions.id, session.id));
+    const orgs = await knownOrganizations(teams.map((t) => t.organizationId));
+    const orgOf = (t: TeamPayload) => (t.organizationId && orgs.has(t.organizationId) ? t.organizationId : null);
 
     const existing = await db.select().from(teamDeclarationAccess)
       .where(eq(teamDeclarationAccess.meetSessionId, session.id));
@@ -107,6 +116,7 @@ export async function POST(
         await db.update(teamDeclarationAccess).set({
           teamName: team.name,
           rosterJson: JSON.stringify(team.roster),
+          organizationId: orgOf(team),
         }).where(eq(teamDeclarationAccess.id, access.id));
       } else {
         [access] = await db.insert(teamDeclarationAccess).values({
@@ -115,6 +125,7 @@ export async function POST(
           teamId: team.id,
           teamName: team.name,
           rosterJson: JSON.stringify(team.roster),
+          organizationId: orgOf(team),
         }).returning();
         newTeams.push({ teamId: access.teamId, teamName: access.teamName, teamToken: access.teamToken });
       }
@@ -140,7 +151,7 @@ export async function POST(
       }
     }
 
-    return NextResponse.json({ updated: true, newTeams });
+    return NextResponse.json({ updated: true, newTeams, dashboardToken });
   } catch (error) {
     console.error('Declaration update error:', error);
     return NextResponse.json({ error: 'Failed to update the declaration session' }, { status: 500 });

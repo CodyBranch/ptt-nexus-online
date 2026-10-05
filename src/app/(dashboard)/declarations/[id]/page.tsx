@@ -74,6 +74,15 @@ export default async function DeclarationMeetPage({ params }: { params: Promise<
         {session.updatedAt && session.createdAt && new Date(session.updatedAt).getTime() - new Date(session.createdAt).getTime() > 60_000
           && ` · updated ${when(new Date(session.updatedAt))}`}
       </p>
+      <p className="text-sm -mt-4 mb-6">
+        {session.dashboardToken ? (
+          <a href={`/declare/dashboard/${session.dashboardToken}`} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 underline">
+            Live dashboard (anyone with this link can view it) &rarr;
+          </a>
+        ) : (
+          <span className="text-gray-500">No live dashboard link yet: it is made the next time the desk publishes this meet.</span>
+        )}
+      </p>
 
       {/* ── Races and their cutoffs ── */}
       <h2 className="text-lg font-semibold mb-3 text-gray-300">Races</h2>

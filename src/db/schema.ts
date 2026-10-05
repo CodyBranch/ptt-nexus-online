@@ -555,6 +555,14 @@ export const meetDeclarationSessions = pgTable('meet_declaration_sessions', {
   // as everything else the meet prints.
   genderTerms: text('gender_terms').notNull().default('boys_girls'),
 
+  /**
+   * The live dashboard's link (/declare/dashboard/{token}). Possession is the
+   * key, as with the coach links, but a token of its own: it can be shown on
+   * a screen or handed to a director without giving out the meet token.
+   * Made on publish, and on the first update of a session from before it.
+   */
+  dashboardToken: text('dashboard_token').unique(),
+
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => [
@@ -588,6 +596,13 @@ export const teamDeclarationAccess = pgTable('team_declaration_access', {
    * — live there, and a second implementation would drift from the first.
    */
   rosterJson: text('roster_json').notNull().default('[]'),
+
+  /** The school's Nexus Online organization, when the desk knows it: its logo, colors and headshots. */
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'set null' }),
+
+  /** When the coach first opened the form, and most recently. Null: never opened. */
+  openedAt: timestamp('opened_at', { withTimezone: true }),
+  lastOpenedAt: timestamp('last_opened_at', { withTimezone: true }),
 
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (table) => [
@@ -672,7 +687,7 @@ export const declarationFinalizations = pgTable('declaration_finalizations', {
  * A school a meet met that the org database does not have.
  *
  * Org matching turns up teams with no organisation behind them, and the
- * operator is mid-meet with no time to fill in a school's colours, city and
+ * operator is mid-meet with no time to fill in a school's colors, city and
  * conference. So the team is pushed here instead: what the meet knew, which
  * meet it came from, and nothing else.
  *

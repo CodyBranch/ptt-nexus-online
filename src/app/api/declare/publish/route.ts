@@ -7,6 +7,7 @@ import {
 } from '@/db/schema';
 import { randomBytes } from 'crypto';
 import { checkRelayAuth } from '@/lib/relay-auth';
+import { knownOrganizations } from '@/lib/declare-orgs';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,8 @@ interface RosterAthlete {
 interface TeamPayload {
   id: string;
   name: string;
+  /** The school's Nexus Online organization, when the desk has matched one. */
+  organizationId?: string | null;
   roster: RosterAthlete[];
 }
 
@@ -74,9 +77,13 @@ export async function POST(request: NextRequest) {
     }
 
     const meetToken = randomBytes(16).toString('hex');
+    // The live dashboard's own link: see the schema's note on dashboardToken.
+    const dashboardToken = randomBytes(16).toString('hex');
+    const orgs = await knownOrganizations(teams.map((t) => t.organizationId));
 
     const [session] = await db.insert(meetDeclarationSessions).values({
       meetToken,
+      dashboardToken,
       meetName,
       meetDate: meetDate ?? null,
       genderTerms: genderTerms === 'men_women' ? 'men_women' : 'boys_girls',
@@ -90,6 +97,7 @@ export async function POST(request: NextRequest) {
         teamId: team.id,
         teamName: team.name,
         rosterJson: JSON.stringify(team.roster),
+        organizationId: team.organizationId && orgs.has(team.organizationId) ? team.organizationId : null,
       })),
     ).returning();
 
@@ -127,6 +135,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       meetToken,
+      dashboardToken,
       sessionId: session.id,
       teams: insertedTeams.map((t) => ({
         teamId: t.teamId,

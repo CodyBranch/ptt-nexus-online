@@ -6,7 +6,7 @@ import {
   declarationSubmissions,
   declarationFinalizations,
 } from '@/db/schema';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { isClosed, type DeadlineRace } from '@/lib/declare-deadline';
 
 /**
@@ -51,6 +51,13 @@ export async function GET(
     if (!found) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     const { session, access } = found;
+
+    // The coach has the form open: the dashboard says so, and from when. A
+    // failure here costs the dashboard a word, never the coach their form.
+    await db.update(teamDeclarationAccess).set({
+      openedAt: sql`coalesce(${teamDeclarationAccess.openedAt}, now())`,
+      lastOpenedAt: sql`now()`,
+    }).where(eq(teamDeclarationAccess.id, access.id)).catch((e) => console.warn('[declare] opened:', e));
 
     const submissions = await db.select().from(declarationSubmissions)
       .where(eq(declarationSubmissions.teamAccessId, access.id));
