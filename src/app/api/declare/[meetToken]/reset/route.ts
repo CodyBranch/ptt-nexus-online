@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import {
   meetDeclarationSessions,
+  teamDeclarationAccess,
   declarationSubmissions,
   declarationFinalizations,
 } from '@/db/schema';
@@ -15,8 +16,10 @@ import { checkRelayAuth } from '@/lib/relay-auth';
 // For testing the portal before a meet: a desk tries the forms with the real
 // links — the ones printed on the rosters — and then wants them blank again
 // for the coaches. The meet token, the team tokens and each school's roster
-// are untouched; only what was answered goes. The desk republishes straight
-// after, which seeds its own decisions back in the same way publishing does.
+// are untouched; only what was answered goes - and when each form was opened,
+// so the live dashboard does not show the desk's own testing as schools that
+// have looked. The desk republishes straight after, which seeds its own
+// decisions back in the same way publishing does.
 //
 // Returns: { reset: true, answers, finalized } — how many rows went.
 
@@ -41,6 +44,9 @@ export async function POST(
       const a = await tx.delete(declarationSubmissions)
         .where(eq(declarationSubmissions.meetSessionId, session.id))
         .returning({ id: declarationSubmissions.id });
+      await tx.update(teamDeclarationAccess)
+        .set({ openedAt: null, lastOpenedAt: null })
+        .where(eq(teamDeclarationAccess.meetSessionId, session.id));
       await tx.update(meetDeclarationSessions)
         .set({ updatedAt: new Date() })
         .where(eq(meetDeclarationSessions.id, session.id));
