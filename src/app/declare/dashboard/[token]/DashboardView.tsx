@@ -194,10 +194,13 @@ export default function DashboardView({ token, initial }: { token: string; initi
   const stale = now - checkedAt > POLL_MS * 4;
 
   return (
-    <div className="min-h-screen bg-[#0a0f24] text-gray-100">
+    // From a laptop up the page holds to the screen - masthead and totals
+    // stay put - and the schools and the latest answers scroll on their own.
+    // A phone scrolls the page, as a phone should.
+    <div className="min-h-screen lg:h-screen lg:flex lg:flex-col lg:overflow-hidden bg-[#0a0f24] text-gray-100">
       <style>{SCROLL_CSS}</style>
       {/* ── Masthead ── */}
-      <header className="border-b border-white/10 bg-[#0c1537]">
+      <header className="shrink-0 border-b border-white/10 bg-[#0c1537]">
         <div className="mx-auto max-w-7xl px-4 py-3 sm:py-4 flex flex-wrap items-center gap-x-6 gap-y-2">
           {/* eslint-disable-next-line @next/next/no-img-element -- a static brand image */}
           <img src="/live/primetime-on-dark.png" alt="PrimeTime Timing" className="h-5 sm:h-7 w-auto" />
@@ -218,9 +221,9 @@ export default function DashboardView({ token, initial }: { token: string; initi
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-5 space-y-5">
+      <main className="mx-auto w-full max-w-7xl px-4 py-5 space-y-5 lg:space-y-0 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col lg:gap-5">
         {/* ── The numbers ── */}
-        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
+        <section className="shrink-0 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
           {[
             { label: 'Schools answered', value: `${T.schoolsDone}/${T.schools}`, sub: `${T.schoolsOpened} opened \u00b7 ${T.schoolsStarted} started`, bar: [T.schoolsDone, T.schools] as const },
             { label: 'Runners', value: T.runners, sub: `${T.runners - T.undecided} answered` },
@@ -238,8 +241,8 @@ export default function DashboardView({ token, initial }: { token: string; initi
           ))}
         </section>
 
-        <div className="grid gap-5 lg:grid-cols-[1fr_20rem]">
-          <div className="min-w-0 space-y-3">
+        <div className="grid gap-5 lg:grid-cols-[1fr_20rem] lg:flex-1 lg:min-h-0">
+          <div className="min-w-0 space-y-3 lg:space-y-0 lg:min-h-0 lg:flex lg:flex-col lg:gap-3">
             {/* ── Which view ── */}
             <div className="flex flex-wrap items-center gap-2">
               {/* The full width on a phone, each tab an equal share; their own width from there up. */}
@@ -267,6 +270,7 @@ export default function DashboardView({ token, initial }: { token: string; initi
               )}
             </div>
 
+            <div className="dash-scroll lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1.5">
             {tab === 'schools' ? (
               // Dense, so a school opened across both columns leaves no hole beside the one before it.
               <div className="grid gap-3 md:grid-cols-2 grid-flow-row-dense">
@@ -319,13 +323,14 @@ export default function DashboardView({ token, initial }: { token: string; initi
             ) : (
               <Latest activity={data.activity} now={now} />
             )}
+            </div>
           </div>
 
           {/* ── What just happened ── */}
           {/* Beside the schools from a laptop up; a tab of its own on a phone. */}
-          <aside className="hidden lg:block space-y-2">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Latest answers</h2>
-            <Latest activity={data.activity} now={now} />
+          <aside className="hidden lg:flex lg:flex-col lg:min-h-0 gap-2">
+            <h2 className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400">Latest answers</h2>
+            <Latest activity={data.activity} now={now} fill />
           </aside>
         </div>
       </main>
@@ -333,9 +338,9 @@ export default function DashboardView({ token, initial }: { token: string; initi
   );
 }
 
-function Latest({ activity, now }: { activity: DashboardData['activity']; now: number }) {
+function Latest({ activity, now, fill = false }: { activity: DashboardData['activity']; now: number; fill?: boolean }) {
   return (
-    <ol className="dash-scroll rounded-lg border border-white/10 bg-white/[0.03] divide-y divide-white/5 lg:max-h-[70vh] lg:overflow-y-auto">
+    <ol className={`rounded-lg border border-white/10 bg-white/[0.03] divide-y divide-white/5 ${fill ? 'dash-scroll flex-1 min-h-0 overflow-y-auto' : ''}`}>
       {activity.length === 0 && <li className="px-3 py-3 text-sm text-gray-500">Nothing yet.</li>}
       {activity.map((a, i) => (
         <li key={`${a.at}-${i}`} className="px-3 py-2 text-sm">
