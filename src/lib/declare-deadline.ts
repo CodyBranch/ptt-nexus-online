@@ -62,6 +62,19 @@ export function schoolRaceIds(roster: Array<{ eligibleRaceIds?: string[] }>): Se
   return new Set(roster.flatMap((a) => a.eligibleRaceIds ?? []));
 }
 
+/**
+ * Races in the order they go off, as a coach thinks about the day - not by
+ * event number, which is only the order they were typed in. A race with no
+ * start time keeps its place after the timed ones; ties keep the desk's order.
+ */
+export function byStartTime<T extends { scheduledTime?: string | null }>(races: T[]): T[] {
+  const at = (r: T) => {
+    const t = r.scheduledTime ? Date.parse(r.scheduledTime) : NaN;
+    return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
+  };
+  return races.map((r, i) => ({ r, i })).sort((a, b) => (at(a.r) - at(b.r)) || (a.i - b.i)).map((x) => x.r);
+}
+
 export function isClosed(race: DeadlineRace | undefined, now: Date = new Date()): boolean {
   if (!race) return false;
   const at = closesAtOf(race);

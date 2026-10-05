@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { closesAtOf, isClosed, meetTimeZone, meetTime, schoolRaceIds } from '@/lib/declare-deadline';
+import { byStartTime, closesAtOf, isClosed, meetTimeZone, meetTime, schoolRaceIds } from '@/lib/declare-deadline';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 
@@ -210,7 +210,8 @@ export default function DeclarePage() {
             ? { kind: 'race', raceId: d.raceId }
             : { kind: 'scratched' };
         }
-        setData(json);
+        // Every list on the form follows the day's running order.
+        setData({ ...json, races: byStartTime(json.races) });
         setChoices(initial);
         setFinalized(new Set((json.finalized ?? []).map((f) => f.raceId)));
         setError(null);

@@ -9,7 +9,7 @@ import {
 } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/admin-auth';
-import { closesAtOf, meetTimeZone, meetTime, type DeadlineRace } from '@/lib/declare-deadline';
+import { closesAtOf, meetTimeZone, meetTime, type DeadlineRace, byStartTime } from '@/lib/declare-deadline';
 import AutoRefresh from '@/components/AutoRefresh';
 
 export const dynamic = 'force-dynamic';
@@ -42,7 +42,7 @@ export default async function DeclarationMeetPage({ params }: { params: Promise<
     .where(eq(meetDeclarationSessions.id, id)).limit(1);
   if (!session) notFound();
 
-  const races = JSON.parse(session.racesJson) as Race[];
+  const races = byStartTime(JSON.parse(session.racesJson) as Race[]);
   // On the meet's clock — this page is rendered on a server in UTC, which is
   // nobody's meet. The zone is named beside every time.
   const tz = meetTimeZone(races);

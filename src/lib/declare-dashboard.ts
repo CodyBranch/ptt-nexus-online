@@ -18,7 +18,7 @@ import {
   meetDeclarationSessions, teamDeclarationAccess, declarationSubmissions,
   declarationFinalizations, organizations, athleteHeadshots,
 } from '@/db/schema';
-import { closesAtOf, meetTimeZone, schoolRaceIds, type DeadlineRace } from '@/lib/declare-deadline';
+import { byStartTime, closesAtOf, meetTimeZone, schoolRaceIds, type DeadlineRace } from '@/lib/declare-deadline';
 import { headshotNameKey, seasonYear } from '@/lib/headshots/name-key';
 
 interface RaceRow extends DeadlineRace {
@@ -142,7 +142,8 @@ export async function dashboardVersion(sessionId: string): Promise<string> {
 }
 
 export async function loadDashboard(session: NonNullable<Awaited<ReturnType<typeof dashboardSession>>>): Promise<DashboardData> {
-  const races = JSON.parse(session.racesJson || '[]') as RaceRow[];
+  // In running order, so the races list and each school's race chips read as the day does.
+  const races = byStartTime(JSON.parse(session.racesJson || '[]') as RaceRow[]);
   const tz = meetTimeZone(races) ?? null;
   const raceName = new Map(races.map((r) => [r.id, r.name]));
   const now = new Date();
@@ -227,7 +228,7 @@ export async function loadDashboard(session: NonNullable<Awaited<ReturnType<type
       answered,
       declared: runners.filter((r) => r.status === 'declared').length,
       scratched: runners.filter((r) => r.status === 'scratched').length,
-      raceIds: [...schoolRaceIds(roster)],
+      raceIds: races.map((r) => r.id).filter((id) => schoolRaceIds(roster).has(id)),
       finalizedRaceIds: finalsOf.get(t.id) ?? [],
       lastActivity: lastAt ? lastAt.toISOString() : null,
       openedAt: opened ? opened.toISOString() : null,
