@@ -41,10 +41,10 @@ interface Researched {
  */
 const CONFERENCE: Record<string, { conference: string; note?: string }> = {
   'Coastal Alabama CC': { conference: 'Alabama Community College Conference', note: 'NJCAA Division II, Region 22.' },
-  'Eastern Florida': { conference: 'Florida College System Activities Association', note: 'NJCAA Division II, Region 8.' },
+  'Eastern Florida': { conference: 'Citrus Conference', note: 'FCSAA Division I (Citrus Conference); NJCAA Division II, Region 8.' },
   'Florida College': { conference: 'Continental Athletic Conference' },
   'Gulf Coast State College': { conference: 'Panhandle Conference', note: 'FCSAA; NJCAA Division II, Region 8.' },
-  'Lake-Sumter State': { conference: 'Mid-Florida Conference', note: 'FCSAA; NJCAA Division II, Region 8.' },
+  'Lake-Sumter State': { conference: 'Sun-Lakes Conference', note: 'FCSAA Division II (Sun-Lakes Conference); NJCAA Division II, Region 8.' },
   'Loyola-New Orleans': { conference: 'Southern States Athletic Conference' },
   'Mobile': { conference: 'Southern States Athletic Conference' },
   'Thomas (Ga.)': { conference: 'Southern States Athletic Conference' },
