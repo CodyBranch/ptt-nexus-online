@@ -112,6 +112,8 @@ interface FormData {
   roster: RosterAthlete[];
   declarations: Declaration[];
   finalized?: Finalization[];
+  /** Bibs the meet office has had handed back, by runner. */
+  bibsReturned?: Array<{ athleteId: string; returnedAt: string }>;
 }
 
 type Choice = { kind: 'race'; raceId: string } | { kind: 'scratched' } | { kind: 'none' };
@@ -354,6 +356,12 @@ export default function DeclarePage() {
   // coach sees the men's numbers. The other side's unanswered runners are
   // still said (below) — a coach who filtered to the boys and read "0 to
   // answer" must not walk away with five girls undeclared.
+  // A scratched runner's bib goes back to the meet office; this is what has.
+  const bibBack = useMemo(
+    () => new Map((data?.bibsReturned ?? []).map((b) => [b.athleteId, b.returnedAt])),
+    [data],
+  );
+
   const counts = useMemo(() => {
     const tally = (ids: string[]) => {
       const values = ids.map((id) => choices[id] ?? { kind: 'none' as const });
@@ -361,6 +369,7 @@ export default function DeclarePage() {
         declared: values.filter((c) => c.kind === 'race').length,
         scratched: values.filter((c) => c.kind === 'scratched').length,
         undecided: values.filter((c) => c.kind === 'none').length,
+        bibsOut: ids.filter((id, i) => values[i].kind === 'scratched' && !bibBack.has(id)).length,
       };
     };
     const shown = new Set(visible.map((a) => a.id));
@@ -369,7 +378,7 @@ export default function DeclarePage() {
       otherUndecided: side === 'all' ? 0
         : tally((data?.roster ?? []).filter((a) => !shown.has(a.id)).map((a) => a.id)).undecided,
     };
-  }, [choices, visible, data, side]);
+  }, [choices, visible, data, side, bibBack]);
 
   // The next race to close, and the ones already closed. Each race closes on
   // its own — the girls' cutoff passing leaves the boys' races open.
@@ -481,6 +490,11 @@ export default function DeclarePage() {
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-xs text-gray-400">
             <span><span className="font-bold text-gray-100">{counts.declared}</span> running</span>
             <span><span className="font-bold text-gray-100">{counts.scratched}</span> out</span>
+            {counts.bibsOut > 0 && (
+              <span className="text-amber-400">
+                <span className="font-bold">{counts.bibsOut}</span> bib{counts.bibsOut === 1 ? '' : 's'} to hand in
+              </span>
+            )}
             <span className={counts.undecided > 0 ? 'text-amber-400' : ''}>
               <span className="font-bold">{counts.undecided}</span> to answer
             </span>
@@ -690,6 +704,24 @@ export default function DeclarePage() {
                       Not running
                     </button>
                   </div>
+                )}
+
+                {/* A runner scratched hands their bib in at the meet office,
+                    so nobody else runs on it; this says whether it is back. */}
+                {choice.kind === 'scratched' && (bibBack.has(athlete.id) ? (
+                  <p className="mt-2.5 text-xs text-emerald-400">
+                    Bib received by the meet office
+                    {' '}<span className="text-emerald-400/70">{new Date(bibBack.get(athlete.id)!).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                  </p>
+                ) : (
+                  <p className="mt-2.5 text-xs text-amber-400">
+                    Hand {athlete.bib ? `bib #${athlete.bib}` : 'this bib'} in at the meet office
+                  </p>
+                ))}
+                {choice.kind === 'race' && bibBack.has(athlete.id) && (
+                  <p className="mt-2.5 text-xs text-amber-400">
+                    This bib was handed in - collect it from the meet office before the race
+                  </p>
                 )}
               </li>
             );

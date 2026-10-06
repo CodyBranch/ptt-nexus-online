@@ -28,6 +28,12 @@ interface RosterAthlete {
   firstName: string;
   lastName: string;
   bib?: string;
+  /**
+   * Every timing tag that is this runner's besides the bib itself - the
+   * desk's chip registry, e.g. 10101 for bib 101 - so a bib handed back and
+   * scanned by its tag still finds them.
+   */
+  tags?: string[];
   gender?: string;
   year?: string;
   eligibleRaceIds: string[];
@@ -58,7 +64,7 @@ interface TeamPayload {
 // only for a runner the coach has not answered for, the same rule publish
 // follows — otherwise a republish would quietly take back what the coach said.
 //
-// Returns: { updated: true, newTeams: [{ teamId, teamName, teamToken }], dashboardToken }
+// Returns: { updated: true, newTeams: [{ teamId, teamName, teamToken }], dashboardToken, returnsToken }
 
 export async function POST(
   request: NextRequest,
@@ -92,12 +98,14 @@ export async function POST(
     // A session published before the dashboard existed gets its link now;
     // one that has one keeps it, as every link here does.
     const dashboardToken = session.dashboardToken ?? randomBytes(16).toString('hex');
+    const returnsToken = session.returnsToken ?? randomBytes(16).toString('hex');
     await db.update(meetDeclarationSessions).set({
       meetName,
       meetDate: meetDate ?? null,
       genderTerms: genderTerms === 'men_women' ? 'men_women' : 'boys_girls',
       racesJson: JSON.stringify(races),
       dashboardToken,
+      returnsToken,
       updatedAt: new Date(),
     }).where(eq(meetDeclarationSessions.id, session.id));
     const orgs = await knownOrganizations(teams.map((t) => t.organizationId));
@@ -151,7 +159,7 @@ export async function POST(
       }
     }
 
-    return NextResponse.json({ updated: true, newTeams, dashboardToken });
+    return NextResponse.json({ updated: true, newTeams, dashboardToken, returnsToken });
   } catch (error) {
     console.error('Declaration update error:', error);
     return NextResponse.json({ error: 'Failed to update the declaration session' }, { status: 500 });

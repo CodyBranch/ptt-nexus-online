@@ -11,6 +11,7 @@ import { eq } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/admin-auth';
 import { closesAtOf, meetTimeZone, meetTime, type DeadlineRace, byStartTime } from '@/lib/declare-deadline';
 import AutoRefresh from '@/components/AutoRefresh';
+import { returnState } from '@/lib/declare-returns';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +56,9 @@ export default async function DeclarationMeetPage({ params }: { params: Promise<
     .where(eq(declarationSubmissions.meetSessionId, session.id));
   const finals = await db.select().from(declarationFinalizations)
     .where(eq(declarationFinalizations.meetSessionId, session.id));
+  // Scratched runners' bibs handed back at the desk.
+  const bibBack = await returnState(session.id);
+  const bibsOutTotal = answers.filter((a) => a.status === 'scratched' && !bibBack.has(`${a.teamAccessId}|${a.athleteId}`)).length;
 
   const words = session.genderTerms === 'men_women' ? { M: 'Men', F: 'Women', X: 'Open' } : { M: 'Boys', F: 'Girls', X: 'Open' };
   const now = new Date();
@@ -81,6 +85,17 @@ export default async function DeclarationMeetPage({ params }: { params: Promise<
           </a>
         ) : (
           <span className="text-gray-500">No live dashboard link yet: it is made the next time the desk publishes this meet.</span>
+        )}
+        {session.returnsToken && (
+          <>
+            <span className="text-gray-700 mx-2">·</span>
+            <a href={`/declare/returns/${session.returnsToken}`} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 underline">
+              Bib returns desk &rarr;
+            </a>
+            <span className={`ml-2 ${bibsOutTotal ? 'text-amber-400' : 'text-gray-500'}`}>
+              {bibsOutTotal ? `${bibsOutTotal} scratched bib${bibsOutTotal === 1 ? '' : 's'} not returned` : 'every scratched bib is back'}
+            </span>
+          </>
         )}
       </p>
 
@@ -130,6 +145,7 @@ export default async function DeclarationMeetPage({ params }: { params: Promise<
           const done = finals.filter((f) => f.teamAccessId === t.id).map((f) => raceName.get(f.raceId) ?? f.raceId);
           const declared = mine.filter((a) => a.status === 'declared').length;
           const scratched = mine.filter((a) => a.status === 'scratched').length;
+          const bibsOut = mine.filter((a) => a.status === 'scratched' && !bibBack.has(`${t.id}|${a.athleteId}`)).length;
           const last = mine.reduce<Date | null>((m, a) => {
             const d = a.updatedAt ? new Date(a.updatedAt) : null;
             return d && (!m || d > m) ? d : m;
@@ -146,6 +162,7 @@ export default async function DeclarationMeetPage({ params }: { params: Promise<
                     : <span className={mine.length >= roster.length ? 'text-green-400' : 'text-gray-300'}>{mine.length} of {roster.length} answered</span>}
                 </span>
                 <span className="text-sm text-gray-400 tabular-nums">{declared} running · {scratched} out</span>
+                {bibsOut > 0 && <span className="text-sm text-amber-400 tabular-nums">{bibsOut} bib{bibsOut === 1 ? '' : 's'} to return</span>}
                 {done.length > 0 && <span className="text-xs text-green-400">finalized: {done.join(', ')}</span>}
                 <span className="text-xs text-gray-600 ml-auto">{last ? `last ${when(last)}` : ''}</span>
               </summary>
@@ -166,6 +183,7 @@ export default async function DeclarationMeetPage({ params }: { params: Promise<
                       <th className="py-2 pr-3 w-16"></th>
                       <th className="py-2 pr-3 w-12">Yr</th>
                       <th className="py-2 pr-3">Answer</th>
+                      <th className="py-2 pr-3">Bib</th>
                       <th className="py-2">When</th>
                     </tr>
                   </thead>
@@ -182,6 +200,16 @@ export default async function DeclarationMeetPage({ params }: { params: Promise<
                             {!a ? <span className="text-amber-400/80">no answer</span>
                               : a.status === 'scratched' ? <span className="text-red-300">not running</span>
                                 : <span className="text-gray-200">{raceName.get(a.raceId ?? '') ?? 'a race'}</span>}
+                          </td>
+                          <td className="py-1.5 pr-3 text-xs">
+                            {(() => {
+                              const back = bibBack.get(`${t.id}|${r.id}`);
+                              if (a?.status === 'scratched') {
+                                return back ? <span className="text-green-400">returned {when(new Date(back))}</span>
+                                  : <span className="text-amber-400">not returned</span>;
+                              }
+                              return back ? <span className="text-amber-400">handed in, now running</span> : null;
+                            })()}
                           </td>
                           <td className="py-1.5 text-xs text-gray-600">{a?.updatedAt ? when(new Date(a.updatedAt)) : ''}</td>
                         </tr>

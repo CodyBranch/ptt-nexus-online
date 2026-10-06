@@ -12,6 +12,7 @@
  * still moves it.
  */
 
+import { returnState } from '@/lib/declare-returns';
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
@@ -41,6 +42,11 @@ export interface DashRunner {
   status: RunnerStatus;
   raceId: string | null;
   answeredAt: string | null;
+  /**
+   * When the bib was handed back at the desk (scanned or typed), if it has
+   * been. A scratched runner without one still has their bib.
+   */
+  bibReturnedAt: string | null;
   /** A headshot from Nexus Online, when the school's are there. */
   photoUrl: string | null;
 }
@@ -58,6 +64,8 @@ export interface DashTeam {
   answered: number;
   declared: number;
   scratched: number;
+  /** Scratched runners whose bib has not been handed back. */
+  bibsOut: number;
   /** The races this school may put runners in. */
   raceIds: string[];
   finalizedRaceIds: string[];
@@ -98,7 +106,7 @@ export interface DashActivity {
   teamName: string;
   /** Empty for a school opening its form. */
   runnerName: string;
-  status: 'declared' | 'scratched' | 'opened';
+  status: 'declared' | 'scratched' | 'opened' | 'bib_returned';
   raceName: string | null;
 }
 
@@ -109,6 +117,7 @@ export interface DashboardData {
   totals: {
     schools: number; schoolsOpened: number; schoolsStarted: number; schoolsDone: number;
     runners: number; declared: number; scratched: number; undecided: number;
+    bibsReturned: number; bibsOut: number;
   };
   races: DashRace[];
   teams: DashTeam[];
@@ -133,12 +142,14 @@ export async function dashboardVersion(sessionId: string): Promise<string> {
       (SELECT count(*) || ':' || coalesce(extract(epoch FROM max(updated_at)), 0)
          FROM declaration_submissions WHERE meet_session_id = ${sessionId}) AS a,
       (SELECT count(*) || ':' || coalesce(extract(epoch FROM max(finalized_at)), 0)
-         FROM declaration_finalizations WHERE meet_session_id = ${sessionId}) AS f
+         FROM declaration_finalizations WHERE meet_session_id = ${sessionId}) AS f,
+      (SELECT count(*) || ':' || count(undone_at) || ':' || coalesce(extract(epoch FROM max(created_at)), 0)
+         FROM declaration_bib_returns WHERE meet_session_id = ${sessionId}) AS b
   `);
   // postgres-js answers with the rows; PGlite (local checks) with { rows }.
   const list = ((rows as unknown as { rows?: unknown[] }).rows ?? rows) as Array<Record<string, unknown>>;
   const r = list[0] ?? {};
-  return [r.s, r.t, r.a, r.f].map((v) => String(v ?? '')).join('|');
+  return [r.s, r.t, r.a, r.f, r.b].map((v) => String(v ?? '')).join('|');
 }
 
 export async function loadDashboard(session: NonNullable<Awaited<ReturnType<typeof dashboardSession>>>): Promise<DashboardData> {
@@ -148,11 +159,12 @@ export async function loadDashboard(session: NonNullable<Awaited<ReturnType<type
   const raceName = new Map(races.map((r) => [r.id, r.name]));
   const now = new Date();
 
-  const [teams, answers, finals, version] = await Promise.all([
+  const [teams, answers, finals, version, returned] = await Promise.all([
     db.select().from(teamDeclarationAccess).where(eq(teamDeclarationAccess.meetSessionId, session.id)),
     db.select().from(declarationSubmissions).where(eq(declarationSubmissions.meetSessionId, session.id)),
     db.select().from(declarationFinalizations).where(eq(declarationFinalizations.meetSessionId, session.id)),
     dashboardVersion(session.id),
+    returnState(session.id),
   ]);
 
   const orgIds = [...new Set(teams.map((t) => t.organizationId).filter((id): id is string => !!id))];
@@ -200,6 +212,7 @@ export async function loadDashboard(session: NonNullable<Awaited<ReturnType<type
         status: (ans?.status === 'declared' || ans?.status === 'scratched' ? ans.status : 'undecided') as RunnerStatus,
         raceId: ans?.status === 'declared' ? ans.raceId ?? null : null,
         answeredAt: ans?.updatedAt ? ans.updatedAt.toISOString() : null,
+        bibReturnedAt: returned.get(`${t.id}|${a.id}`) ?? null,
         photoUrl: org ? photo.get(`${org.id}|${headshotNameKey(a.firstName, a.lastName)}`) ?? null : null,
       };
     });
@@ -228,6 +241,7 @@ export async function loadDashboard(session: NonNullable<Awaited<ReturnType<type
       answered,
       declared: runners.filter((r) => r.status === 'declared').length,
       scratched: runners.filter((r) => r.status === 'scratched').length,
+      bibsOut: runners.filter((r) => r.status === 'scratched' && !r.bibReturnedAt).length,
       raceIds: races.map((r) => r.id).filter((id) => schoolRaceIds(roster).has(id)),
       finalizedRaceIds: finalsOf.get(t.id) ?? [],
       lastActivity: lastAt ? lastAt.toISOString() : null,
@@ -271,7 +285,11 @@ export async function loadDashboard(session: NonNullable<Awaited<ReturnType<type
   const openings: DashActivity[] = dashTeams.filter((t) => t.openedAt).map((t) => ({
     at: t.openedAt!, teamId: t.id, teamName: t.name, runnerName: '', status: 'opened' as const, raceName: null,
   }));
-  const activity = [...answered, ...openings].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 40);
+  const bibsBack: DashActivity[] = dashTeams.flatMap((t) => t.runners.filter((r) => r.bibReturnedAt).map((r) => ({
+    at: r.bibReturnedAt!, teamId: t.id, teamName: t.name, runnerName: `${r.firstName} ${r.lastName}`,
+    status: 'bib_returned' as const, raceName: null,
+  })));
+  const activity = [...answered, ...openings, ...bibsBack].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 40);
 
   const runners = dashTeams.flatMap((t) => t.runners);
   return {
@@ -287,6 +305,8 @@ export async function loadDashboard(session: NonNullable<Awaited<ReturnType<type
       declared: runners.filter((r) => r.status === 'declared').length,
       scratched: runners.filter((r) => r.status === 'scratched').length,
       undecided: runners.filter((r) => r.status === 'undecided').length,
+      bibsReturned: runners.filter((r) => r.status === 'scratched' && r.bibReturnedAt).length,
+      bibsOut: runners.filter((r) => r.status === 'scratched' && !r.bibReturnedAt).length,
     },
     races: dashRaces,
     teams: dashTeams,

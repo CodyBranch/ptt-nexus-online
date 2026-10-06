@@ -1,3 +1,4 @@
+import { returnState } from '@/lib/declare-returns';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import {
@@ -84,6 +85,9 @@ export async function GET(
         raceId: f.raceId,
         finalizedAt: f.finalizedAt,
       })),
+      bibsReturned: [...(await returnState(session.id)).entries()]
+        .filter(([k]) => k.startsWith(`${access.id}|`))
+        .map(([k, returnedAt]) => ({ athleteId: k.slice(access.id.length + 1), returnedAt })),
     });
   } catch (error) {
     console.error('Declaration fetch error:', error);

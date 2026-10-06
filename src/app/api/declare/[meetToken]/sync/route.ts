@@ -1,3 +1,4 @@
+import { returnState } from '@/lib/declare-returns';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import {
@@ -40,6 +41,10 @@ export async function GET(
     const finals = await db.select().from(declarationFinalizations)
       .where(eq(declarationFinalizations.meetSessionId, session.id));
 
+    // Bibs handed back for scratched runners - the desk shows them beside the
+    // scratch, and flags a course read from a scratched runner's bib still out.
+    const returned = await returnState(session.id);
+
     const byTeam = new Map<string, typeof rows>();
     for (const r of rows) {
       if (!byTeam.has(r.teamAccessId)) byTeam.set(r.teamAccessId, []);
@@ -48,6 +53,7 @@ export async function GET(
 
     return NextResponse.json({
       meetName: session.meetName,
+      returnsToken: session.returnsToken,
       races: JSON.parse(session.racesJson),
       teams: teams.map((t) => ({
         teamId: t.teamId,
@@ -58,6 +64,7 @@ export async function GET(
           status: r.status,
           raceId: r.raceId,
           updatedAt: r.updatedAt,
+          bibReturnedAt: returned.get(`${t.id}|${r.athleteId}`) ?? null,
         })),
       })),
     });

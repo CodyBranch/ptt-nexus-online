@@ -29,6 +29,12 @@ interface RosterAthlete {
   firstName: string;
   lastName: string;
   bib?: string;
+  /**
+   * Every timing tag that is this runner's besides the bib itself - the
+   * desk's chip registry, e.g. 10101 for bib 101 - so a bib handed back and
+   * scanned by its tag still finds them.
+   */
+  tags?: string[];
   gender?: string;
   year?: string;
   /**
@@ -79,11 +85,14 @@ export async function POST(request: NextRequest) {
     const meetToken = randomBytes(16).toString('hex');
     // The live dashboard's own link: see the schema's note on dashboardToken.
     const dashboardToken = randomBytes(16).toString('hex');
+    // The bib-return desk's link: the staff page, and what TagTool calls.
+    const returnsToken = randomBytes(16).toString('hex');
     const orgs = await knownOrganizations(teams.map((t) => t.organizationId));
 
     const [session] = await db.insert(meetDeclarationSessions).values({
       meetToken,
       dashboardToken,
+      returnsToken,
       meetName,
       meetDate: meetDate ?? null,
       genderTerms: genderTerms === 'men_women' ? 'men_women' : 'boys_girls',
@@ -136,6 +145,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       meetToken,
       dashboardToken,
+      returnsToken,
       sessionId: session.id,
       teams: insertedTeams.map((t) => ({
         teamId: t.teamId,

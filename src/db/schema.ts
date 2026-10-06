@@ -563,6 +563,13 @@ export const meetDeclarationSessions = pgTable('meet_declaration_sessions', {
    */
   dashboardToken: text('dashboard_token').unique(),
 
+  /**
+   * The bib returns link (/declare/returns/{token}): the staff page at the
+   * bib table, and the address the TagTool scanner calls with ?bib=. It
+   * writes, so it is a token of its own, never the dashboard's.
+   */
+  returnsToken: text('returns_token').unique(),
+
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => [
@@ -677,6 +684,35 @@ export const declarationFinalizations = pgTable('declaration_finalizations', {
   index('idx_decl_final_team').on(table.teamAccessId),
   index('idx_decl_final_session').on(table.meetSessionId),
   uniqueIndex('idx_decl_final_race').on(table.teamAccessId, table.raceId),
+]);
+
+// ═══════════════════════════════════════════════════════════
+// Cross Country Declarations — Bibs handed back
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * A scratched runner's bib, handed in at the desk and scanned (or typed).
+ * Every scan is kept whatever it matched; see the migration's note.
+ */
+export const declarationBibReturns = pgTable('declaration_bib_returns', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  meetSessionId: uuid('meet_session_id').notNull()
+    .references(() => meetDeclarationSessions.id, { onDelete: 'cascade' }),
+  teamAccessId: uuid('team_access_id')
+    .references(() => teamDeclarationAccess.id, { onDelete: 'set null' }),
+  athleteId: text('athlete_id'),
+  // What was scanned or typed (a bib, or another of the runner's tags), and
+  // the bib it turned out to be.
+  code: text('code').notNull(),
+  bib: text('bib'),
+  status: text('status').notNull(), // 'returned' | 'not_scratched' | 'unknown_bib' | 'ambiguous'
+  via: text('via').notNull().default('scan'), // 'scan' | 'manual'
+  device: text('device'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  undoneAt: timestamp('undone_at', { withTimezone: true }),
+}, (table) => [
+  index('idx_bib_returns_session').on(table.meetSessionId, table.createdAt),
+  index('idx_bib_returns_athlete').on(table.teamAccessId, table.athleteId),
 ]);
 
 // ═══════════════════════════════════════════════════════════

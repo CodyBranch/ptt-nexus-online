@@ -228,7 +228,7 @@ export default function DashboardView({ token, initial }: { token: string; initi
             { label: 'Schools answered', value: `${T.schoolsDone}/${T.schools}`, sub: `${T.schoolsOpened} opened \u00b7 ${T.schoolsStarted} started`, bar: [T.schoolsDone, T.schools] as const },
             { label: 'Runners', value: T.runners, sub: `${T.runners - T.undecided} answered` },
             { label: 'Declared', value: T.declared, sub: 'running', tone: 'text-emerald-300' },
-            { label: 'Scratched', value: T.scratched, sub: 'out', tone: 'text-rose-300' },
+            { label: 'Scratched', value: T.scratched, sub: T.scratched ? `${T.bibsReturned} bib${T.bibsReturned === 1 ? '' : 's'} back · ${T.bibsOut} out` : 'out', tone: 'text-rose-300' },
             { label: 'No answer yet', value: T.undecided, sub: 'runners', tone: T.undecided ? 'text-amber-300' : '' },
             { label: 'Races', value: data.races.length, sub: `${data.races.filter((r) => r.closed).length} closed` },
           ].map((s) => (
@@ -294,6 +294,7 @@ export default function DashboardView({ token, initial }: { token: string; initi
                             <span className="tabular-nums">{t.answered}/{t.total} answered</span>
                             <span className="text-emerald-300/90 tabular-nums">{t.declared} running</span>
                             {t.scratched > 0 && <span className="text-rose-300/90 tabular-nums">{t.scratched} out</span>}
+                            {t.bibsOut > 0 && <span className="text-amber-300/90 tabular-nums">{t.bibsOut} bib{t.bibsOut === 1 ? '' : 's'} to return</span>}
                             <span className="ml-auto text-gray-500">{t.lastActivity ? ago(t.lastActivity, now) : t.openedAt ? `opened ${ago(t.lastOpenedAt ?? t.openedAt, now)}` : 'not opened'}</span>
                           </div>
                           <div className="mt-1.5"><Bar value={t.answered} total={t.total} tone={state === 'done' ? 'bg-emerald-500' : state === 'unopened' ? 'bg-gray-500' : 'bg-amber-400'} /></div>
@@ -345,13 +346,13 @@ function Latest({ activity, now, fill = false }: { activity: DashboardData['acti
       {activity.map((a, i) => (
         <li key={`${a.at}-${i}`} className="px-3 py-2 text-sm">
           <div className="flex items-baseline gap-2">
-            <span className={`h-1.5 w-1.5 shrink-0 rounded-full translate-y-[-1px] ${a.status === 'declared' ? 'bg-emerald-400' : a.status === 'opened' ? 'bg-sky-400' : 'bg-rose-400'}`} />
+            <span className={`h-1.5 w-1.5 shrink-0 rounded-full translate-y-[-1px] ${a.status === 'declared' ? 'bg-emerald-400' : a.status === 'opened' ? 'bg-sky-400' : a.status === 'bib_returned' ? 'bg-violet-400' : 'bg-rose-400'}`} />
             <span className="font-medium truncate">{a.status === 'opened' ? a.teamName : a.runnerName}</span>
             <span className="ml-auto shrink-0 text-[11px] text-gray-500">{ago(a.at, now)}</span>
           </div>
           <div className="pl-3.5 text-xs text-gray-400 truncate">
             {a.status === 'opened' ? 'opened their form'
-              : <>{a.teamName} &middot; {a.status === 'declared' ? (a.raceName ?? 'declared') : 'scratched'}</>}
+              : <>{a.teamName} &middot; {a.status === 'declared' ? (a.raceName ?? 'declared') : a.status === 'bib_returned' ? 'bib returned' : 'scratched'}</>}
           </div>
         </li>
       ))}
@@ -382,7 +383,15 @@ function Roster({ team, raceName, words, now }: {
                   <span className={`text-[11px] px-1.5 py-0.5 rounded ${r.status === 'declared' ? 'bg-emerald-500/15 text-emerald-300' : r.status === 'scratched' ? 'bg-rose-500/15 text-rose-300' : 'bg-gray-700/60 text-gray-400'}`}>
                     {r.status === 'declared' ? (r.raceId ? raceName.get(r.raceId) ?? 'Declared' : 'Declared') : r.status === 'scratched' ? 'Scratched' : 'No answer'}
                   </span>
-                  {r.answeredAt && <div className="text-[10px] text-gray-600 mt-0.5">{ago(r.answeredAt, now)}</div>}
+                  {r.status === 'scratched' && (
+                    <div className={`text-[10px] mt-0.5 ${r.bibReturnedAt ? 'text-violet-300/80' : 'text-amber-300/90'}`}>
+                      {r.bibReturnedAt ? `Bib back ${ago(r.bibReturnedAt, now)}` : 'Bib not returned'}
+                    </div>
+                  )}
+                  {r.status === 'declared' && r.bibReturnedAt && (
+                    <div className="text-[10px] mt-0.5 text-amber-300/90">Bib was handed in</div>
+                  )}
+                  {r.answeredAt && r.status !== 'scratched' && !(r.status === 'declared' && r.bibReturnedAt) && <div className="text-[10px] text-gray-600 mt-0.5">{ago(r.answeredAt, now)}</div>}
                 </div>
               </li>
             ))}
