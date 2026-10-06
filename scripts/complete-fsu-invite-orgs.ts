@@ -49,6 +49,10 @@ const CONFERENCE: Record<string, { conference: string; note?: string }> = {
   'Mobile': { conference: 'Southern States Athletic Conference' },
   'Thomas (Ga.)': { conference: 'Southern States Athletic Conference' },
   'USSU': { conference: 'Continental Athletic Conference', note: 'Moving to the Southern States Athletic Conference in 2027-28.' },
+  // The two the meet had linked to the wrong school (UCF, Dayton); run with
+  // FSU_PLANS_DIR pointed at their own plans.json.
+  'Central Florida': { conference: 'Citrus Conference', note: 'FCSAA Division I; NJCAA Division II, Region 8.' },
+  'Daytona State College': { conference: 'Citrus Conference', note: 'FCSAA Division I; NJCAA Division II, Region 8.' },
 };
 
 const MIME: Record<string, string> = {
