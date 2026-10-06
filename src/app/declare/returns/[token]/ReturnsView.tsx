@@ -130,6 +130,8 @@ export default function ReturnsView({ token, initial }: { token: string; initial
       <header className="border-b border-gray-800 px-4 py-4 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
+            {/* eslint-disable-next-line @next/next/no-img-element -- a static brand image, as on the dashboard */}
+            <img src="/live/primetime-on-dark.png" alt="PrimeTime Timing" className="mb-3 h-5 w-auto sm:h-7" />
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Bib returns</p>
             <h1 className="text-xl font-semibold text-balance sm:text-2xl">{view.meet.name}</h1>
           </div>
