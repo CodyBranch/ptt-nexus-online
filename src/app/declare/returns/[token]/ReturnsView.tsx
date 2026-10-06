@@ -125,30 +125,41 @@ export default function ReturnsView({ token, initial }: { token: string; initial
   const needsLook = view.scans.filter((s) => !s.undone && s.status !== 'returned').length;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 lg:h-screen lg:flex lg:flex-col lg:overflow-hidden">
+    <div className="min-h-screen bg-[#0a0f24] text-gray-100 lg:h-screen lg:flex lg:flex-col lg:overflow-hidden">
       <style>{SCROLL_CSS}</style>
-      <header className="border-b border-gray-800 px-4 py-4 sm:px-6">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            {/* eslint-disable-next-line @next/next/no-img-element -- a static brand image, as on the dashboard */}
-            <img src="/live/primetime-on-dark.png" alt="PrimeTime Timing" className="mb-3 h-5 w-auto sm:h-7" />
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Bib returns</p>
-            <h1 className="text-xl font-semibold text-balance sm:text-2xl">{view.meet.name}</h1>
+      {/* ── Masthead, as on the live dashboard: the logo at the left, the meet beside it ── */}
+      <header className="shrink-0 border-b border-white/10 bg-[#0c1537]">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6 sm:py-4">
+          {/* eslint-disable-next-line @next/next/no-img-element -- a static brand image, as on the dashboard */}
+          <img src="/live/primetime-on-dark.png" alt="PrimeTime Timing" className="h-5 w-auto sm:h-7" />
+          {/* Under the logo on a phone, beside it from there up. */}
+          <div className="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1">
+            <h1 className="text-lg font-bold tracking-tight sm:truncate sm:text-xl">{view.meet.name}</h1>
+            <p className="text-xs text-gray-400">
+              Bib returns{view.meet.date ? ` · ${new Date(`${view.meet.date}T12:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}` : ''}
+            </p>
           </div>
-          <dl className="grid w-full grid-cols-3 gap-2 sm:w-auto sm:gap-3">
-            {[
-              { k: 'Scratched', v: view.scratched, cls: 'text-gray-100' },
-              { k: 'Returned', v: view.returned, cls: 'text-emerald-300' },
-              { k: 'Still out', v: out, cls: out ? 'text-amber-300' : 'text-gray-500' },
-            ].map((s) => (
-              <div key={s.k} className="rounded-lg bg-gray-900 px-3 py-2 ring-1 ring-gray-800 sm:min-w-28">
-                <dt className="text-[11px] uppercase tracking-wider text-gray-500">{s.k}</dt>
-                <dd className={`text-2xl font-semibold tabular-nums ${s.cls}`}>{s.v}</dd>
-              </div>
-            ))}
-          </dl>
+          <span className={`ml-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold sm:ml-0 ${error ? 'bg-amber-500/15 text-amber-300' : 'bg-[#e70518]/15 text-red-300'}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${error ? 'bg-amber-400' : 'bg-red-500'}`} />
+            {error ? 'Reconnecting' : 'Live'}
+          </span>
         </div>
       </header>
+
+      {/* ── The numbers ── */}
+      <dl className="grid shrink-0 grid-cols-3 gap-2 px-4 pt-4 sm:gap-3 sm:px-6">
+        {[
+          { k: 'Scratched', v: view.scratched, sub: 'runners out', cls: 'text-rose-300' },
+          { k: 'Returned', v: view.returned, sub: 'bibs back', cls: 'text-emerald-300' },
+          { k: 'Still out', v: out, sub: out ? 'bibs to collect' : 'nothing to collect', cls: out ? 'text-amber-300' : 'text-gray-500' },
+        ].map((s) => (
+          <div key={s.k} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 sm:py-2.5">
+            <dt className="text-[10px] uppercase tracking-wider text-gray-400 sm:text-[11px]">{s.k}</dt>
+            <dd className={`mt-0.5 text-xl font-bold tabular-nums sm:text-2xl ${s.cls}`}>{s.v}</dd>
+            <dd className="text-[11px] text-gray-500">{s.sub}</dd>
+          </div>
+        ))}
+      </dl>
 
       <div className="px-4 py-4 sm:px-6">
         <form onSubmit={submit} className="flex gap-2">
