@@ -11,7 +11,7 @@
  * roster is logged as unknown. Every scan is kept; an undo marks it undone.
  */
 
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
   meetDeclarationSessions, teamDeclarationAccess, declarationSubmissions, declarationBibReturns,
@@ -125,10 +125,18 @@ async function isScratched(teamAccessId: string, athleteId: string): Promise<boo
   return row?.status === 'scratched';
 }
 
+/**
+ * Scans that put the runner's bib in our hands: 'returned', and
+ * 'not_scratched' - the bib came back before the scratch did. Either way the
+ * bib is on the table; whether it counts as a scratched runner's bib back is
+ * the runner's status now, not when it was scanned.
+ */
+const IN_HAND = ['returned', 'not_scratched'];
+
 async function activeReturn(teamAccessId: string, athleteId: string) {
   const [row] = await db.select().from(declarationBibReturns).where(and(
     eq(declarationBibReturns.teamAccessId, teamAccessId), eq(declarationBibReturns.athleteId, athleteId),
-    eq(declarationBibReturns.status, 'returned'), isNull(declarationBibReturns.undoneAt),
+    inArray(declarationBibReturns.status, IN_HAND), isNull(declarationBibReturns.undoneAt),
   )).limit(1);
   return row ?? null;
 }
@@ -164,7 +172,7 @@ export async function recordReturn(session: Session, raw: unknown, opts: { via: 
   }).returning();
   const who = hit ? `${name(hit.runner)}, ${hit.teamName}` : '';
   const message = status === 'returned' ? `${said} returned: ${who}`
-    : status === 'not_scratched' ? `${said} is ${who} - not scratched online; left for staff`
+    : status === 'not_scratched' ? `${said} is ${who} - not scratched online yet; kept, and counted back once they are`
       : status === 'ambiguous' ? `${code} is on ${hits.length} runners (${hits.map((h) => `${name(h.runner)}, ${h.teamName}`).join('; ')}) - left for staff`
         : `${code} is no bib or tag in this meet`;
   return { status, code, message, scan: scanOf(row, hit) };
@@ -200,11 +208,29 @@ export async function scratchFromScan(session: Session, id: string): Promise<boo
 
 /** Each scratched runner's bib: back (and when), or still out. */
 export async function returnState(sessionId: string): Promise<Map<string, string>> {
-  const rows = await db.select({ t: declarationBibReturns.teamAccessId, a: declarationBibReturns.athleteId, at: declarationBibReturns.createdAt })
-    .from(declarationBibReturns)
-    .where(and(eq(declarationBibReturns.meetSessionId, sessionId), eq(declarationBibReturns.status, 'returned'), isNull(declarationBibReturns.undoneAt)));
+  // A bib scanned in before the coach scratched the runner was filed as
+  // 'not_scratched' and never counted: when the coach then scratched them
+  // online - rather than staff pressing "Scratch and accept" - the portal,
+  // the dashboard and the desk all said the bib was still out (Nuttycombe,
+  // 2026-10-09). It is the same bib on the same table. It counts once the
+  // runner is scratched, by whoever.
+  const [rows, answers] = await Promise.all([
+    db.select({ t: declarationBibReturns.teamAccessId, a: declarationBibReturns.athleteId, at: declarationBibReturns.createdAt, status: declarationBibReturns.status })
+      .from(declarationBibReturns)
+      .where(and(eq(declarationBibReturns.meetSessionId, sessionId), inArray(declarationBibReturns.status, IN_HAND), isNull(declarationBibReturns.undoneAt))),
+    db.select({ t: declarationSubmissions.teamAccessId, a: declarationSubmissions.athleteId, status: declarationSubmissions.status })
+      .from(declarationSubmissions).where(eq(declarationSubmissions.meetSessionId, sessionId)),
+  ]);
+  const scratched = new Set(answers.filter((r) => r.status === 'scratched').map((r) => `${r.t}|${r.a}`));
   const out = new Map<string, string>();
-  for (const r of rows) if (r.t && r.a && r.at) out.set(`${r.t}|${r.a}`, r.at.toISOString());
+  for (const r of rows) {
+    if (!r.t || !r.a || !r.at) continue;
+    const key = `${r.t}|${r.a}`;
+    if (r.status === 'not_scratched' && !scratched.has(key)) continue;
+    const at = r.at.toISOString();
+    // The first scan is when it came back.
+    if (!out.has(key) || at < out.get(key)!) out.set(key, at);
+  }
   return out;
 }
 
@@ -218,8 +244,13 @@ export async function returnsView(session: Session) {
     returnState(session.id),
   ]);
   const scratched = answers.filter((a) => a.status === 'scratched');
-  const scanList: ReturnScan[] = scans.map((s) =>
-    scanOf(s, s.teamAccessId && s.athleteId ? byId.get(`${s.teamAccessId}|${s.athleteId}`) : undefined));
+  const scratchedNow = new Set(scratched.map((a) => `${a.teamAccessId}|${a.athleteId}`));
+  const scanList: ReturnScan[] = scans.map((s) => {
+    const scan = scanOf(s, s.teamAccessId && s.athleteId ? byId.get(`${s.teamAccessId}|${s.athleteId}`) : undefined);
+    // Handed in before the scratch, scratched since: it is a return now, and
+    // "Scratch and accept" has nothing left to do.
+    return s.status === 'not_scratched' && scratchedNow.has(`${s.teamAccessId}|${s.athleteId}`) ? { ...scan, status: 'returned' } : scan;
+  });
   const outstanding: OutstandingBib[] = scratched
     .filter((s) => !returned.has(`${s.teamAccessId}|${s.athleteId}`))
     .flatMap((s) => {
