@@ -137,8 +137,15 @@ export async function POST(
     const currentRaceOf = new Map(
       declaredNow.filter((r) => r.status === 'declared').map((r) => [r.athleteId, r.raceId]),
     );
+    // How many this school has in each race now, kept as the loop goes: the
+    // desk may cap a race per school, and a batch (confirming the entered
+    // runners) must stop at the cap, not past it.
+    const inRace = new Map<string, number>();
+    for (const r of currentRaceOf.values()) if (r) inRace.set(r, (inRace.get(r) ?? 0) + 1);
 
     const rejected: string[] = [];
+    /** Why, for a refusal the coach can act on: a full race. */
+    const reasons: Record<string, string> = {};
 
     for (const d of incoming) {
       const athlete = byId.get(d.athleteId);
@@ -187,6 +194,14 @@ export async function POST(
           rejected.push(d.athleteId);
           continue;
         }
+        // The school's cap for this race. Somebody already in it can be
+        // answered for again; a new runner cannot go past it.
+        const cap = raceById.get(raceId)?.maxPerSchool;
+        if (cap && cap > 0 && leaving !== raceId && (inRace.get(raceId) ?? 0) >= cap) {
+          rejected.push(d.athleteId);
+          reasons[d.athleteId] = `${raceById.get(raceId)?.name ?? 'That race'} is full: ${cap} of ${cap} runners declared`;
+          continue;
+        }
       }
 
       await db.insert(declarationSubmissions).values({
@@ -200,11 +215,16 @@ export async function POST(
         target: [declarationSubmissions.teamAccessId, declarationSubmissions.athleteId],
         set: { status: d.status, raceId, updatedAt: new Date() },
       });
+      // Counted as it now stands, for the next one in the batch.
+      if (leaving) inRace.set(leaving, Math.max(0, (inRace.get(leaving) ?? 1) - 1));
+      if (raceId) inRace.set(raceId, (inRace.get(raceId) ?? 0) + 1);
+      if (raceId) currentRaceOf.set(d.athleteId, raceId); else currentRaceOf.delete(d.athleteId);
     }
 
     return NextResponse.json({
       saved: incoming.length - rejected.length,
       rejected,
+      reasons,
     });
   } catch (error) {
     console.error('Declaration save error:', error);

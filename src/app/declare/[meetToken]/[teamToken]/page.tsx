@@ -72,6 +72,8 @@ interface Race {
   closesAt?: string | null;
   /** The meet's time zone. */
   timeZone?: string;
+  /** The most runners this school may declare into it; absent: no limit. */
+  maxPerSchool?: number;
 }
 
 interface RosterAthlete {
@@ -229,7 +231,7 @@ export default function DeclarePage() {
     return () => { cancelled = true; if (retry) clearTimeout(retry); };
   }, [meetToken, teamToken]);
 
-  const save = useCallback(async (athleteId: string, choice: Choice) => {
+  const save = useCallback(async (athleteId: string, choice: Choice, before: Choice = { kind: 'none' }) => {
     if (choice.kind === 'none') return;
     setSaving((s) => ({ ...s, [athleteId]: true }));
     try {
@@ -244,7 +246,15 @@ export default function DeclarePage() {
           }],
         }),
       });
-      const json = await res.json().catch(() => ({})) as { rejected?: string[] };
+      const json = await res.json().catch(() => ({})) as { rejected?: string[]; reasons?: Record<string, string> };
+      const why = json.reasons?.[athleteId];
+      if (res.ok && why) {
+        // Refused for a reason the coach can act on: back as they were, said.
+        setChoices((c) => ({ ...c, [athleteId]: before }));
+        setFailed((f) => ({ ...f, [athleteId]: false }));
+        setError(why);
+        return;
+      }
       const bad = !res.ok || (json.rejected?.length ?? 0) > 0;
       setFailed((f) => ({ ...f, [athleteId]: bad }));
       setError(bad ? 'That change was not accepted. Reload and try again.' : null);
@@ -293,9 +303,15 @@ export default function DeclarePage() {
   };
 
   const choose = (athleteId: string, choice: Choice) => {
+    const before = choices[athleteId] ?? { kind: 'none' as const };
     setChoices((c) => ({ ...c, [athleteId]: choice }));
-    void save(athleteId, choice);
+    void save(athleteId, choice, before);
   };
+
+  /** How many this school has in a race, and its cap; full when at it. */
+  const countIn = (raceId: string) => Object.values(choices).filter((c) => c.kind === 'race' && c.raceId === raceId).length;
+  const capOf = (raceId: string) => data?.races.find((r) => r.id === raceId)?.maxPerSchool ?? null;
+  const isFull = (raceId: string) => { const cap = capOf(raceId); return cap != null && cap > 0 && countIn(raceId) >= cap; };
 
   /**
    * Everybody still to answer for who the meet has entered in this race,
@@ -318,10 +334,15 @@ export default function DeclarePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ declarations: who.map((athleteId) => ({ athleteId, status: 'declared', raceId })) }),
       });
-      const json = await res.json().catch(() => ({})) as { rejected?: string[] };
+      const json = await res.json().catch(() => ({})) as { rejected?: string[]; reasons?: Record<string, string> };
       const refused = new Set(res.ok ? (json.rejected ?? []) : who);
-      setFailed((f) => ({ ...f, ...Object.fromEntries(who.map((id) => [id, refused.has(id)])) }));
-      setError(refused.size ? `${refused.size} of those were not accepted. They are marked below.` : null);
+      // Past the race's cap: not confirmed, left for the coach to choose.
+      const full = who.filter((id) => json.reasons?.[id]);
+      if (full.length) setChoices((c) => ({ ...c, ...Object.fromEntries(full.map((id) => [id, { kind: 'none' } as Choice])) }));
+      setFailed((f) => ({ ...f, ...Object.fromEntries(who.map((id) => [id, refused.has(id) && !json.reasons?.[id]])) }));
+      setError(full.length
+        ? `${json.reasons![full[0]]}. ${full.length} runner${full.length === 1 ? ' was' : 's were'} left for you to choose.`
+        : refused.size ? `${refused.size} of those were not accepted. They are marked below.` : null);
     } catch {
       setFailed((f) => ({ ...f, ...Object.fromEntries(who.map((id) => [id, true])) }));
       setError('Those did not save — check your signal and try again. They are marked below.');
@@ -557,7 +578,9 @@ export default function DeclarePage() {
                   <div className="min-w-0">
                     <p className="text-sm font-semibold truncate">{race.name}</p>
                     <p className="text-xs text-gray-500">
-                      {inThis} runner{inThis === 1 ? '' : 's'} declared
+                      {race.maxPerSchool
+                        ? <span className={inThis >= race.maxPerSchool ? 'text-amber-300' : ''}>{inThis} of {race.maxPerSchool} declared{inThis >= race.maxPerSchool ? ' (full)' : ''}</span>
+                        : <>{inThis} runner{inThis === 1 ? '' : 's'} declared</>}
                       {isFinal && <span className="text-emerald-400"> · finalized</span>}
                       {deadline && (past
                         ? <span className="text-red-400"> · closed</span>
@@ -664,14 +687,14 @@ export default function DeclarePage() {
                         <button
                           key={race.id}
                           type="button"
-                          disabled={lockedIn || finalized.has(race.id) || raceClosed(race.id)}
+                          disabled={lockedIn || finalized.has(race.id) || raceClosed(race.id) || (!on && isFull(race.id))}
                           aria-pressed={on}
                           onClick={() => choose(athlete.id, { kind: 'race', raceId: race.id })}
                           // One weight and one layout in every state: a bold
                           // "Men's Black Open 8k" wrapped to two lines when
                           // chosen and the whole row jumped. Chosen shows by
                           // colour and ring; "entered" is a corner tag.
-                          title={race.name}
+                          title={!on && isFull(race.id) ? `${race.name} is full: ${capOf(race.id)} of ${capOf(race.id)} declared` : race.name}
                           className={`relative flex-1 min-w-[8.5rem] min-h-[44px] rounded-lg border px-3 py-2.5 text-sm font-medium
                             whitespace-nowrap overflow-hidden text-ellipsis
                             touch-manipulation transition-colors disabled:opacity-40

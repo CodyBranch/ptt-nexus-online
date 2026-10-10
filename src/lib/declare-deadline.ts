@@ -16,6 +16,9 @@
 
 export interface DeadlineRace {
   id: string;
+  name?: string;
+  /** The most runners one school may declare into it, from the desk; absent: no limit. */
+  maxPerSchool?: number;
   /** The meet's time zone (IANA). Every time is shown on the meet's clock. */
   timeZone?: string;
   /** ISO instant the race goes off. */
