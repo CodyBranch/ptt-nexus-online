@@ -801,6 +801,61 @@ td.pl .mvx{display:none}
 .trun tr.trailrow td{padding-top:0;padding-bottom:7px}
 .trun .trail .up{color:var(--up)} .trun .trail .down{color:var(--down)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* ---------- Insights ---------- */
+.ins-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px;margin:4px 0 10px}
+.ins-pick{display:flex;align-items:center;gap:10px}
+.ins-sel{font:500 14px var(--body);color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:7px;padding:6px 10px;max-width:100%}
+.ins-nav{position:sticky;top:0;z-index:5;margin-bottom:6px;flex-wrap:wrap;box-shadow:var(--shadow)}
+.ins-sec{scroll-margin-top:52px;margin-top:22px}
+.ins-sec>h2{margin-bottom:4px}
+.ins-sec>.q{font-size:15px;color:var(--ink);margin:2px 0 12px;max-width:80ch}
+.ins-sec .chart .q{max-width:80ch}
+.ins-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0 8px}
+.ins-scroll{overflow-x:auto}
+.ins-tbl{width:100%;border-collapse:collapse}
+.ins-tbl th{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line-strong)}
+.ins-tbl td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+.ins-tbl tr.ins-me td,.ins-bar.ins-me{background:var(--accent-soft)}
+.ins-tbl td.num,.ins-tbl th.num{text-align:right}
+.ins-tbl td:first-child,.ins-tbl th:first-child{width:40px}
+.ins-mv{font:600 11.5px var(--mono);color:var(--muted);white-space:nowrap}
+.ins-mv.up{color:var(--up)} .ins-mv.down{color:var(--down)}
+.ins-team{display:inline-flex;align-items:center;gap:6px}
+.ins-click{cursor:pointer} .ins-click:hover td{background:var(--surface-2)}
+.ins-score{font:600 12.5px var(--mono);white-space:nowrap} .ins-score.w{color:var(--up)} .ins-score.l{color:var(--down)}
+.ins-margin{display:block;position:relative;width:110px;height:8px;background:var(--surface-2);border-radius:4px}
+.ins-margin::after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--line-strong)}
+.ins-margin i{position:absolute;top:0;bottom:0;border-radius:4px}
+.ins-margin i.w{left:50%;background:var(--up)} .ins-margin i.l{right:50%;background:var(--down)}
+.ins-grid{border-collapse:collapse;font:500 11px var(--mono);margin-top:10px}
+.ins-grid th{padding:3px 5px;color:var(--muted);white-space:nowrap;text-align:left}
+.ins-grid td{width:22px;height:20px;text-align:center;border:1px solid var(--surface)}
+.ins-grid td.w{background:color-mix(in srgb,var(--up) 30%,var(--surface));color:var(--up)}
+.ins-grid td.l{background:color-mix(in srgb,var(--down) 18%,var(--surface));color:var(--down)}
+.ins-grid td.x{background:var(--surface-2)}
+.ins-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--ink-2);margin:2px 0 8px}
+.ins-legend span{display:inline-flex;align-items:center;gap:6px}
+.ins-legend i{display:inline-block;width:14px;height:4px;border-radius:2px}
+.ins-card{display:block;width:100%;max-width:360px;height:auto;margin:10px 0;border-radius:18px}
+.ins-save{margin-top:2px}
+.ins-range{width:100%;max-width:520px;margin:10px 0 2px;accent-color:var(--accent)}
+.ins-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:8px 0 10px;max-width:520px}
+.ins-bars{display:grid;gap:4px;margin:6px 0}
+.ins-bar{display:grid;grid-template-columns:minmax(0,150px) 1fr 40px;gap:8px;align-items:center;font-size:12.5px;padding:2px 4px;border-radius:4px}
+.ins-bar .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ins-bar .tr{height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+.ins-bar .tr i{display:block;height:100%;background:var(--accent)}
+.ins-bar .num{text-align:right}
+.ins-heat{border-collapse:separate;border-spacing:3px;font:600 12px var(--mono)}
+.ins-heat th{text-align:left;font:500 11px var(--mono);color:var(--muted);padding:2px 6px;white-space:nowrap}
+.ins-heat td{min-width:54px;text-align:center;padding:6px 4px;border-radius:5px;background:var(--surface-2)}
+.ins-cls{display:inline-flex;gap:2px}
+.ins-cls i,.ins-legend i[class^="cl-"]{display:inline-block;width:10px;height:14px;border-radius:2px;background:var(--line-strong)}
+.ins-cls i.cl-FR,.ins-legend i.cl-FR{background:color-mix(in srgb,var(--accent) 25%,var(--surface))}
+.ins-cls i.cl-SO,.ins-legend i.cl-SO{background:color-mix(in srgb,var(--accent) 50%,var(--surface))}
+.ins-cls i.cl-JR,.ins-legend i.cl-JR{background:color-mix(in srgb,var(--accent) 80%,var(--surface))}
+.ins-cls i.cl-SR,.ins-legend i.cl-SR{background:var(--brand-red)}
+@media (max-width:900px){.ins-sec{scroll-margin-top:96px}.ins-bar{grid-template-columns:minmax(0,110px) 1fr 34px}.ins-margin{width:70px}}
 </style>
 
 </head>
@@ -821,6 +876,7 @@ td.pl .mvx{display:none}
       <button role="tab" data-view="compare" id="tab-compare">Compare</button>
       <button role="tab" data-view="teams" id="tab-teams">Teams</button>
       <button role="tab" data-view="history" id="tab-history">History</button>
+      <button role="tab" data-view="insights" id="tab-insights">Insights</button>
     </nav>
   </header>
 
@@ -961,6 +1017,12 @@ td.pl .mvx{display:none}
       </div>
     </div>
     </div>
+  </section>
+
+  <!-- INSIGHTS -->
+  <section class="view" id="v-insights" hidden>
+    <div class="panel emptyv" id="insEmpty" hidden></div>
+    <div id="insBody"></div>
   </section>
 
   <footer>
@@ -1110,9 +1172,9 @@ function dayDate(d){return d.toLocaleDateString(undefined,{weekday:"short",month
 function niceDate(iso){const d=new Date(iso+"T12:00:00");return isNaN(d)?iso:dayDate(d)+", "+d.getFullYear();}
 function abbrOf(name){return name.split(/\s+/).map(w=>w[0]).join("").slice(0,3).toUpperCase();}
 function ingestTeams(list){
-  list.forEach((t,i)=>{if(teamById[t.id]){Object.assign(teamById[t.id],{name:t.name,logoUrl:t.logoUrl,logoDarkUrl:t.logoDarkUrl,rankings:t.rankings||null});return;}
+  list.forEach((t,i)=>{if(teamById[t.id]){Object.assign(teamById[t.id],{name:t.name,logoUrl:t.logoUrl,logoDarkUrl:t.logoDarkUrl,rankings:t.rankings||null,conference:t.conference||null});return;}
     const x={id:t.id,name:t.name,abbr:(t.shortName||abbrOf(t.name)).slice(0,4),color:t.primaryColor||"#4a544d",color2:t.secondaryColor||"#ffffff",
-      shape:SHAPES[i%4],hasLogo:false,logoUrl:t.logoUrl,logoDarkUrl:t.logoDarkUrl,rankings:t.rankings||null};
+      shape:SHAPES[i%4],hasLogo:false,logoUrl:t.logoUrl,logoDarkUrl:t.logoDarkUrl,rankings:t.rankings||null,conference:t.conference||null};
     TEAMS.push(x);teamById[x.id]=x;});
 }
 function ingestMeet(doc){
@@ -1476,7 +1538,7 @@ function ptsLabel(n){return n+(Number(n)===1?" pt":" pts");}
 function statusPill(r){const p=h("span","pill "+(r.status==="live"?"live":r.status==="final"?"final":"up"));p.textContent=r.status==="live"?"Live":r.status==="final"?"Final":"Upcoming";return p;}
 
 /* ============ View switching ============ */
-const views=["events","results","athlete","replay","compare","teams","history","team"];
+const views=["events","results","athlete","replay","compare","teams","history","team","insights"];
 function setTabs(){
   // These need a mat to have reported, not merely a gun. Between the two -
   // which on a 5K is the first four or five minutes - the race is live and
@@ -1491,9 +1553,11 @@ function setTabs(){
   // History needs no mat to have reported - before the gun is exactly when it
   // is worth reading - so it is only off when there is nothing to read.
   const hb=$("#tab-history");hb.disabled=!HIST;hb.title=HIST?"":"Nothing recorded here yet";
+  // Insights tell a race that has been run: they open with the first finisher.
+  const ib=$("#tab-insights");const fin=!!(LASTK&&MATL[LASTK]==="Finish"&&FIN&&FIN.length);ib.disabled=!fin;ib.title=fin?"":"Opens once runners finish";
   // Results and nothing else to go to (a race not yet started, with no
   // history): on a phone, a bar with one tab on it is not shown.
-  const open=["replay","compare","teams","history"].filter(x=>!$("#tab-"+x).disabled).length;
+  const open=["replay","compare","teams","history","insights"].filter(x=>!$("#tab-"+x).disabled).length;
   document.querySelector("nav.views").classList.toggle("solo",open===0);}
 function setView(v){
   // Nothing but Events works until an event is picked, and this gets called
@@ -1503,7 +1567,7 @@ function setView(v){
   // a blank page rather than a wrong one.
   if(!RACE&&v!=="events"&&v!=="athlete"&&v!=="team")v="events";
   const mats=MATS?MATS.length:0;
-  if(!mats&&["replay","compare","teams"].includes(v))v=RACE?"results":"events";if(v==="history"&&HIST===null)v="results";if(v!=="athlete")state.back=v;state.view=v;if(RACE)setHeader();if(v!=="results")document.querySelector(".wrap").classList.remove("wide");views.forEach(x=>{$("#v-"+x).hidden=x!==v;const tb=$("#tab-"+x);if(tb)tb.setAttribute("aria-selected",x===v);});
+  if(!mats&&["replay","compare","teams","insights"].includes(v))v=RACE?"results":"events";if(v==="history"&&HIST===null)v="results";if(v!=="athlete")state.back=v;state.view=v;if(RACE)setHeader();if(v!=="results")document.querySelector(".wrap").classList.remove("wide");views.forEach(x=>{$("#v-"+x).hidden=x!==v;const tb=$("#tab-"+x);if(tb)tb.setAttribute("aria-selected",x===v);});
   // The whole strip goes on the schedule. Every tab on it except Events needs a
   // race in hand, and the schedule is where you pick one — so there it points
   // either at nothing or, worse, at whichever race the page happened to load
@@ -1516,7 +1580,7 @@ function setView(v){
   const nv=document.querySelector("nav.views");if(nv)nv.hidden=(v==="events"||v==="team");
   const bk=$("#backSched");if(bk)bk.hidden=(v==="events");
   const am=$("#allMeets");if(am&&FBSRC)am.hidden=(v!=="events");
-  try{history.replaceState(null,"","#view="+v);}catch(e){}if(v==="replay"){if(RACE&&MATS.length){buildMap();buildProgress();}drawReplay(true);}if(v==="compare")renderCompare();if(v==="teams")renderTeams();if(v==="history")renderHistory();if(v==="team")renderTeam();if(v==="results")renderResults();if(v==="events")renderEvents();if(v==="athlete")renderAthlete();}
+  try{history.replaceState(null,"","#view="+v);}catch(e){}if(v==="replay"){if(RACE&&MATS.length){buildMap();buildProgress();}drawReplay(true);}if(v==="compare")renderCompare();if(v==="teams")renderTeams();if(v==="insights")renderInsights();if(v==="history")renderHistory();if(v==="team")renderTeam();if(v==="results")renderResults();if(v==="events")renderEvents();if(v==="athlete")renderAthlete();}
 // A different tab starts at its top; tapping the one already showing leaves
 // the page where it is.
 document.querySelectorAll("nav.views button[data-view]").forEach(b=>b.addEventListener("click",()=>{
@@ -3766,7 +3830,419 @@ function renderTeams(){
 }
 
 /* ============ Boot ============ */
-function renderAll(){teamChips($("#teamChips"));if(state.view==="events")renderEvents();if(state.view==="results")renderResults();if(state.view==="compare")renderCompare();if(state.view==="teams")renderTeams();if(state.view==="replay")drawReplay(true);}
+/* ============ INSIGHTS ============
+   The race told as a story once it is run: where it was won, one runner's
+   card to share, what a team's 6th and 7th did, every team as a dual meet,
+   who ran each stretch fastest, how the result sat against the rankings, and
+   the race again without its seniors. All of it is worked out here, from the
+   race the page already holds - the same scoring (scoreOrder) the page uses
+   everywhere else, so a re-scored race agrees with the real one. */
+const INS={team:null,card:null,whatIf:null,whatIfAt:null,matK:null,matTimer:null,seg:null,mv:"field",opp:null,grid:false};
+const MILE=1609.344;
+/* The class a runner is in, as a word the page can count: FR SO JR SR GR. */
+function classOf(yr){const y=String(yr||"").trim().toUpperCase().replace(/\.$/,"");
+  if(!y)return"";if(/^(FR|FRESH|9|R-?FR|RS ?FR)/.test(y))return"FR";if(/^(SO|SOPH|10|R-?SO|RS ?SO)/.test(y))return"SO";
+  if(/^(JR|JUN|11|R-?JR|RS ?JR)/.test(y))return"JR";if(/^(SR|SEN|12|R-?SR|RS ?SR)/.test(y))return"SR";
+  if(/^(GR|GRAD|5|5TH|6|6TH)/.test(y))return"GR";return"";}
+const CLASS_WORD={FR:["freshman","freshmen"],SO:["sophomore","sophomores"],JR:["junior","juniors"],SR:["senior","seniors"],GR:["graduate","graduates"]};
+/* Leaving after this season: seniors, and graduate or fifth-year runners. */
+const leaving=a=>{const c=classOf(a.yr);return c==="SR"||c==="GR";};
+function paceMi(sec,meters){return meters>0?sec/(meters/MILE):null;}
+function teamName(tid){return teamById[tid]?teamById[tid].name:"";}
+/* The finish mat, when the race has one in. */
+function finK(){const k=LASTK;return k&&MATL[k]==="Finish"?k:null;}
+/* The mats with times, with the start in front: the stretches of the course. */
+function segs(){const ks=[0,...MATS];const out=[];for(let i=1;i<ks.length;i++)out.push({from:ks[i-1],to:ks[i],label:(ks[i-1]===0?"Start":ML(ks[i-1]))+"–"+(MATL[ks[i]]==="Finish"?"Fin":ML(ks[i])),m:MATM[ks[i]]-MATM[ks[i-1]]});return out;}
+function segTime(a,s){const t1=a.cum[s.to],t0=s.from===0?0:a.cum[s.from];return t1!=null&&t0!=null&&t1>t0?t1-t0:null;}
+/* Each stretch ranked across the field: id -> rank, and the ordered list. */
+function segRanks(s){const rows=ATH.map(a=>({a,t:segTime(a,s)})).filter(r=>r.t!=null).sort((x,y)=>x.t-y.t);const rank={};rows.forEach((r,i)=>rank[r.a.id]=i+1);return{rows,rank};}
+function base(){return scoreOrder(FIN,byId);}
+function teamOf(sc,tid){return sc.teams.find(t=>t.team===tid)||null;}
+const matWord=k=>MATL[k]==="Finish"?"the finish":ML(k);
+function insP(host,html){const p=h("p","q");p.innerHTML=html;host.appendChild(p);return p;}
+const b=s=>"<b>"+String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))+"</b>";
+const NUMH=new Set(["PL","#","PTS","GAP","SPLIT","/MI","FINISH","SCORE","PLACE IN RACE"]);
+function headRow(t,cols){const hd=h("tr");cols.forEach(x=>hd.appendChild(h("th",NUMH.has(x)||/^1–/.test(x)?"num":null,x)));t.appendChild(h("thead")).appendChild(hd);}
+function insPanel(host,title,wide){const p=h("div","panel chart"+(wide===false?"":" wide"));if(title)p.appendChild(h("h3",null,title));host.appendChild(p);return p;}
+function teamCell(tid,label){const s=h("span","ins-team");if(showLogos())s.appendChild(teamLogo(tid,16));s.appendChild(teamLink(tid,label));return s;}
+
+function renderInsights(){
+  clearInterval(INS.matTimer);INS.matTimer=null;
+  const fk=finK();
+  if(!MATS.length||!fk||!FIN.length){emptyMsg("ins","Insights open once runners are across the finish — they tell the story of a race that has been run.");return;}
+  unempty("ins");
+  const host=$("#insBody");host.replaceChildren();
+  const sc=base();
+  const scoring=RACE.scoresTeams!==false&&sc.teams.length>0;
+  const official=SCORE[fk]&&SCORE[fk].teams.filter(t=>t.place!=null&&!t.short).sort((a,b)=>a.place-b.place);
+  const order=(official&&official.length?official.map(t=>t.team):sc.teams.map(t=>t.team));
+  if(!INS.team||!teamById[INS.team])INS.team=Object.keys(state.teams)[0]||order[0]||(ATH.find(a=>a.team)||{}).team||null;
+  const mine=INS.team;
+
+  // The picker and the jump bar.
+  const top=h("div","ins-top");
+  const sel=h("select","ins-sel");sel.setAttribute("aria-label","Your team");
+  const listed=[...order,...Object.keys(RACE.teamRoster||{}).filter(t=>!order.includes(t)&&teamById[t])];
+  listed.forEach(tid=>{const o=h("option",null,(order.includes(tid)?(order.indexOf(tid)+1)+". ":"")+teamName(tid)+(order.includes(tid)?"":" (no team score)"));o.value=tid;if(tid===mine)o.selected=true;sel.appendChild(o);});
+  sel.addEventListener("change",()=>{INS.team=sel.value;INS.card=null;INS.whatIf=null;INS.opp=null;renderInsights();});
+  const lab=h("label","ins-pick");lab.appendChild(h("span","eyebrow","My team"));lab.appendChild(sel);top.appendChild(lab);
+  top.appendChild(h("span","eyebrow",(RACE.status==="final"?"Final":"So far")+" · "+FIN.length+" finishers"));
+  host.appendChild(top);
+  const nav=h("div","seg ins-nav");const parts=[["race","The race"],["team","My team"],["match","Matchups"],["stand","Standout runs"],["big","Big picture"]].filter(p=>scoring||p[0]==="stand"||p[0]==="team");
+  parts.forEach(([id,label])=>{const bt=h("button",null,label);bt.type="button";bt.addEventListener("click",()=>{const t=$("#ins-"+id);if(t)t.scrollIntoView({behavior:"smooth",block:"start"});});nav.appendChild(bt);});
+  host.appendChild(nav);
+  if(RACE.status!=="final")host.appendChild(h("p","note","The race isn't final yet: this is worked out from the results so far."));
+
+  if(scoring)insRace(host,fk,official||[],order);
+  insTeam(host,fk,sc,mine,scoring);
+  if(scoring)insMatchups(host,sc,mine);
+  insStandout(host,fk,mine);
+  if(scoring)insBig(host,sc,mine);
+}
+
+/* ---------- The race ---------- */
+function insRace(host,fk,official,order){
+  const sec=h("section","ins-sec");sec.id="ins-race";host.appendChild(sec);
+  sec.appendChild(h("h2",null,"The race"));
+  const w=order[0],r=order[1];
+  const wT=official.find(t=>t.team===w),rT=official.find(t=>t.team===r);
+  if(w&&r&&wT&&rT){const gap=rT.score-wT.score;
+    insP(sec,gap>0?`${b(teamName(w))} won by ${gap} point${gap===1?"":"s"} over ${teamName(r)}.`:`${b(teamName(w))} won on the tiebreak over ${teamName(r)}: both scored ${wT.score}, and the 6th runner decided it.`);}
+  else if(w)insP(sec,`${b(teamName(w))} won.`);
+  const grid=h("div","chart-grid");sec.appendChild(grid);
+  const ks=MATS.filter(k=>SCORE[k]&&SCORE[k].teams.some(t=>t.place!=null&&!t.short));
+  // Where it was won.
+  if(ks.length>1&&w){
+    const p=insPanel(grid,"Where it was won");
+    const pl=tid=>ks.map(k=>[k,TPLACE[k][tid]]).filter(x=>x[1]!=null);
+    const wp=pl(w);const led=wp.length===ks.length&&wp.every(x=>x[1]===1);
+    let txt=led?`${b(teamName(w))} led at every mat.`:`${b(teamName(w))} was ${ord(wp[0]?wp[0][1]:0)} at ${ML(ks[0])} and won.`;
+    if(r){const rp=pl(r);let best=null;for(let i=1;i<rp.length;i++){const mv=rp[i-1][1]-rp[i][1];if(mv>0&&(!best||mv>best.mv))best={mv,from:rp[i-1][0],to:rp[i][0]};}
+      txt+=` ${b(teamName(r))} was ${ord(rp[0]?rp[0][1]:0)} at ${ML(ks[0])} and finished 2nd`+(best?`; its biggest move was ${best.mv} place${best.mv===1?"":"s"} between ${ML(best.from)} and ${matWord(best.to)}.`:".");}
+    insP(p,txt);
+    const others=order.slice(0,12);
+    const ser=others.map(tid=>{const key=tid===w?1:tid===r?2:0;return{name:teamName(tid),endLabel:key?(TPLACE[fk][tid]+" "+teamName(tid)):"",color:key?`var(--s${key})`:"var(--line-strong)",dim:!key,width:key?3:1.5,pts:pl(tid)};});
+    ser.sort((a,b2)=>(a.dim?0:1)-(b2.dim?0:1));
+    const mx=Math.max(10,...ser.flatMap(s=>s.pts.map(x=>x[1])));
+    const ch=h("div");p.appendChild(ch);
+    lineChart(ch,{w:cw(980,460),h:cw(300,300),mr:narrow()?110:170,aria:"Team place at each mat",x:{min:ks[0],max:fk,ticks:ks,fmt:v=>MATL[v]==="Finish"?"Fin":ML(v),tipFmt:v=>"At "+ML(v)},y:{min:1,max:mx,ticks:[1,...niceTicks(0,mx,6).filter(v=>v>1)],invert:true},series:ser,tipAll:true,tipVal:v=>ord(v)});
+    p.appendChild(h("p","note","Team place at each timing mat."));
+  }
+  // Mat by mat.
+  if(ks.length){
+    const p=insPanel(grid,"Mat by mat");
+    if(INS.matK==null||!ks.includes(INS.matK))INS.matK=fk;
+    const sum=h("p","q");p.appendChild(sum);
+    const bar=h("div","ins-row");const sg=h("div","seg");bar.appendChild(sg);const rp=h("button","chip","Replay");rp.type="button";bar.appendChild(rp);p.appendChild(bar);
+    const tb=h("div","ins-scroll");p.appendChild(tb);
+    const draw=()=>{
+      const k=INS.matK;segButtons(sg,ks.map(x=>[x,MATL[x]==="Finish"?"Fin":ML(x)]),k,v=>{INS.matK=v;clearInterval(INS.matTimer);INS.matTimer=null;draw();});
+      const ts=SCORE[k].teams.filter(t=>t.place!=null&&!t.short).sort((a,b2)=>a.place-b2.place);
+      const lead=ts[0];
+      sum.innerHTML=lead&&ts[1]?`At ${matWord(k)}, ${b(teamName(lead.team))} ${k===fk?"wins":"leads"} ${teamName(ts[1].team)} by ${ts[1].score-lead.score} points.`:"";
+      const prev=ks[ks.indexOf(k)-1];
+      const t=h("table","results-table ins-tbl");headRow(t,["PL","MOVE","TEAM","PTS","GAP"]);
+      const bd=h("tbody");t.appendChild(bd);
+      ts.slice(0,narrow()?8:12).forEach(tm=>{const tr=h("tr");if(tm.team===INS.team)tr.className="ins-me";
+        const was=prev!=null?TPLACE[prev][tm.team]:null;const mv=was!=null?was-tm.place:0;
+        tr.appendChild(h("td","num",String(tm.place)));
+        const m=h("td","ins-mv "+(mv>0?"up":mv<0?"down":""),mv>0?"▲"+mv:mv<0?"▼"+(-mv):"–");tr.appendChild(m);
+        const tc=h("td");tc.appendChild(teamCell(tm.team));tr.appendChild(tc);
+        tr.appendChild(h("td","num",String(tm.score)));tr.appendChild(h("td","num",tm===lead?"":"+"+(tm.score-lead.score)));bd.appendChild(tr);});
+      tb.replaceChildren(t);
+    };
+    rp.addEventListener("click",()=>{clearInterval(INS.matTimer);let i=0;INS.matK=ks[0];draw();INS.matTimer=setInterval(()=>{i++;if(i>=ks.length){clearInterval(INS.matTimer);INS.matTimer=null;return;}INS.matK=ks[i];draw();},1400);});
+    draw();
+    p.appendChild(h("p","note","Step through the team standings at each mat, or press Replay to watch the race unfold."));
+  }
+}
+
+/* ---------- My team ---------- */
+function insTeam(host,fk,sc,mine,scoring){
+  const sec=h("section","ins-sec");sec.id="ins-team";host.appendChild(sec);
+  if(!mine){sec.appendChild(h("h2",null,"My team"));insP(sec,"Pick a team above.");return;}
+  sec.appendChild(h("h2",null,teamName(mine)));
+  const runners=FIN.map(id=>byId[id]).filter(a=>a.team===mine);
+  const tm=teamOf(sc,mine);const off=SCORE[fk]&&SCORE[fk].teams.find(t=>t.team===mine&&t.place!=null&&!t.short);
+  if(tm&&off){const ts=tm.ids.slice(0,SC).map(id=>byId[id].cum[fk]);const sp=ts.length>=SC?ts[SC-1]-ts[0]:null;
+    insP(sec,`${b(teamName(mine))} finished ${ord(off.place)} with ${off.score} points`+(sp!=null?`; its top five were ${sp.toFixed(1)}s apart.`:"."));}
+  else insP(sec,`${b(teamName(mine))} had ${runners.length} finisher${runners.length===1?"":"s"}`+(scoring?`, short of the ${SC} a team needs to score.`:"."));
+  const grid=h("div","chart-grid");sec.appendChild(grid);
+  if(runners.length)insCard(grid,fk,sc,mine,runners);
+  if(scoring&&tm){insRibbons(grid,fk,sc,mine);insWhatIf(grid,sc,mine);insDisplacers(grid,sc,mine);}
+}
+
+/* The race card: one runner's day, drawn to an image to share. */
+function cardFacts(a,fk,sc){
+  const place=PLACE[fk][a.id],t=a.cum[fk],f=[];
+  const first=MATS[0]!==fk?MATS[0]:null;
+  if(first&&PLACE[first][a.id]){const pass=PLACE[first][a.id]-place;if(pass>0)f.push(`Passed ${pass} after ${ML(first)}`);else if(PLACE[first][a.id]===1&&place===1)f.push(`Led from ${ML(first)}`);}
+  const sg=segs();let best=null;sg.forEach(s=>{const rk=segRanks(s).rank[a.id];if(rk&&(!best||rk<best.rk))best={rk,label:s.label};});
+  if(best&&sg.length>1)f.push(`Best split ${best.label} · ${ord(best.rk)}`);
+  const c=classOf(a.yr);if(c){const same=FIN.map(id=>byId[id]).filter(x=>classOf(x.yr)===c);const at=same.findIndex(x=>x.id===a.id)+1;if(at)f.push(`${ord(at)} of ${same.length} ${CLASS_WORD[c][same.length===1?0:1]}`);}
+  const tm=a.team&&teamOf(sc,a.team);if(tm){const i=tm.ids.indexOf(a.id);if(i>=0&&i<SC)f.push(`Scorer #${i+1} · team ${ord(tm.place)}`);else if(i>=SC)f.push(`Displacer · team ${ord(tm.place)}`);}
+  return{place,t,facts:f,places:MATS.map(k=>[k,PLACE[k]&&PLACE[k][a.id]]).filter(x=>x[1])};
+}
+function drawCard(cv,a,fk,sc){
+  const S=2,W=360,H=480;cv.width=W*S;cv.height=H*S;const g=cv.getContext("2d");g.scale(S,S);
+  const t=teamById[a.team]||{};const col=t.color||"#e70518";
+  g.fillStyle="#0c1537";g.beginPath();if(g.roundRect)g.roundRect(0,0,W,H,18);else g.rect(0,0,W,H);g.fill();
+  g.fillStyle=col;g.fillRect(0,0,W,6);
+  const font=(w,s,f)=>`${w} ${s}px ${f||"Roboto, system-ui, sans-serif"}`;
+  g.fillStyle="#aab3cf";g.font=font(500,12);g.fillText(MEET.name||"",22,34);g.fillText(RACE.name+(MEET.date?" · "+MEET.date:""),22,52);
+  const fx=cardFacts(a,fk,sc);
+  g.fillStyle="#ffffff";g.font=font(700,26,"'Roboto Condensed', 'Arial Narrow', sans-serif");g.fillText(fitText(a.name,24),22,96);
+  g.fillStyle=col;g.fillRect(22,108,8,8);g.strokeStyle="rgba(255,255,255,.7)";g.lineWidth=1;g.strokeRect(22.5,108.5,7,7);g.fillStyle="#cfd5e6";g.font=font(500,13);g.fillText([teamName(a.team)||a.school,a.yr].filter(Boolean).join(" · "),36,116);
+  g.fillStyle="#ffffff";g.font=font(700,64,"'Roboto Condensed', 'Arial Narrow', sans-serif");const pl=String(fx.place);g.fillText(pl,22,196);
+  const pw=g.measureText(pl).width;g.font=font(700,20);g.fillText(ord(fx.place).slice(pl.length),24+pw,168);
+  g.font=font(700,24);g.fillText(fmt(fx.t,1),140,170);const pm=paceMi(fx.t,MATM[fk]);g.fillStyle="#aab3cf";g.font=font(500,12);if(pm)g.fillText(fmt(pm,0)+" per mile",140,190);
+  // Place at each mat.
+  const pts=fx.places;if(pts.length>1){const x0=30,x1=W-30,y0=226,y1=270;const mx=Math.max(...pts.map(p=>p[1])),mn=Math.min(...pts.map(p=>p[1]));
+    const X=i=>x0+i/(pts.length-1)*(x1-x0),Y=v=>mx===mn?(y0+y1)/2:y0+(v-mn)/(mx-mn)*(y1-y0);
+    g.strokeStyle="#ffffff";g.lineWidth=2;g.beginPath();pts.forEach((p,i)=>i?g.lineTo(X(i),Y(p[1])):g.moveTo(X(i),Y(p[1])));g.stroke();
+    g.fillStyle="#ffffff";pts.forEach((p,i)=>{g.beginPath();g.arc(X(i),Y(p[1]),3.5,0,7);g.fill();});
+    g.fillStyle="#aab3cf";g.font=font(500,11);pts.forEach((p,i)=>{const lab=(MATL[p[0]]==="Finish"?"Fin":ML(p[0]))+" "+p[1];const tw=g.measureText(lab).width;g.fillText(lab,Math.min(W-22-tw,Math.max(22,X(i)-tw/2)),292);});}
+  // The facts, as pills.
+  let x=22,y=322;g.font=font(500,12);fx.facts.forEach(f=>{const tw=g.measureText(f).width+18;if(x+tw>W-22){x=22;y+=32;}
+    g.fillStyle="#1d2a55";g.beginPath();if(g.roundRect)g.roundRect(x,y-16,tw,24,6);else g.rect(x,y-16,tw,24);g.fill();g.fillStyle="#e8ecf7";g.fillText(f,x+9,y+1);x+=tw+8;});
+  g.fillStyle="#79819c";g.font=font(600,10.5);g.fillText("LIVE RESULTS · PRIMETIME TIMING",22,H-22);
+}
+function insCard(grid,fk,sc,mine,runners){
+  const p=insPanel(grid,"Race card",false);
+  if(!INS.card||!runners.some(a=>a.id===INS.card))INS.card=runners[0].id;
+  const a=byId[INS.card];const fx=cardFacts(a,fk,sc);
+  const first=MATS[0]!==fk?MATS[0]:null;
+  insP(p,`A card to share. ${b(a.name)} finished ${ord(fx.place)} in ${fmt(fx.t,1)}`+(first&&PLACE[first][a.id]?`, from ${ord(PLACE[first][a.id])} at ${ML(first)}.`:"."));
+  const ch=h("div","chips");runners.slice(0,10).forEach(r=>{const bt=h("button","chip",r.name.split(" ").slice(-1)[0]);bt.type="button";bt.title=r.name;bt.setAttribute("aria-pressed",String(r.id===INS.card));bt.addEventListener("click",()=>{INS.card=r.id;renderInsights();requestAnimationFrame(()=>{const c=$("#ins-team");if(c)c.scrollIntoView({block:"start"});});});ch.appendChild(bt);});
+  p.appendChild(ch);
+  const cv=document.createElement("canvas");cv.className="ins-card";cv.setAttribute("role","img");cv.setAttribute("aria-label",`${a.name}: ${ord(fx.place)} in ${fmt(fx.t,1)}. ${fx.facts.join(". ")}`);p.appendChild(cv);
+  const draw=()=>drawCard(cv,a,fk,sc);draw();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(draw);
+  const sv=h("button","chip ins-save","Save image");sv.type="button";
+  sv.addEventListener("click",()=>{cv.toBlob(bl=>{if(!bl)return;const u=URL.createObjectURL(bl);const l=document.createElement("a");l.href=u;l.download=(a.name+" - "+RACE.name).replace(/[\\/:*?"<>|]+/g," ")+".png";document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);},"image/png");});
+  p.appendChild(sv);
+}
+
+/* Pack ribbons: a team's 1st to 5th at each mat, against its nearest rival. */
+function insRibbons(grid,fk,sc,mine){
+  const order=sc.teams.map(t=>t.team);const i=order.indexOf(mine);const rival=i===0?order[1]:order[i-1];
+  const ks=MATS;if(!rival)return;
+  const p=insPanel(grid,"Pack ribbons",false);
+  const teamAt=(tid,k)=>ORDER[k].filter(id=>byId[id].team===tid).slice(0,SC+DP);
+  const spread=(ids,k)=>ids.length>=SC?byId[ids[SC-1]].cum[k]-byId[ids[0]].cum[k]:null;
+  const sp=k=>spread(teamAt(mine,k),k);
+  const ksp=ks.filter(k=>sp(k)!=null);
+  let txt=`${b(teamName(mine))}'s 1–5 spread`;
+  if(ksp.length>1){txt+=` went from ${sp(ksp[0]).toFixed(1)}s at ${ML(ksp[0])} to ${sp(ksp[ksp.length-1]).toFixed(1)}s at ${matWord(ksp[ksp.length-1])}.`;
+    let big=null;for(let j=1;j<ksp.length;j++){const d=sp(ksp[j])-sp(ksp[j-1]);if(!big||Math.abs(d)>Math.abs(big.d))big={d,from:ksp[j-1],to:ksp[j]};}
+    if(big)txt+=` The biggest change came between ${ML(big.from)} and ${matWord(big.to)}, where the pack ${big.d>0?"stretched":"closed up"} by ${Math.abs(big.d).toFixed(1)}s.`;
+    const rs=spread(teamAt(rival,fk),fk);if(rs!=null)txt+=` ${teamName(rival)}: ${rs.toFixed(1)}s.`;}
+  else txt+=` at ${matWord(fk)} was ${(sp(fk)||0).toFixed(1)}s.`;
+  insP(p,txt);
+  const leg=h("div","ins-legend");[[mine,1],[rival,2]].forEach(([tid,s])=>{const x=h("span");const k=h("i");k.style.background=`var(--s${s})`;x.appendChild(k);x.appendChild(document.createTextNode(teamName(tid)));leg.appendChild(x);});p.appendChild(leg);
+  const maxPl=Math.max(...ks.flatMap(k=>[mine,rival].flatMap(t=>teamAt(t,k).map(id=>PLACE[k][id]))));
+  const W=cw(560,460),ml=40,mr=70,rowH=34,H=ks.length*rowH*2+40;const sx=v=>ml+Math.sqrt((v-1)/Math.max(1,maxPl-1))*(W-ml-mr);
+  const svg=el("svg",{viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":"Pack ribbons"},p);
+  const ax=el("g",{class:"axis"},svg);[1,5,10,25,50,100,150,250].filter(v=>v<=maxPl).forEach(v=>{el("line",{x1:sx(v),x2:sx(v),y1:6,y2:H-24},ax);el("text",{x:sx(v),y:H-8,"text-anchor":"middle"},ax,String(v));});
+  el("text",{x:W-mr+8,y:H-8,class:"lbl2"},svg,"Spread");
+  ks.forEach((k,r)=>{const y0=10+r*rowH*2;el("text",{x:0,y:y0+rowH,class:"lbl"},svg,MATL[k]==="Finish"?"Fin":ML(k));
+    [mine,rival].forEach((tid,j)=>{const ids=teamAt(tid,k);const y=y0+j*rowH*0.8+rowH*0.6;const col=`var(--s${j+1})`;
+      if(ids.length>=2){const a1=PLACE[k][ids[0]],a5=PLACE[k][ids[Math.min(SC,ids.length)-1]];el("rect",{x:sx(a1),y:y-5,width:Math.max(2,sx(a5)-sx(a1)),height:10,rx:5,style:`fill:${col};opacity:.22`},svg);}
+      ids.forEach((id,n)=>{const c=el("circle",{cx:sx(PLACE[k][id]),cy:y,r:4,style:n<SC?`fill:${col};stroke:${col}`:`fill:var(--surface);stroke:${col};stroke-width:1.5`},svg);c.addEventListener("mousemove",e=>showTip(e,byId[id].name,[{v:ord(PLACE[k][id]),l:"at "+ML(k)}]));c.addEventListener("mouseleave",hideTip);});
+      const s=spread(ids,k);el("text",{x:W-mr+8,y:y+4,class:"lbl2",style:`fill:${col}`},svg,s!=null?s.toFixed(1)+"s":"");});});
+  p.appendChild(h("p","note",`Each ribbon runs from the team's 1st to ${ord(SC)} runner at that mat. Filled dots score, hollow dots are the ${ord(SC+1)} and ${ord(SC+2)}; the numbers on the right are the 1–${SC} time spread.`));
+}
+
+/* What if? Move one runner and the whole race is scored again. */
+function insWhatIf(grid,sc,mine){
+  const p=insPanel(grid,"What if?",false);
+  const runners=FIN.map(id=>byId[id]).filter(a=>a.team===mine).slice(0,SC+DP);
+  if(!INS.whatIf||!runners.some(a=>a.id===INS.whatIf)){INS.whatIf=runners[Math.min(SC-1,runners.length-1)].id;INS.whatIfAt=null;}
+  insP(p,`Pick one of ${b(teamName(mine))}'s runners and drag. Every team in the race is scored again as you go, displacers included.`);
+  const ch=h("div","chips");runners.forEach(a=>{const bt=h("button","chip",FIN.indexOf(a.id)+1+" "+a.name.split(" ").slice(-1)[0]);bt.type="button";bt.title=a.name;bt.setAttribute("aria-pressed",String(a.id===INS.whatIf));bt.addEventListener("click",()=>{INS.whatIf=a.id;INS.whatIfAt=null;renderInsights();requestAnimationFrame(()=>{const c=$("#ins-whatif");if(c)c.scrollIntoView({block:"center"});});});ch.appendChild(bt);});p.appendChild(ch);
+  const who=byId[INS.whatIf];const was=FIN.indexOf(who.id)+1;
+  const rng=h("input","ins-range");rng.type="range";rng.min="1";rng.max=String(FIN.length);rng.value=String(INS.whatIfAt||was);rng.id="ins-whatif";rng.setAttribute("aria-label",`Finish place for ${who.name}`);
+  const lab=h("p","note");p.appendChild(rng);p.appendChild(lab);
+  const out=h("div","ins-wi");p.appendChild(out);
+  const baseT=teamOf(sc,mine);
+  const draw=()=>{
+    const at=Number(rng.value);INS.whatIfAt=at;
+    lab.textContent=at===was?`Drag to move ${who.name} (finished ${ord(was)}) up or down the finish order.`:`${who.name} finishes ${ord(at)} instead of ${ord(was)}.`;
+    const ord2=FIN.filter(id=>id!==who.id);ord2.splice(at-1,0,who.id);
+    const ns=scoreOrder(ord2,byId);const nt=teamOf(ns,mine);
+    const d=nt?nt.score-baseT.score:0,dp=nt?nt.place-baseT.place:0;
+    out.replaceChildren();
+    const tiles=h("div","ins-tiles");
+    tiles.appendChild(statTile("Team score",nt?nt.score:"–",d?Math.abs(d)+(d<0?" better":" worse"):"no change"));
+    tiles.appendChild(statTile("Team place",nt?ord(nt.place):"–",dp?(dp<0?"up "+(-dp):"down "+dp):"no change"));
+    out.appendChild(tiles);
+    const t=h("table","results-table ins-tbl");headRow(t,["PL","","TEAM","PTS"]);const bd=h("tbody");t.appendChild(bd);
+    const show=ns.teams.slice(0,7);if(nt&&!show.includes(nt))show.push(nt);
+    show.forEach(tm=>{const bt=teamOf(sc,tm.team);const mv=bt?bt.place-tm.place:0;const tr=h("tr");if(tm.team===mine)tr.className="ins-me";
+      tr.appendChild(h("td","num",String(tm.place)));tr.appendChild(h("td","ins-mv "+(mv>0?"up":mv<0?"down":""),mv>0?"▲"+mv:mv<0?"▼"+(-mv):""));
+      const tc=h("td");tc.appendChild(teamCell(tm.team));tr.appendChild(tc);const sd=bt?tm.score-bt.score:0;tr.appendChild(h("td","num",tm.score+(sd?(sd>0?" (+"+sd+")":" ("+sd+")"):"")));bd.appendChild(tr);});
+    out.appendChild(t);
+  };
+  rng.addEventListener("input",draw);draw();
+}
+
+/* Displacers: what each team's 6th and 7th did to everybody else. */
+function insDisplacers(grid,sc,mine){
+  const p=insPanel(grid,"Displacers",false);
+  const rows=sc.teams.map(tm=>{const dps=tm.ids.slice(SC);if(!dps.length)return{team:tm.team,add:0,changed:[]};
+    const ns=scoreOrder(FIN.filter(id=>!dps.includes(id)),byId);let add=0;const changed=[];
+    sc.teams.forEach(o=>{if(o.team===tm.team)return;const n=teamOf(ns,o.team);if(n){add+=o.score-n.score;if(n.place!==o.place)changed.push(o.team);}});
+    return{team:tm.team,add,changed,dps};}).sort((a,b2)=>b2.add-a.add);
+  const me=rows.find(r=>r.team===mine);
+  if(me&&me.dps&&me.dps.length){const rk=rows.findIndex(r=>r.team===mine)+1;
+    insP(p,`${b(teamName(mine))}'s ${me.dps.length===1?ord(SC+1)+" runner":ord(SC+1)+" and "+ord(SC+2)+" runners"} (${me.dps.map(id=>byId[id].name.split(" ").slice(-1)[0]+" "+ord(FIN.indexOf(id)+1)).join(", ")}) added ${me.add} point${me.add===1?"":"s"} to other teams' scores, ${ord(rk)} most in the race.`+(me.changed.length?` Without them, ${me.changed.map(teamName).join(", ")} would have placed differently.`:" They didn't change any team's place."));}
+  else insP(p,`${b(teamName(mine))} had no ${ord(SC+1)} or ${ord(SC+2)} runner to displace anybody.`);
+  const ch=rows.filter(r=>r.changed.length);
+  p.appendChild(h("p","note",ch.length?ch.map(r=>`${teamName(r.team)}'s displacers changed the places of ${r.changed.map(teamName).join(", ")}.`).join(" "):`No team's ${ord(SC+1)} and ${ord(SC+2)} runners changed the order of the teams in this race.`));
+  const list=rows.filter(r=>r.add>0).slice(0,12);const mx=Math.max(1,...list.map(r=>r.add));
+  const bars=h("div","ins-bars");list.forEach(r=>{const row=h("div","ins-bar"+(r.team===mine?" ins-me":""));row.appendChild(h("span","nm",teamName(r.team)));const tr=h("span","tr");const f=h("i");f.style.width=(r.add/mx*100)+"%";tr.appendChild(f);row.appendChild(tr);row.appendChild(h("span","num",String(r.add)));bars.appendChild(row);});
+  p.appendChild(bars);p.appendChild(h("p","note",`Points each team's ${ord(SC+1)} and ${ord(SC+2)} runners added to other teams' scores.`));
+}
+
+/* ---------- Matchups: every pair of teams as a dual meet ---------- */
+function dual(a,c){const s=scoreOrder(FIN.filter(id=>{const t=byId[id].team;return t===a||t===c;}),byId);const A=teamOf(s,a),C=teamOf(s,c);return A&&C?{a:A,c:C,win:A.place===1,sc:s}:null;}
+function insMatchups(host,sc,mine){
+  const sec=h("section","ins-sec");sec.id="ins-match";host.appendChild(sec);
+  sec.appendChild(h("h2",null,"Matchups"));
+  const teams=sc.teams.map(t=>t.team);
+  const M={};teams.forEach(a=>{M[a]={};});
+  for(let i=0;i<teams.length;i++)for(let j=i+1;j<teams.length;j++){const d=dual(teams[i],teams[j]);if(!d)continue;M[teams[i]][teams[j]]=d;M[teams[j]][teams[i]]={a:d.c,c:d.a,win:!d.win,sc:d.sc};}
+  const plc=tid=>teamOf(sc,tid).place;
+  const against=[];teams.forEach(a=>teams.forEach(c=>{const d=M[a][c];if(d&&d.win&&plc(a)>plc(c))against.push({a,c,d});}));
+  against.sort((x,y)=>plc(x.c)-plc(y.c));
+  const rec=tid=>{let w=0,l=0;teams.forEach(o=>{const d=M[tid][o];if(d){if(d.win)w++;else l++;}});return[w,l];};
+  const [w,l]=mine&&M[mine]?rec(mine):[0,0];
+  let txt=mine&&M[mine]?`${b(teamName(mine))} goes ${w}–${l} in dual meets against this field.`:"";
+  txt+=` Across the field, ${against.length} matchup${against.length===1?" goes":"s go"} against the team standings.`;
+  if(against[0])txt+=` The highest-placed: ${teamName(against[0].a)} beats ${teamName(against[0].c)} ${against[0].d.a.score}–${against[0].d.c.score}.`;
+  const p=insPanel(sec,"Every team as a dual meet");insP(p,txt.trim());
+  const confs={};teams.forEach(t=>{const c=teamById[t]&&teamById[t].conference;if(c)(confs[c]=confs[c]||[]).push(t);});
+  const myConf=mine&&teamById[mine]&&teamById[mine].conference;const hasConf=myConf&&confs[myConf]&&confs[myConf].length>=2;
+  const sg=h("div","seg");p.appendChild(sg);const body=h("div");p.appendChild(body);
+  const views=[["field","Vs the field"],["h2h","Head to head"],...(hasConf?[["conf","Conference"]]:[])];
+  if(!views.some(v=>v[0]===INS.mv))INS.mv="field";
+  const draw=()=>{segButtons(sg,views,INS.mv,v=>{INS.mv=v;draw();});body.replaceChildren();
+    if(!mine||!M[mine]){body.appendChild(h("p","note",`${teamName(mine)||"This team"} doesn't have ${SC} finishers, so it has no dual meets.`));return;}
+    if(INS.mv==="field"){
+      const t=h("table","results-table ins-tbl");headRow(t,["PL","OPPONENT","MARGIN","SCORE"]);const bd=h("tbody");t.appendChild(bd);
+      const opp=teams.filter(o=>o!==mine&&M[mine][o]);
+      opp.forEach(o=>{const d=M[mine][o];const tr=h("tr","ins-click");tr.tabIndex=0;tr.appendChild(h("td","num",String(plc(o))));const tc=h("td");tc.appendChild(teamCell(o));tr.appendChild(tc);
+        const mg=h("td");const bar=h("span","ins-margin");const f=h("i");const m=d.c.score-d.a.score;f.style.width=Math.min(50,Math.abs(m)/30*50)+"%";f.className=m>0?"w":"l";bar.appendChild(f);mg.appendChild(bar);tr.appendChild(mg);
+        tr.appendChild(h("td","num ins-score "+(d.win?"w":"l"),(d.win?"W ":"L ")+d.a.score+"–"+d.c.score));
+        const go=()=>{INS.opp=o;INS.mv="h2h";draw();};tr.addEventListener("click",go);tr.addEventListener("keydown",e=>{if(e.key==="Enter")go();});bd.appendChild(tr);});
+      const sc2=h("div","ins-scroll");sc2.appendChild(t);body.appendChild(sc2);
+      body.appendChild(h("p","note","Tap a row to see that dual meet runner by runner."));
+      const tg=h("button","chip",INS.grid?"Hide every matchup":"Show every matchup");tg.type="button";tg.addEventListener("click",()=>{INS.grid=!INS.grid;draw();});body.appendChild(tg);
+      if(INS.grid){const gw=h("div","ins-scroll");const gt=h("table","ins-grid");const hr=h("tr");hr.appendChild(h("th"));teams.forEach(c=>{const th=h("th",null,teamById[c].abbr);th.title=teamName(c);hr.appendChild(th);});gt.appendChild(hr);
+        teams.forEach(a=>{const tr=h("tr");const th=h("th",null,teamName(a));tr.appendChild(th);teams.forEach(c=>{const d=M[a][c];const td=h("td",d?(d.win?"w":"l"):"x",d?(d.win?"W":"L"):"");if(d)td.title=`${teamName(a)} ${d.a.score}, ${teamName(c)} ${d.c.score}`;tr.appendChild(td);});gt.appendChild(tr);});
+        gw.appendChild(gt);body.appendChild(gw);}
+    } else if(INS.mv==="h2h"){
+      const opp=teams.filter(o=>o!==mine&&M[mine][o]);if(!INS.opp||!opp.includes(INS.opp))INS.opp=opp[0];
+      const s2=h("select","ins-sel");s2.setAttribute("aria-label","Opponent");opp.forEach(o=>{const op=h("option",null,plc(o)+". "+teamName(o));op.value=o;if(o===INS.opp)op.selected=true;s2.appendChild(op);});s2.addEventListener("change",()=>{INS.opp=s2.value;draw();});body.appendChild(s2);
+      const d=M[mine][INS.opp];if(!d)return;
+      insP(body,`${b(teamName(d.win?mine:INS.opp))} wins ${Math.min(d.a.score,d.c.score)}–${Math.max(d.a.score,d.c.score)}`+(d.a.score===d.c.score?" on the tiebreak.":"."));
+      const t=h("table","results-table ins-tbl");headRow(t,["PL","RUNNER","TEAM","PLACE IN RACE","PTS"]);const bd=h("tbody");t.appendChild(bd);
+      FIN.filter(id=>{const tt=byId[id].team;return tt===mine||tt===INS.opp;}).forEach(id=>{const a=byId[id];const pts=d.sc.pts[id];const tm=teamOf(d.sc,a.team);const i=tm?tm.ids.indexOf(id):-1;if(i<0)return;
+        const tr=h("tr");if(a.team===mine)tr.className="ins-me";tr.appendChild(h("td","num",pts!=null?String(pts):""));const nc=h("td");nc.appendChild(nameBtn(a));tr.appendChild(nc);const tc=h("td");tc.appendChild(teamCell(a.team,teamById[a.team].abbr));tr.appendChild(tc);
+        tr.appendChild(h("td","num",ord(FIN.indexOf(id)+1)));tr.appendChild(h("td","num",i<SC?String(pts):"("+pts+")"));bd.appendChild(tr);});
+      const s3=h("div","ins-scroll");s3.appendChild(t);body.appendChild(s3);
+    } else {
+      const ct=confs[myConf];const cs=scoreOrder(FIN.filter(id=>ct.includes(byId[id].team)),byId);
+      insP(body,`${b(myConf)}: the ${ct.length} conference teams here, scored as a meet of their own.`);
+      const t=h("table","results-table ins-tbl");headRow(t,["PL","TEAM","PTS","1–"+SC]);const bd=h("tbody");t.appendChild(bd);
+      cs.teams.forEach(tm=>{const tr=h("tr");if(tm.team===mine)tr.className="ins-me";tr.appendChild(h("td","num",String(tm.place)));const tc=h("td");tc.appendChild(teamCell(tm.team));tr.appendChild(tc);tr.appendChild(h("td","num",String(tm.score)));tr.appendChild(h("td","num",tm.ids.slice(0,SC).map(id=>cs.pts[id]).join("-")));bd.appendChild(tr);});
+      body.appendChild(t);
+    }
+  };
+  draw();
+  p.appendChild(h("p","note",`Each matchup is scored with only those teams' runners: the top ${SC} score, the ${ord(SC+1)} and ${ord(SC+2)} can displace, and the ${ord(SC+1)} runner breaks a tie.`));
+}
+
+/* ---------- Standout runs ---------- */
+function insStandout(host,fk,mine){
+  const sec=h("section","ins-sec");sec.id="ins-stand";host.appendChild(sec);
+  sec.appendChild(h("h2",null,"Standout runs"));
+  const win=byId[FIN[0]];insP(sec,`${b(win.name)} won in ${fmt(win.cum[fk],1)}.`+(segs().length>1?" Here's who ran each stretch fastest.":""));
+  const sg=segs();if(!sg.length)return;
+  if(INS.seg==null||INS.seg>=sg.length)INS.seg=sg.length-1;
+  const grid=h("div","chart-grid");sec.appendChild(grid);
+  const p=insPanel(grid,"Segment leaderboards");const sum=h("p","q");p.appendChild(sum);const sb=h("div","seg");p.appendChild(sb);const body=h("div","ins-scroll");p.appendChild(body);
+  const draw=()=>{const s=sg[INS.seg];segButtons(sb,sg.map((x,i)=>[i,x.label]),INS.seg,v=>{INS.seg=v;draw();});
+    const {rows}=segRanks(s);const top=rows[0];
+    if(top){const a=top.a;const fromPl=s.from&&PLACE[s.from]?PLACE[s.from][a.id]:null;const fin=FIN.indexOf(a.id)+1;
+      sum.innerHTML=`${b(a.name)} (${teamName(a.team)||a.school}) ran the ${s.label} segment in ${fmt(top.t,1)}, fastest in the field.`+(fromPl?` ${a.name.split(" ")[0]} was ${ord(fromPl)} at ${ML(s.from)} and finished ${ord(fin)}.`:fin?` ${a.name.split(" ")[0]} finished ${ord(fin)}.`:"");}
+    const t=h("table","results-table ins-tbl");headRow(t,["#","RUNNER","SPLIT","/MI","FINISH"]);const bd=h("tbody");t.appendChild(bd);
+    rows.slice(0,10).forEach((r,i)=>{const tr=h("tr");if(r.a.team===mine)tr.className="ins-me";tr.appendChild(h("td","num",String(i+1)));const nc=h("td");nc.appendChild(nameBtn(r.a));nc.appendChild(h("div","meta",teamName(r.a.team)||r.a.school));tr.appendChild(nc);
+      tr.appendChild(h("td","num",fmt(r.t,1)));const pm=paceMi(r.t,s.m);tr.appendChild(h("td","num",pm?fmt(pm,0):""));const fp=FIN.indexOf(r.a.id)+1;tr.appendChild(h("td","num",fp?ord(fp):"–"));bd.appendChild(tr);});
+    body.replaceChildren(t);};
+  draw();
+  if(mine&&sg.length>1){
+    const p2=insPanel(grid,`${teamName(mine)}, segment by segment`);
+    const rk=sg.map(s=>segRanks(s).rank);const n=ATH.length;
+    const t=h("table","ins-heat");const hr=h("tr");hr.appendChild(h("th"));sg.forEach(s=>hr.appendChild(h("th",null,s.label.split("–")[1])));t.appendChild(hr);
+    FIN.map(id=>byId[id]).filter(a=>a.team===mine).slice(0,SC+DP).forEach(a=>{const tr=h("tr");const th=h("th");th.appendChild(h("span","num",String(FIN.indexOf(a.id)+1)+" "));th.appendChild(nameBtn(a));tr.appendChild(th);
+      rk.forEach(r=>{const v=r[a.id];const td=h("td",null,v?String(v):"–");if(v){const f=1-Math.min(1,(v-1)/Math.max(1,n*0.6));td.style.background=`color-mix(in srgb, var(--accent) ${Math.round(15+f*80)}%, var(--surface))`;if(f>0.55)td.style.color="var(--accent-ink)";}tr.appendChild(td);});t.appendChild(tr);});
+    const w2=h("div","ins-scroll");w2.appendChild(t);p2.appendChild(w2);
+    p2.appendChild(h("p","note","Each split is ranked across the whole field, so every stretch of the course is compared like for like. Darker is faster."));
+  }
+}
+
+/* ---------- Big picture ---------- */
+function insBig(host,sc,mine){
+  const sec=h("section","ins-sec");sec.id="ins-big";host.appendChild(sec);
+  sec.appendChild(h("h2",null,"Big picture"));
+  insP(sec,"How the result compares with what was expected, and a look ahead to next season.");
+  const grid=h("div","chart-grid");sec.appendChild(grid);
+  // Upset meter.
+  const ranked=sc.teams.map(t=>({t,rk:teamRankings(t.team,RACE.gender)})).filter(x=>x.rk&&x.rk.national&&x.rk.national.rank!=null).map(x=>({team:x.t.team,place:x.t.place,rank:x.rk.national.rank}));
+  if(ranked.length>=3){
+    const p=insPanel(grid,"Upset meter",false);
+    const byRank=[...ranked].sort((a,c)=>a.rank-c.rank),byFin=[...ranked].sort((a,c)=>a.place-c.place);
+    byRank.forEach((x,i)=>x.ri=i+1);byFin.forEach((x,i)=>x.fi=i+1);ranked.forEach(x=>x.d=x.ri-x.fi);
+    const up=[...ranked].sort((a,c)=>c.d-a.d)[0],dn=[...ranked].sort((a,c)=>a.d-c.d)[0];
+    let txt="";if(up&&up.d>1)txt+=`${b(teamName(up.team))} came in ranked ${ord(up.ri)} of the ${ranked.length} ranked teams here (#${up.rank}) and finished ${ord(up.fi)} of them, the biggest upset.`;
+    if(dn&&dn.d<-1)txt+=` ${b(teamName(dn.team))} came in ranked ${ord(dn.ri)} (#${dn.rank}) and finished ${ord(dn.fi)} of them.`;
+    const me=ranked.find(x=>x.team===mine);if(me)txt+=` ${teamName(mine)}: ${me.d>0?me.d+" better than ranked":me.d<0?(-me.d)+" worse than ranked":"as ranked"}.`;
+    insP(p,txt.trim()||"The ranked teams finished close to their rankings.");
+    const leg=h("div","ins-legend");[["var(--up)","Beat its ranking"],["var(--down)","Below its ranking"],["var(--line-strong)","Within one place"]].forEach(([c,l])=>{const x=h("span");const k=h("i");k.style.background=c;x.appendChild(k);x.appendChild(document.createTextNode(l));leg.appendChild(x);});p.appendChild(leg);
+    const n=ranked.length,W=cw(560,460),rowH=narrow()?20:22,H=30+n*rowH,xl=40,xr=W-(narrow()?150:190);
+    const svg=el("svg",{viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":"Ranked against finished"},p);
+    el("text",{x:0,y:12,class:"lbl2"},svg,"Ranked");el("text",{x:xr,y:12,class:"lbl2"},svg,"Finished");
+    const Y=i=>24+(i-0.5)*rowH;
+    ranked.sort((a,c)=>(a.team===mine)-(c.team===mine)).forEach(x=>{const col=Math.abs(x.d)<=1?"var(--line-strong)":x.d>0?"var(--up)":"var(--down)";const me2=x.team===mine;
+      el("line",{x1:xl,y1:Y(x.ri),x2:xr,y2:Y(x.fi),style:`stroke:${col};stroke-width:${me2?3:1.5}`},svg);
+      el("circle",{cx:xl,cy:Y(x.ri),r:me2?4:3,style:`fill:${col}`},svg);el("circle",{cx:xr,cy:Y(x.fi),r:me2?4:3,style:`fill:${col}`},svg);
+      el("text",{x:xl-6,y:Y(x.ri)+4,"text-anchor":"end",class:"lbl2",style:me2?"font-weight:700":""},svg,"#"+x.rank);
+      el("text",{x:xr+8,y:Y(x.fi)+4,class:"lbl",style:me2?"font-weight:700":""},svg,fitText(teamName(x.team),narrow()?14:20)+(Math.abs(x.d)>1?" "+(x.d>0?"+":"−")+Math.abs(x.d):""));});
+    const unr=sc.teams.filter(t=>!ranked.some(x=>x.team===t.team)).map(t=>teamName(t.team));
+    p.appendChild(h("p","note","Based on the USTFCCCA national poll."+(unr.length?" Not ranked: "+unr.join(", ")+".":"")));
+  }
+  // Next year's race.
+  const p=insPanel(grid,"Next year's race",ranked.length>=3?false:undefined);
+  const ns=scoreOrder(FIN.filter(id=>!leaving(byId[id])),byId);
+  const me=teamOf(ns,mine),was=teamOf(sc,mine);
+  const lost=sc.teams.filter(t=>!teamOf(ns,t.team)).length;
+  const meSr=was?was.ids.slice(0,SC).filter(id=>leaving(byId[id])).length:0;
+  let txt="";
+  if(ns.teams[0])txt+=`Without seniors, ${b(teamName(ns.teams[0].team))} ${ns.teams[0].team===sc.teams[0].team?"would still win":"would win"} this race with ${ns.teams[0].score}.`;
+  if(was)txt+=me?` ${teamName(mine)} has ${meSr?meSr+" senior"+(meSr===1?"":"s"):"no seniors"} among its ${SC} scorers and would place ${ord(me.place)}.`:` ${teamName(mine)} couldn't field ${SC} without its seniors.`;
+  if(lost)txt+=` ${lost} team${lost===1?"":"s"} couldn't field ${SC}.`;
+  insP(p,txt.trim());
+  const leg=h("div","ins-legend");p.appendChild(h("span","note","Class of each team's top "+(SC+DP)+":"));["FR","SO","JR","SR"].forEach(c=>{const x=h("span");const k=h("i","cl-"+c);x.appendChild(k);x.appendChild(document.createTextNode(c));leg.appendChild(x);});p.appendChild(leg);
+  const t=h("table","results-table ins-tbl");headRow(t,["PL","","TEAM","TOP "+(SC+DP)+" THIS YEAR","PTS"]);const bd=h("tbody");t.appendChild(bd);
+  const show=ns.teams.slice(0,10);if(me&&!show.includes(me))show.push(me);
+  show.forEach(tm=>{const bt=teamOf(sc,tm.team);const mv=bt?bt.place-tm.place:0;const tr=h("tr");if(tm.team===mine)tr.className="ins-me";
+    tr.appendChild(h("td","num",String(tm.place)));tr.appendChild(h("td","ins-mv "+(mv>0?"up":mv<0?"down":""),mv>0?"▲"+mv:mv<0?"▼"+(-mv):""));const tc=h("td");tc.appendChild(teamCell(tm.team));tr.appendChild(tc);
+    const cl=h("td");const box=h("span","ins-cls");(bt?bt.ids:[]).forEach(id=>{const c=classOf(byId[id].yr)||"x";const i=h("i","cl-"+(c==="GR"?"SR":c));i.title=byId[id].name+" · "+(byId[id].yr||"?");box.appendChild(i);});cl.appendChild(box);tr.appendChild(cl);
+    tr.appendChild(h("td","num",String(tm.score)));bd.appendChild(tr);});
+  const w=h("div","ins-scroll");w.appendChild(t);p.appendChild(w);
+  p.appendChild(h("p","note","This race without its seniors. Transfers and redshirts aren't counted."));
+}
+function renderAll(){teamChips($("#teamChips"));if(state.view==="events")renderEvents();if(state.view==="results")renderResults();if(state.view==="compare")renderCompare();if(state.view==="teams")renderTeams();if(state.view==="insights")renderInsights();if(state.view==="replay")drawReplay(true);}
 $("#kmlBtn").addEventListener("click",()=>$("#kmlFile").click());
 $("#kmlFile").addEventListener("change",e=>{const f=e.target.files[0];if(f)loadCourseFile(f);e.target.value="";});
 $("#sampleCourse").addEventListener("click",()=>{USER_COURSE=false;useBuiltin();try{localStorage.removeItem("xcRaceLab.kml");}catch(e){}buildMap();drawReplay(true);});
