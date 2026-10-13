@@ -111,6 +111,8 @@ interface FormData {
   genderTerms?: 'boys_girls' | 'men_women';
   races: Race[];
   teamName: string;
+  /** The meet's sign-up for coach texts, with this school picked; null before it has one. */
+  textsUrl?: string | null;
   roster: RosterAthlete[];
   declarations: Declaration[];
   finalized?: Finalization[];
@@ -506,10 +508,18 @@ export default function DeclarePage() {
               and where the coach was in it — stays put. */}
           <div className="flex items-baseline justify-between gap-3">
             <h1 className="text-xl font-bold text-white truncate">{data.teamName}</h1>
-            <a href="/declare/help" target="_blank" rel="noopener"
-              className="shrink-0 text-xs text-blue-400 hover:text-blue-300 underline-offset-2 hover:underline">
-              How this works
-            </a>
+            <span className="shrink-0 flex items-baseline gap-3">
+              {data.textsUrl && (
+                <a href={data.textsUrl} target="_blank" rel="noopener"
+                  className="text-xs text-blue-400 hover:text-blue-300 underline-offset-2 hover:underline">
+                  Get text updates
+                </a>
+              )}
+              <a href="/declare/help" target="_blank" rel="noopener"
+                className="text-xs text-blue-400 hover:text-blue-300 underline-offset-2 hover:underline">
+                How this works
+              </a>
+            </span>
           </div>
 
           {(soonest || closedCount > 0) && (

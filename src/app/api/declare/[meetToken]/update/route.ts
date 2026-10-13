@@ -64,7 +64,7 @@ interface TeamPayload {
 // only for a runner the coach has not answered for, the same rule publish
 // follows — otherwise a republish would quietly take back what the coach said.
 //
-// Returns: { updated: true, newTeams: [{ teamId, teamName, teamToken }], dashboardToken, returnsToken }
+// Returns: { updated: true, newTeams: [{ teamId, teamName, teamToken }], dashboardToken, returnsToken, contactsToken }
 
 export async function POST(
   request: NextRequest,
@@ -99,6 +99,7 @@ export async function POST(
     // one that has one keeps it, as every link here does.
     const dashboardToken = session.dashboardToken ?? randomBytes(16).toString('hex');
     const returnsToken = session.returnsToken ?? randomBytes(16).toString('hex');
+    const contactsToken = session.contactsToken ?? randomBytes(16).toString('hex');
     await db.update(meetDeclarationSessions).set({
       meetName,
       meetDate: meetDate ?? null,
@@ -106,6 +107,7 @@ export async function POST(
       racesJson: JSON.stringify(races),
       dashboardToken,
       returnsToken,
+      contactsToken,
       updatedAt: new Date(),
     }).where(eq(meetDeclarationSessions.id, session.id));
     const orgs = await knownOrganizations(teams.map((t) => t.organizationId));
@@ -159,7 +161,7 @@ export async function POST(
       }
     }
 
-    return NextResponse.json({ updated: true, newTeams, dashboardToken, returnsToken });
+    return NextResponse.json({ updated: true, newTeams, dashboardToken, returnsToken, contactsToken });
   } catch (error) {
     console.error('Declaration update error:', error);
     return NextResponse.json({ error: 'Failed to update the declaration session' }, { status: 500 });

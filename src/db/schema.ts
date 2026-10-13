@@ -570,6 +570,13 @@ export const meetDeclarationSessions = pgTable('meet_declaration_sessions', {
    */
   returnsToken: text('returns_token').unique(),
 
+  /**
+   * The coach sign-up link (/declare/coaches/{token}): one link for every
+   * coach in the meet, to leave their mobile for the meet's texts. Its own
+   * token, since it goes to everybody and must open nothing else.
+   */
+  contactsToken: text('contacts_token').unique(),
+
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => [
@@ -713,6 +720,39 @@ export const declarationBibReturns = pgTable('declaration_bib_returns', {
 }, (table) => [
   index('idx_bib_returns_session').on(table.meetSessionId, table.createdAt),
   index('idx_bib_returns_athlete').on(table.teamAccessId, table.athleteId),
+]);
+
+// ═══════════════════════════════════════════════════════════
+// Cross Country Declarations — Coaches signed up for texts
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * A coach who signed up on the meet's sign-up link for its texts, with what
+ * they agreed to and when. The desk pulls these into its own list of each
+ * school's coaches and sends the texts from there.
+ */
+export const declarationCoachContacts = pgTable('declaration_coach_contacts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  meetSessionId: uuid('meet_session_id').notNull()
+    .references(() => meetDeclarationSessions.id, { onDelete: 'cascade' }),
+  teamAccessId: uuid('team_access_id').notNull()
+    .references(() => teamDeclarationAccess.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  role: text('role'),
+  email: text('email').notNull(),
+  /** E.164: +15551234567. */
+  phone: text('phone').notNull(),
+  consentText: text('consent_text').notNull(),
+  optedInAt: timestamp('opted_in_at', { withTimezone: true }).notNull().defaultNow(),
+  /** The confirming text: 'sent' | 'failed' | 'opted_out' | 'not_configured'. */
+  confirmStatus: text('confirm_status'),
+  confirmId: text('confirm_id'),
+  confirmError: text('confirm_error'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  uniqueIndex('idx_coach_contacts_team_phone').on(table.teamAccessId, table.phone),
+  index('idx_coach_contacts_session').on(table.meetSessionId),
 ]);
 
 // ═══════════════════════════════════════════════════════════

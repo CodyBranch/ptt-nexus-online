@@ -87,12 +87,15 @@ export async function POST(request: NextRequest) {
     const dashboardToken = randomBytes(16).toString('hex');
     // The bib-return desk's link: the staff page, and what TagTool calls.
     const returnsToken = randomBytes(16).toString('hex');
+    // The coach sign-up link, for the meet's texts: see the schema's note.
+    const contactsToken = randomBytes(16).toString('hex');
     const orgs = await knownOrganizations(teams.map((t) => t.organizationId));
 
     const [session] = await db.insert(meetDeclarationSessions).values({
       meetToken,
       dashboardToken,
       returnsToken,
+      contactsToken,
       meetName,
       meetDate: meetDate ?? null,
       genderTerms: genderTerms === 'men_women' ? 'men_women' : 'boys_girls',
@@ -146,6 +149,7 @@ export async function POST(request: NextRequest) {
       meetToken,
       dashboardToken,
       returnsToken,
+      contactsToken,
       sessionId: session.id,
       teams: insertedTeams.map((t) => ({
         teamId: t.teamId,
