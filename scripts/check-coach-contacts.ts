@@ -101,7 +101,7 @@ async function main() {
   const unauth = await pull.GET(new NextRequest('http://x'), pctx);
   ok('the desk pull needs the desk key', unauth.status === 401);
   const p = await pull.GET(new NextRequest('http://x', { headers: { Authorization: 'Bearer check-relay-key' } }), pctx);
-  const pj2 = await p.json() as { contacts: Array<{ teamId: string; name: string; phone: string; role: string; optedInAt: string; updatedAt: string }> };
+  const pj2 = await p.json() as { contacts: Array<{ id: string; teamId: string; name: string; phone: string; role: string; optedInAt: string; updatedAt: string }> };
   ok("the desk gets each sign-up under its own team id", p.status === 200 && pj2.contacts.length === 2 && pj2.contacts.every((c) => c.teamId === 'T-WEST' && c.optedInAt && c.updatedAt),
     pj2.contacts.map((c) => `${c.teamId}:${c.name}`));
 
