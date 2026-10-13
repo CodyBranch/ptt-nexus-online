@@ -13,9 +13,34 @@ interface Props {
   meetName: string;
   meetDate: string | null;
   consent: string;
-  schools: Array<{ id: string; name: string }>;
+  schools: School[];
   roles: string[];
   initialTeam: string | null;
+}
+
+interface School { id: string; name: string; logoUrl: string | null; logoDarkUrl: string | null; primaryColor: string | null }
+
+/** The school's logo, or its initials on its color when it has none (or it will not load). */
+function SchoolMark({ school, size = 36 }: { school: School; size?: number }) {
+  const src = school.logoDarkUrl || school.logoUrl;
+  const [failed, setFailed] = useState(false);
+  const box = { width: size, height: size };
+  if (!src || failed) {
+    const initials = school.name.replace(/^(The|University of)\s+/i, '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+    const bg = school.primaryColor && /^#?[0-9a-f]{6}$/i.test(school.primaryColor) ? (school.primaryColor.startsWith('#') ? school.primaryColor : `#${school.primaryColor}`) : null;
+    return (
+      <span style={{ ...box, background: bg ?? undefined }}
+        className={`inline-flex shrink-0 items-center justify-center rounded-md text-xs font-bold ${bg ? 'text-white' : 'bg-gray-800 text-gray-400'}`}>
+        {initials}
+      </span>
+    );
+  }
+  return (
+    <span style={box} className={`inline-flex shrink-0 items-center justify-center rounded-md overflow-hidden p-1 ${school.logoDarkUrl ? 'bg-gray-800' : 'bg-white'}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- logos come from storage and school sites */}
+      <img src={src} alt="" loading="lazy" className="max-w-full max-h-full object-contain" onError={() => setFailed(true)} />
+    </span>
+  );
 }
 
 /** As the server reads it: ten US digits however typed, or + and a country code. */
@@ -129,11 +154,12 @@ export default function SignupView({ token, meetName, meetDate, consent, schools
         ) : (
           <>
             <section className="rounded-xl border border-gray-800 bg-gray-900 p-4">
-              <h2 className="text-sm font-semibold text-gray-300 mb-2">Your school</h2>
+              <h2 className="text-sm font-semibold text-gray-300 mb-2"><span className="text-blue-400">1.</span> Choose your school</h2>
               {team ? (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-base font-semibold text-white">{team.name}</span>
-                  <button onClick={() => { setTeamId(null); setQuery(''); }} className="text-sm text-blue-400 hover:text-blue-300">Change</button>
+                <div className="flex items-center gap-3">
+                  <SchoolMark school={team} size={44} />
+                  <span className="min-w-0 flex-1 text-base font-semibold text-white">{team.name}</span>
+                  <button onClick={() => { setTeamId(null); setQuery(''); }} className="shrink-0 text-sm text-blue-400 hover:text-blue-300">Change</button>
                 </div>
               ) : (
                 <>
@@ -142,7 +168,10 @@ export default function SignupView({ token, meetName, meetDate, consent, schools
                   <ul className="mt-2 max-h-72 overflow-auto divide-y divide-gray-800 rounded-lg border border-gray-800">
                     {matches.map((s) => (
                       <li key={s.id}>
-                        <button onClick={() => setTeamId(s.id)} className="w-full text-left px-3 py-2.5 text-base text-gray-200 hover:bg-gray-800">{s.name}</button>
+                        <button onClick={() => setTeamId(s.id)} className="w-full text-left px-3 py-2 flex items-center gap-3 text-base text-gray-200 hover:bg-gray-800 active:bg-gray-800">
+                          <SchoolMark school={s} />
+                          <span className="min-w-0 truncate">{s.name}</span>
+                        </button>
                       </li>
                     ))}
                     {matches.length === 0 && <li className="px-3 py-2.5 text-sm text-gray-500">No school by that name in this meet. Ask the meet office.</li>}
@@ -152,8 +181,15 @@ export default function SignupView({ token, meetName, meetDate, consent, schools
               )}
             </section>
 
+            {!team && (
+              <section className="rounded-xl border border-gray-800 bg-gray-900/50 p-4" aria-disabled="true">
+                <h2 className="text-sm font-semibold text-gray-500"><span>2.</span> Your details</h2>
+                <p className="text-sm text-gray-500 mt-1">Choose your school first.</p>
+              </section>
+            )}
             {team && (
               <section className="rounded-xl border border-gray-800 bg-gray-900 p-4 space-y-4">
+                <h2 className="text-sm font-semibold text-gray-300 -mb-1"><span className="text-blue-400">2.</span> Your details</h2>
                 <div>
                   <label className="block text-sm text-gray-300 mb-1" htmlFor="name">Name</label>
                   <input id="name" value={name} onChange={(e) => setName(e.target.value)} onBlur={() => setTouched((t) => ({ ...t, name: true }))}

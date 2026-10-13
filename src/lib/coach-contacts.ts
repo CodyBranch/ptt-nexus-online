@@ -13,7 +13,7 @@
  */
 
 import { db } from '@/db/client';
-import { meetDeclarationSessions, teamDeclarationAccess } from '@/db/schema';
+import { meetDeclarationSessions, teamDeclarationAccess, organizations } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
 /** The roles offered; any other can be typed. */
@@ -29,11 +29,26 @@ export async function contactsSession(token: string) {
   return session ?? null;
 }
 
-/** The schools a coach can pick, by name. Their access id, never their form's token. */
-export async function contactsSchools(sessionId: string): Promise<Array<{ id: string; name: string }>> {
-  const rows = await db.select({ id: teamDeclarationAccess.id, name: teamDeclarationAccess.teamName })
-    .from(teamDeclarationAccess).where(eq(teamDeclarationAccess.meetSessionId, sessionId));
-  return rows.sort((a, b) => a.name.localeCompare(b.name));
+export interface ContactsSchool {
+  id: string;
+  name: string;
+  /** From the school's Nexus Online organization, when the desk matched one. */
+  logoUrl: string | null;
+  logoDarkUrl: string | null;
+  primaryColor: string | null;
+}
+
+/** The schools a coach can pick, by name, with their logos. Their access id, never their form's token. */
+export async function contactsSchools(sessionId: string): Promise<ContactsSchool[]> {
+  const rows = await db.select({
+    id: teamDeclarationAccess.id, name: teamDeclarationAccess.teamName,
+    logoUrl: organizations.logoUrl, logoDarkUrl: organizations.logoDarkUrl, primaryColor: organizations.primaryColor,
+  })
+    .from(teamDeclarationAccess)
+    .leftJoin(organizations, eq(organizations.id, teamDeclarationAccess.organizationId))
+    .where(eq(teamDeclarationAccess.meetSessionId, sessionId));
+  return rows.map((r) => ({ ...r, logoUrl: r.logoUrl ?? null, logoDarkUrl: r.logoDarkUrl ?? null, primaryColor: r.primaryColor ?? null }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** E.164 for a mobile: ten US digits however typed, or + and a country code. Null when it is not one. */
