@@ -206,8 +206,17 @@ export async function scratchFromScan(session: Session, id: string): Promise<boo
   return true;
 }
 
-/** Each scratched runner's bib: back (and when), or still out. */
-export async function returnState(sessionId: string): Promise<Map<string, string>> {
+/**
+ * Each scratched runner's bib: back (and when), or still out.
+ *
+ * `evenIfRunning`: every bib the meet office has, scratched or not - for the
+ * coach's own form. A bib handed in before the coach marked the runner Not
+ * running is on the table already, and the form told the coach to hand it
+ * in; a runner still marked running whose bib was handed in is told to
+ * collect it. The dashboard and the desk count returns of scratched runners
+ * only, as before.
+ */
+export async function returnState(sessionId: string, opts: { evenIfRunning?: boolean } = {}): Promise<Map<string, string>> {
   // A bib scanned in before the coach scratched the runner was filed as
   // 'not_scratched' and never counted: when the coach then scratched them
   // online - rather than staff pressing "Scratch and accept" - the portal,
@@ -226,7 +235,7 @@ export async function returnState(sessionId: string): Promise<Map<string, string
   for (const r of rows) {
     if (!r.t || !r.a || !r.at) continue;
     const key = `${r.t}|${r.a}`;
-    if (r.status === 'not_scratched' && !scratched.has(key)) continue;
+    if (r.status === 'not_scratched' && !scratched.has(key) && !opts.evenIfRunning) continue;
     const at = r.at.toISOString();
     // The first scan is when it came back.
     if (!out.has(key) || at < out.get(key)!) out.set(key, at);

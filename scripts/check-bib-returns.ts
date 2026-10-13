@@ -28,6 +28,10 @@ async function main() {
   await answer('a1', 'declared');
   const first = await R.recordReturn(session, '101', { via: 'manual' });
   ok('handed in before the scratch: kept, not yet counted', first.status === 'not_scratched' && !(await R.returnState(sessionId)).has(`${team}|a1`), first.message);
+  // The coach's own form sees it already, so marking Not running says the
+  // bib is back rather than asking for it (and a runner still running is
+  // told to collect it).
+  ok("the coach's form knows the bib is in hand before the scratch", (await R.returnState(sessionId, { evenIfRunning: true })).has(`${team}|a1`));
   const again = await R.recordReturn(session, '101', { via: 'manual' });
   ok('scanned again: already in hand', again.status === 'already_returned', again.message);
   await answer('a1', 'scratched');

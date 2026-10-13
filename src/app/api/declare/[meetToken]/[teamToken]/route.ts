@@ -85,7 +85,8 @@ export async function GET(
         raceId: f.raceId,
         finalizedAt: f.finalizedAt,
       })),
-      bibsReturned: [...(await returnState(session.id)).entries()]
+      // Every bib the office has, scratched yet or not: see returnState.
+      bibsReturned: [...(await returnState(session.id, { evenIfRunning: true })).entries()]
         .filter(([k]) => k.startsWith(`${access.id}|`))
         .map(([k, returnedAt]) => ({ athleteId: k.slice(access.id.length + 1), returnedAt })),
     });
