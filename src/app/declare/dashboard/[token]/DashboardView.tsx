@@ -201,7 +201,7 @@ export default function DashboardView({ token, initial }: { token: string; initi
       <style>{SCROLL_CSS}</style>
       {/* ── Masthead ── */}
       <header className="shrink-0 border-b border-white/10 bg-[#0c1537]">
-        <div className="mx-auto max-w-7xl px-4 py-3 sm:py-4 flex flex-wrap items-center gap-x-6 gap-y-2">
+        <div className="w-full px-4 lg:px-6 py-3 sm:py-4 flex flex-wrap items-center gap-x-6 gap-y-2">
           {/* eslint-disable-next-line @next/next/no-img-element -- a static brand image */}
           <img src="/live/primetime-on-dark.png" alt="PrimeTime Timing" className="h-5 sm:h-7 w-auto" />
           {/* Under the logo on a phone, beside it from there up. */}
@@ -221,7 +221,9 @@ export default function DashboardView({ token, initial }: { token: string; initi
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl px-4 py-5 space-y-5 lg:space-y-0 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col lg:gap-5">
+      {/* The whole width of the display: on the big screen at the desk, more
+          schools a row rather than a column down the middle. */}
+      <main className="w-full px-4 lg:px-6 py-5 space-y-5 lg:space-y-0 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col lg:gap-5">
         {/* ── The numbers ── */}
         <section className="shrink-0 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
           {[
@@ -241,7 +243,7 @@ export default function DashboardView({ token, initial }: { token: string; initi
           ))}
         </section>
 
-        <div className="grid gap-5 lg:grid-cols-[1fr_20rem] lg:flex-1 lg:min-h-0">
+        <div className="grid gap-5 lg:grid-cols-[1fr_20rem] 2xl:grid-cols-[1fr_24rem] lg:flex-1 lg:min-h-0">
           <div className="min-w-0 space-y-3 lg:space-y-0 lg:min-h-0 lg:flex lg:flex-col lg:gap-3">
             {/* ── Which view ── */}
             <div className="flex flex-wrap items-center gap-2">
@@ -272,8 +274,11 @@ export default function DashboardView({ token, initial }: { token: string; initi
 
             <div className="dash-scroll lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1.5">
             {tab === 'schools' ? (
-              // Dense, so a school opened across both columns leaves no hole beside the one before it.
-              <div className="grid gap-3 md:grid-cols-2 grid-flow-row-dense">
+              // As many columns as the display holds, none narrower than a
+              // school's card reads at: one on a phone, two on a laptop, four
+              // or five on the big screen at the desk. Dense, so a school
+              // opened across the full row leaves no hole beside the one before it.
+              <div className="grid gap-3 grid-flow-row-dense" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 22rem), 1fr))' }}>
                 {teams.length === 0 && <p className="text-sm text-gray-500">No schools match.</p>}
                 {teams.map((t) => {
                   const state = schoolState(t);
@@ -281,8 +286,8 @@ export default function DashboardView({ token, initial }: { token: string; initi
                   const isOpen = open.has(t.id);
                   return (
                     <article key={t.id}
-                      className={`rounded-lg border bg-white/[0.03] transition-colors duration-700 ${fresh.has(t.id) ? 'border-emerald-400/60 bg-emerald-400/[0.06]' : 'border-white/10'} ${isOpen ? 'md:col-span-2' : ''}`}
-                      style={{ boxShadow: `inset 4px 0 0 ${accent}` }}>
+                      className={`rounded-lg border bg-white/[0.03] transition-colors duration-700 ${fresh.has(t.id) ? 'border-emerald-400/60 bg-emerald-400/[0.06]' : 'border-white/10'} `}
+                      style={{ boxShadow: `inset 4px 0 0 ${accent}`, ...(isOpen ? { gridColumn: '1 / -1' } : {}) }}>
                       <button onClick={() => toggle(t.id)} aria-expanded={isOpen} className="w-full text-left px-3 sm:px-4 py-3 flex items-center gap-3">
                         <Logo team={t} />
                         <div className="min-w-0 flex-1">
