@@ -231,6 +231,30 @@ export default function DeclarePage() {
     return () => { cancelled = true; if (retry) clearTimeout(retry); };
   }, [meetToken, teamToken]);
 
+  /**
+   * The bibs the meet office has, read again. Loaded once, the form kept
+   * saying "Hand bib in" for a bib handed in while it was open - or handed in
+   * before the coach marked the runner Not running - until the page was
+   * reloaded. Only the bibs are taken from the answer: what the coach is in
+   * the middle of choosing is theirs, not the server's.
+   */
+  const refreshBibs = useCallback(async () => {
+    try {
+      const res = await request(`/api/declare/${meetToken}/${teamToken}`);
+      if (!res.ok) return;
+      const json = await res.json() as FormData;
+      setData((d) => (d ? { ...d, bibsReturned: json.bibsReturned } : d));
+    } catch { /* no signal: the next try will do */ }
+  }, [meetToken, teamToken]);
+
+  // Every 20 s while the form is on screen, and when the phone comes back to it.
+  useEffect(() => {
+    const t = setInterval(() => { if (document.visibilityState === 'visible') void refreshBibs(); }, 20_000);
+    const back = () => { if (document.visibilityState === 'visible') void refreshBibs(); };
+    document.addEventListener('visibilitychange', back);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', back); };
+  }, [refreshBibs]);
+
   const save = useCallback(async (athleteId: string, choice: Choice, before: Choice = { kind: 'none' }) => {
     if (choice.kind === 'none') return;
     setSaving((s) => ({ ...s, [athleteId]: true }));
@@ -258,6 +282,8 @@ export default function DeclarePage() {
       const bad = !res.ok || (json.rejected?.length ?? 0) > 0;
       setFailed((f) => ({ ...f, [athleteId]: bad }));
       setError(bad ? 'That change was not accepted. Reload and try again.' : null);
+      // Marked Not running: the bib may already be at the meet office.
+      if (!bad && choice.kind === 'scratched') void refreshBibs();
     } catch {
       // Marked on the row itself, not only in a banner at the top: on a phone
       // the banner is off screen by the time a coach has scrolled to the next
@@ -267,7 +293,7 @@ export default function DeclarePage() {
     } finally {
       setSaving((s) => ({ ...s, [athleteId]: false }));
     }
-  }, [meetToken, teamToken]);
+  }, [meetToken, teamToken, refreshBibs]);
 
   /**
    * Say this school is done with one race, or take that back.
