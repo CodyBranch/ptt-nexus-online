@@ -43,6 +43,19 @@ function SchoolMark({ school, size = 36 }: { school: School; size?: number }) {
   );
 }
 
+/** A step's heading: its number in a badge (a tick once done), the title, and a rule under it. */
+function StepHeading({ n, title, done = false, off = false }: { n: number; title: string; done?: boolean; off?: boolean }) {
+  return (
+    <h2 className={`flex items-center gap-2.5 pb-3 mb-4 border-b border-gray-800 text-base font-semibold ${off ? 'text-gray-500' : 'text-white'}`}>
+      <span className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+        off ? 'bg-gray-800 text-gray-500' : done ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'}`}>
+        {done ? '\u2713' : n}
+      </span>
+      {title}
+    </h2>
+  );
+}
+
 /** As the server reads it: ten US digits however typed, or + and a country code. */
 function phoneOk(raw: string): boolean {
   const s = raw.trim();
@@ -154,7 +167,7 @@ export default function SignupView({ token, meetName, meetDate, consent, schools
         ) : (
           <>
             <section className="rounded-xl border border-gray-800 bg-gray-900 p-4">
-              <h2 className="text-sm font-semibold text-gray-300 mb-2"><span className="text-blue-400">1.</span> Choose your school</h2>
+              <StepHeading n={1} title="Choose your school" done={!!team} />
               {team ? (
                 <div className="flex items-center gap-3">
                   <SchoolMark school={team} size={44} />
@@ -183,13 +196,14 @@ export default function SignupView({ token, meetName, meetDate, consent, schools
 
             {!team && (
               <section className="rounded-xl border border-gray-800 bg-gray-900/50 p-4" aria-disabled="true">
-                <h2 className="text-sm font-semibold text-gray-500"><span>2.</span> Your details</h2>
-                <p className="text-sm text-gray-500 mt-1">Choose your school first.</p>
+                <StepHeading n={2} title="Your details" off />
+                <p className="text-sm text-gray-500">Choose your school first.</p>
               </section>
             )}
             {team && (
-              <section className="rounded-xl border border-gray-800 bg-gray-900 p-4 space-y-4">
-                <h2 className="text-sm font-semibold text-gray-300 -mb-1"><span className="text-blue-400">2.</span> Your details</h2>
+              <section className="rounded-xl border border-gray-800 bg-gray-900 p-4">
+                <StepHeading n={2} title="Your details" />
+                <div className="space-y-4">
                 <div>
                   <label className="block text-sm text-gray-300 mb-1" htmlFor="name">Name</label>
                   <input id="name" value={name} onChange={(e) => setName(e.target.value)} onBlur={() => setTouched((t) => ({ ...t, name: true }))}
@@ -229,6 +243,7 @@ export default function SignupView({ token, meetName, meetDate, consent, schools
                   className="w-full rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-4 py-3 text-base font-semibold text-white">
                   {busy ? 'Signing up…' : 'Sign up for texts'}
                 </button>
+                </div>
               </section>
             )}
             <p className="text-xs text-gray-500">
