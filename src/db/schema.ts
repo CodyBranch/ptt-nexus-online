@@ -577,6 +577,9 @@ export const meetDeclarationSessions = pgTable('meet_declaration_sessions', {
    */
   contactsToken: text('contacts_token').unique(),
 
+  /** Whether each school's form asks the coach to sign up for the texts. Set by the desk. */
+  textSignup: boolean('text_signup').notNull().default(true),
+
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => [

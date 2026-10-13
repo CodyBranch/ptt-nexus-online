@@ -70,6 +70,8 @@ export async function POST(request: NextRequest) {
       genderTerms?: string;
       races: RacePayload[];
       teams: TeamPayload[];
+      /** Ask each school's coach to sign up for the meet's texts on their form. */
+      textSignup?: boolean;
     };
 
     const { meetName, meetDate, genderTerms, races, teams } = body;
@@ -96,6 +98,7 @@ export async function POST(request: NextRequest) {
       dashboardToken,
       returnsToken,
       contactsToken,
+      textSignup: body.textSignup !== false,
       meetName,
       meetDate: meetDate ?? null,
       genderTerms: genderTerms === 'men_women' ? 'men_women' : 'boys_girls',

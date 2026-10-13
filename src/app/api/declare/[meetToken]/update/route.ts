@@ -82,6 +82,8 @@ export async function POST(
       genderTerms?: string;
       races: RacePayload[];
       teams: TeamPayload[];
+      /** Ask each school's coach to sign up for the meet's texts on their form. Left as it was when not sent. */
+      textSignup?: boolean;
     };
     const { meetName, meetDate, genderTerms, races, teams } = body;
 
@@ -108,6 +110,7 @@ export async function POST(
       dashboardToken,
       returnsToken,
       contactsToken,
+      ...(typeof body.textSignup === 'boolean' ? { textSignup: body.textSignup } : {}),
       updatedAt: new Date(),
     }).where(eq(meetDeclarationSessions.id, session.id));
     const orgs = await knownOrganizations(teams.map((t) => t.organizationId));

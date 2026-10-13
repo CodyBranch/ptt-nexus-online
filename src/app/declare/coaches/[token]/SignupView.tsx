@@ -81,7 +81,12 @@ export default function SignupView({ token, meetName, meetDate, consent, schools
         body: JSON.stringify({ teamId: team.id, name, role: roleValue, email, phone, consent: agreed }),
       });
       const json = await res.json().catch(() => ({})) as { saved?: boolean; confirm?: string; teamName?: string; phone?: string; error?: string; problems?: Record<string, string> };
-      if (res.ok && json.saved) { setDone({ confirm: json.confirm ?? 'sent', teamName: json.teamName ?? team.name, phone: json.phone ?? phone }); return; }
+      if (res.ok && json.saved) {
+        // The school's declaration form stops offering the sign-up on this phone.
+        try { localStorage.setItem(`coachTexts:/declare/coaches/${token}?team=${team.id}`, 'signed'); } catch { /* the form offers it again */ }
+        setDone({ confirm: json.confirm ?? 'sent', teamName: json.teamName ?? team.name, phone: json.phone ?? phone });
+        return;
+      }
       setProblems(json.problems ?? {});
       setError(json.error ?? 'Could not save that. Try again.');
     } catch {

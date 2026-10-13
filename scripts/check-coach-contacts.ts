@@ -38,6 +38,8 @@ async function main() {
   const { eq } = await import('drizzle-orm');
   const signup = await import('@/app/api/declare/coaches/[token]/route');
   const pull = await import('@/app/api/declare/[meetToken]/coaches/route');
+  const one = await import('@/app/api/declare/[meetToken]/coaches/[id]/route');
+  const update = await import('@/app/api/declare/[meetToken]/update/route');
   const publish = await import('@/app/api/declare/publish/route');
 
   let fail = 0;
@@ -109,6 +111,36 @@ async function main() {
   const f = await team.GET(new NextRequest('http://x'), { params: Promise.resolve({ meetToken: session.meetToken, teamToken: access.teamToken }) });
   const fj = await f.json() as { textsUrl?: string };
   ok("the school's form links to the sign-up, the school picked", fj.textsUrl === `/declare/coaches/${token}?team=${west}`, fj.textsUrl);
+
+  // The desk turns the form's invitation off, and on again, with an update.
+  const upd = (textSignup?: boolean) => update.POST(new NextRequest('http://x', {
+    method: 'POST', headers: { Authorization: 'Bearer check-relay-key', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ meetName: 'Texts Invitational', races: [{ id: 'r1', name: 'Girls 5K', gender: 'F' }], teams: [{ id: 'T-WEST', name: 'Westview', roster: [] }, { id: 'T-EAST', name: 'Eastland', roster: [] }], ...(textSignup === undefined ? {} : { textSignup }) }),
+  }), { params: Promise.resolve({ meetToken: session.meetToken }) });
+  const formUrl = async () => ((await (await team.GET(new NextRequest('http://x'), { params: Promise.resolve({ meetToken: session.meetToken, teamToken: access.teamToken }) })).json()) as { textsUrl?: string | null }).textsUrl;
+  await upd(false);
+  ok('turned off at the desk: the form does not ask', (await formUrl()) === null);
+  await upd();
+  ok('an update from a desk that does not say leaves it as it was', (await formUrl()) === null);
+  await upd(true);
+  ok('turned on again: the form asks', (await formUrl()) === `/declare/coaches/${token}?team=${west}`);
+
+  // The desk corrects and removes a sign-up.
+  const dana = pj2.contacts.find((c) => c.name === 'Dana Brooks')!;
+  const octx = (id: string) => ({ params: Promise.resolve({ meetToken: session.meetToken, id }) });
+  const patch = (id: string, body: unknown, auth = true) => one.PATCH(new NextRequest('http://x', {
+    method: 'PATCH', headers: { ...(auth ? { Authorization: 'Bearer check-relay-key' } : {}), 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  }), octx(id));
+  ok('a correction needs the desk key', (await patch(dana.id, { name: 'X' }, false)).status === 401);
+  ok('a correction is checked: a bad email refused', (await patch(dana.id, { email: 'nope' })).status === 422);
+  ok('another coach at the school already has that mobile: refused', (await patch(dana.id, { phone: STOPPED })).status === 409);
+  const fixed = await patch(dana.id, { name: 'Dana Brooks-Lee', role: 'Head Coach', email: 'dbl@westview.example', phone: '555.555.0112' });
+  const fj2 = await fixed.json() as { contact: { name: string; phone: string; updatedAt: string } };
+  ok('corrected: saved, the mobile as E.164, a new time for the desk', fixed.status === 200 && fj2.contact.name === 'Dana Brooks-Lee' && fj2.contact.phone === '+15555550112' && fj2.contact.updatedAt > dana.updatedAt, fj2.contact);
+  const del = await one.DELETE(new NextRequest('http://x', { method: 'DELETE', headers: { Authorization: 'Bearer check-relay-key' } }), octx(dana.id));
+  ok('removed: deleted here, name, email, mobile and consent', del.status === 200 && (await db.select().from(declarationCoachContacts).where(eq(declarationCoachContacts.id, dana.id))).length === 0);
+  const again = await one.DELETE(new NextRequest('http://x', { method: 'DELETE', headers: { Authorization: 'Bearer check-relay-key' } }), octx(dana.id));
+  ok('removing again is not an error (the desk can finish its own)', again.status === 200);
 
   await db.delete(meetDeclarationSessions).where(eq(meetDeclarationSessions.id, session.id));
   server.close();

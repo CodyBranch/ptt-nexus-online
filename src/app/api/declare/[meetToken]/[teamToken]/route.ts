@@ -73,7 +73,8 @@ export async function GET(
       races: JSON.parse(session.racesJson),
       teamName: access.teamName,
       // The meet's sign-up for coach texts, with this school already picked.
-      textsUrl: session.contactsToken ? `/declare/coaches/${session.contactsToken}?team=${access.id}` : null,
+      // Only when the desk has asked for it.
+      textsUrl: session.contactsToken && session.textSignup ? `/declare/coaches/${session.contactsToken}?team=${access.id}` : null,
       roster: JSON.parse(access.rosterJson),
       // Only athletes the coach (or the desktop) has answered for appear here.
       // Anything absent is undecided, which the form shows as such.

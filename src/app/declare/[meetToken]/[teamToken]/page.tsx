@@ -593,6 +593,8 @@ export default function DeclarePage() {
           </div>
         )}
 
+        {data.textsUrl && <TextsInvite url={data.textsUrl} />}
+
         {/* One card per race: how many are in it, and whether this school
             has closed it. Closing one leaves every other race alone. */}
         <div className="space-y-2 mb-4">
@@ -805,6 +807,41 @@ export default function DeclarePage() {
           The meet office sees your answers as you make them.
         </p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The meet's texts, offered at the top of the form when the desk asks for
+ * it: weather, schedule changes and declaration reminders on the coach's
+ * phone. Gone once this phone has signed up (the sign-up page says so), or
+ * once the coach has hidden it.
+ */
+function TextsInvite({ url }: { url: string }) {
+  const key = `coachTexts:${url}`;
+  const [hidden, setHidden] = useState(true);
+  useEffect(() => {
+    try { setHidden(!!localStorage.getItem(key)); } catch { setHidden(false); }
+  }, [key]);
+  if (hidden) return null;
+  const hide = () => {
+    setHidden(true);
+    try { localStorage.setItem(key, 'hidden'); } catch { /* shown again next time */ }
+  };
+  return (
+    <div className="mb-4 rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-blue-100">Get the meet&rsquo;s texts</p>
+          <p className="text-xs text-blue-200/70 mt-0.5">Weather, schedule changes and declaration reminders, sent to your phone.</p>
+        </div>
+        <button type="button" onClick={hide} aria-label="Hide"
+          className="shrink-0 -mr-1 -mt-1 h-8 w-8 rounded-lg text-blue-200/60 hover:text-blue-100 hover:bg-white/5 text-lg leading-none">&times;</button>
+      </div>
+      <a href={url} target="_blank" rel="noopener"
+        className="mt-2.5 flex min-h-[40px] items-center justify-center rounded-lg bg-blue-600 hover:bg-blue-500 px-4 text-sm font-semibold text-white touch-manipulation">
+        Sign up for texts
+      </a>
     </div>
   );
 }
