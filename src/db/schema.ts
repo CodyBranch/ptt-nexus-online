@@ -580,6 +580,14 @@ export const meetDeclarationSessions = pgTable('meet_declaration_sessions', {
   /** Whether each school's form asks the coach to sign up for the texts. Set by the desk. */
   textSignup: boolean('text_signup').notNull().default(true),
 
+  /**
+   * The clerks' page (/declare/clerk/{token}): races, boxes and every
+   * runner's status, as the desk last sent them (JSON), and when.
+   */
+  clerkToken: text('clerk_token').unique(),
+  clerkJson: text('clerk_json'),
+  clerkUpdatedAt: timestamp('clerk_updated_at', { withTimezone: true }),
+
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => [

@@ -102,6 +102,7 @@ export async function POST(
     const dashboardToken = session.dashboardToken ?? randomBytes(16).toString('hex');
     const returnsToken = session.returnsToken ?? randomBytes(16).toString('hex');
     const contactsToken = session.contactsToken ?? randomBytes(16).toString('hex');
+    const clerkToken = session.clerkToken ?? randomBytes(16).toString('hex');
     await db.update(meetDeclarationSessions).set({
       meetName,
       meetDate: meetDate ?? null,
@@ -110,6 +111,7 @@ export async function POST(
       dashboardToken,
       returnsToken,
       contactsToken,
+      clerkToken,
       ...(typeof body.textSignup === 'boolean' ? { textSignup: body.textSignup } : {}),
       updatedAt: new Date(),
     }).where(eq(meetDeclarationSessions.id, session.id));
@@ -164,7 +166,7 @@ export async function POST(
       }
     }
 
-    return NextResponse.json({ updated: true, newTeams, dashboardToken, returnsToken, contactsToken });
+    return NextResponse.json({ updated: true, newTeams, dashboardToken, returnsToken, contactsToken, clerkToken });
   } catch (error) {
     console.error('Declaration update error:', error);
     return NextResponse.json({ error: 'Failed to update the declaration session' }, { status: 500 });

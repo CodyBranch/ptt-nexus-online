@@ -91,6 +91,8 @@ export async function POST(request: NextRequest) {
     const returnsToken = randomBytes(16).toString('hex');
     // The coach sign-up link, for the meet's texts: see the schema's note.
     const contactsToken = randomBytes(16).toString('hex');
+    // The clerks' page: races, boxes and every runner's status, for officials.
+    const clerkToken = randomBytes(16).toString('hex');
     const orgs = await knownOrganizations(teams.map((t) => t.organizationId));
 
     const [session] = await db.insert(meetDeclarationSessions).values({
@@ -98,6 +100,7 @@ export async function POST(request: NextRequest) {
       dashboardToken,
       returnsToken,
       contactsToken,
+      clerkToken,
       textSignup: body.textSignup !== false,
       meetName,
       meetDate: meetDate ?? null,
@@ -153,6 +156,7 @@ export async function POST(request: NextRequest) {
       dashboardToken,
       returnsToken,
       contactsToken,
+      clerkToken,
       sessionId: session.id,
       teams: insertedTeams.map((t) => ({
         teamId: t.teamId,
