@@ -7,8 +7,9 @@
  */
 
 import { db } from '@/db/client';
-import { meetDeclarationSessions, organizations } from '@/db/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { meetDeclarationSessions, organizations, athleteHeadshots } from '@/db/schema';
+import { and, eq, inArray, ne } from 'drizzle-orm';
+import { headshotNameKey, seasonYear } from '@/lib/headshots/name-key';
 
 export type ClerkStatus = 'declared' | 'entered' | 'checked_in' | 'scratched' | 'dns' | 'dnf' | 'dq' | 'unentered';
 
@@ -37,7 +38,8 @@ export interface ClerkView {
   races: ClerkSnapshot['races'];
   teams: ClerkTeam[];
   boxes: ClerkSnapshot['boxes'];
-  athletes: ClerkSnapshot['athletes'];
+  /** As the desk sent them, with a headshot where Nexus Online has one for the school. */
+  athletes: Array<ClerkSnapshot['athletes'][number] & { photoUrl?: string | null }>;
 }
 
 /** The biggest picture kept: a meet of several thousand runners is well under it. */
@@ -70,6 +72,25 @@ export async function clerkView(session: NonNullable<Awaited<ReturnType<typeof c
       .from(organizations).where(inArray(organizations.id, orgIds))
     : [];
   const orgOf = new Map(orgs.map((o) => [o.id, o]));
+
+  // Headshots: this season first, last season for anyone without one yet -
+  // the same order the dashboard and the desk use.
+  const season = seasonYear(snap.meetDate ?? session.meetDate) ?? new Date().getFullYear();
+  const shots = orgs.length
+    ? await db.select({ organizationId: athleteHeadshots.organizationId, nameKey: athleteHeadshots.nameKey, season: athleteHeadshots.season, cutoutPath: athleteHeadshots.cutoutPath })
+      .from(athleteHeadshots).where(and(
+        inArray(athleteHeadshots.organizationId, orgs.map((o) => o.id)),
+        inArray(athleteHeadshots.season, [season, season - 1]),
+        ne(athleteHeadshots.status, 'hidden'),
+      ))
+    : [];
+  const photo = new Map<string, string>();
+  for (const s of shots.sort((a, b) => b.season - a.season)) {
+    const k = `${s.organizationId}|${s.nameKey}`;
+    if (s.cutoutPath && !photo.has(k)) photo.set(k, `/headshots/${s.cutoutPath}?w=160`);
+  }
+  const orgOfTeam = new Map(snap.teams.map((t) => [t.id, t.organizationId && orgOf.has(t.organizationId) ? t.organizationId : null]));
+
   return {
     meetName: snap.meetName || session.meetName,
     meetDate: snap.meetDate ?? session.meetDate,
@@ -85,6 +106,10 @@ export async function clerkView(session: NonNullable<Awaited<ReturnType<typeof c
       };
     }),
     boxes: snap.boxes,
-    athletes: snap.athletes,
+    athletes: snap.athletes.map((a) => {
+      const org = a.teamId ? orgOfTeam.get(a.teamId) : null;
+      const url = org ? photo.get(`${org}|${headshotNameKey(a.firstName, a.lastName)}`) : undefined;
+      return url ? { ...a, photoUrl: url } : a;
+    }),
   };
 }

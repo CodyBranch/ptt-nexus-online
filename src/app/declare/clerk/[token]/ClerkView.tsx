@@ -67,6 +67,24 @@ function Logo({ team, size = 36 }: { team: ClerkTeam | null; size?: number }) {
 
 const nameOf = (a: Athlete) => `${a.firstName} ${a.lastName}`.trim();
 
+/** The runner's headshot from Nexus Online, or their initials. */
+function Face({ a, size = 36 }: { a: Athlete; size?: number }) {
+  const [failed, setFailed] = useState(false);
+  const box = { width: size, height: Math.round(size * 1.25) };
+  if (!a.photoUrl || failed) {
+    return (
+      <span style={box} className="inline-flex shrink-0 items-center justify-center rounded bg-white/[0.06] text-[10px] font-semibold text-gray-500">
+        {`${a.firstName[0] ?? ''}${a.lastName[0] ?? ''}`.toUpperCase()}
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- served and sized by /headshots
+    <img src={a.photoUrl} alt="" style={box} loading="lazy" onError={() => setFailed(true)}
+      className="shrink-0 rounded bg-white/[0.06] object-cover object-top" />
+  );
+}
+
 export default function ClerkView({ token, initial }: { token: string; initial: View }) {
   const [data, setData] = useState<View>(initial);
   const [now, setNow] = useState(() => Date.now());
@@ -233,10 +251,13 @@ export default function ClerkView({ token, initial }: { token: string; initial: 
               const on = r.id === raceId;
               return (
                 <button key={r.id} onClick={() => setRaceId(r.id)} aria-pressed={on}
-                  className={`flex-1 shrink-0 rounded-lg border px-3 py-2 text-left min-w-[8.5rem] ${on ? 'border-white/40 bg-white/15' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}>
-                  <div className="text-sm font-semibold whitespace-nowrap">{r.name}</div>
-                  <div className="text-[11px] text-gray-400 whitespace-nowrap tabular-nums">
-                    {timeOf(r) ? `${timeOf(r)} · ` : ''}{c ? `${c.in}/${c.all} in` : 'no runners'}{c?.todo ? ` · ${c.todo} to declare` : ''}
+                  className={`flex-[1_0_9.5rem] rounded-lg border px-3 py-2 text-left overflow-hidden ${on ? 'border-white/40 bg-white/15' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}>
+                  <div className="text-sm font-semibold truncate">{r.name}</div>
+                  <div className="text-[11px] text-gray-400 truncate tabular-nums">
+                    {timeOf(r) ? `${timeOf(r)} · ` : ''}{c ? `${c.in}/${c.all} in` : 'no runners'}
+                  </div>
+                  <div className={`text-[11px] truncate tabular-nums ${c?.todo ? 'text-amber-300/90' : 'text-emerald-300/80'}`}>
+                    {!c ? ' ' : c.todo ? `${c.todo} to declare` : 'all declared'}
                   </div>
                 </button>
               );
@@ -265,6 +286,7 @@ export default function ClerkView({ token, initial }: { token: string; initial: 
                     <button onClick={() => goTo(a)} disabled={!a.raceId}
                       className="w-full text-left rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5 flex items-center gap-3 hover:bg-white/[0.06] disabled:hover:bg-white/[0.03]">
                       <span className="w-12 shrink-0 text-center font-mono text-lg font-bold tabular-nums">{a.bib ?? '–'}</span>
+                      <Face a={a} size={40} />
                       <span className="min-w-0 flex-1">
                         <span className="block font-semibold truncate">{nameOf(a)}{a.year ? <span className="font-normal text-gray-400"> · {a.year}</span> : null}</span>
                         <span className="block text-xs text-gray-400 truncate">{school?.name ?? 'Unattached'}</span>
@@ -352,6 +374,7 @@ export default function ClerkView({ token, initial }: { token: string; initial: 
                         {runners.map((a) => (
                           <li key={a.id} className={`px-3 py-2 flex items-center gap-3 transition-colors duration-700 ${flash === a.id ? 'bg-amber-400/15' : ''}`}>
                             <span className="w-11 shrink-0 text-center font-mono font-bold tabular-nums">{a.bib ?? '–'}</span>
+                            <Face a={a} />
                             <span className="min-w-0 flex-1">
                               <span className="block truncate">{nameOf(a)}</span>
                               <span className="block text-[11px] text-gray-500">{[a.year, !g.team && a.box != null ? `Box ${a.box}` : null].filter(Boolean).join(' · ')}</span>
