@@ -205,14 +205,16 @@ export default function ClerkView({ token, initial }: { token: string; initial: 
     <div className="min-h-screen bg-[#0a0f24] text-gray-100">
       {/* ── Masthead and search: stay put while the schools scroll ── */}
       <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0c1537]/95 backdrop-blur pt-[env(safe-area-inset-top)]">
-        <div className="px-4 lg:px-6 pt-3 pb-2 flex items-center gap-3">
+        {/* As the dashboard: the logo and how fresh it is on the top line of a
+            phone, the meet under them; all on one line from a tablet up. */}
+        <div className="px-4 lg:px-6 pt-3 pb-2 flex flex-wrap items-center gap-x-5 gap-y-1.5">
           {/* eslint-disable-next-line @next/next/no-img-element -- a static brand image */}
-          <img src="/live/primetime-on-dark.png" alt="PrimeTime Timing" className="h-5 w-auto hidden sm:block" />
-          <div className="min-w-0 flex-1">
+          <img src="/live/primetime-on-dark.png" alt="PrimeTime Timing" className="h-5 sm:h-6 w-auto shrink-0" />
+          <div className="min-w-0 w-full sm:w-auto sm:flex-1 order-last sm:order-none">
             <h1 className="text-base sm:text-lg font-bold truncate">{data.meetName}</h1>
             <p className="text-[11px] text-gray-400">Clerks</p>
           </div>
-          <span className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${offline || stale ? 'bg-amber-500/15 text-amber-300' : 'bg-emerald-500/15 text-emerald-300'}`}
+          <span className={`ml-auto sm:ml-0 shrink-0 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${offline || stale ? 'bg-amber-500/15 text-amber-300' : 'bg-emerald-500/15 text-emerald-300'}`}
             title="When the meet desk last sent it">
             <span className={`h-2 w-2 rounded-full ${offline || stale ? 'bg-amber-400' : 'bg-emerald-400'}`} />
             {offline ? 'Reconnecting' : `Updated ${ago(data.updatedAt, now)}`}
@@ -231,7 +233,7 @@ export default function ClerkView({ token, initial }: { token: string; initial: 
               const on = r.id === raceId;
               return (
                 <button key={r.id} onClick={() => setRaceId(r.id)} aria-pressed={on}
-                  className={`shrink-0 rounded-lg border px-3 py-2 text-left min-w-[8.5rem] ${on ? 'border-white/40 bg-white/15' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}>
+                  className={`flex-1 shrink-0 rounded-lg border px-3 py-2 text-left min-w-[8.5rem] ${on ? 'border-white/40 bg-white/15' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}>
                   <div className="text-sm font-semibold whitespace-nowrap">{r.name}</div>
                   <div className="text-[11px] text-gray-400 whitespace-nowrap tabular-nums">
                     {timeOf(r) ? `${timeOf(r)} · ` : ''}{c ? `${c.in}/${c.all} in` : 'no runners'}{c?.todo ? ` · ${c.todo} to declare` : ''}
@@ -296,21 +298,23 @@ export default function ClerkView({ token, initial }: { token: string; initial: 
             </section>
 
             {/* ── Order and filter ── */}
-            <div className="mb-3 flex flex-wrap items-center gap-2">
+            {/* The whole width, each button an equal share: big targets on a
+                tablet, nothing left over. On a phone the filter takes its own row. */}
+            <div className="mb-3 grid grid-cols-[1fr_auto] sm:grid-cols-[2fr_3fr_auto] gap-2">
               <div className="flex rounded-lg border border-white/10 p-0.5" role="group" aria-label="Order">
                 {([['box', 'By box'], ['name', 'A–Z']] as const).map(([k, w]) => (
                   <button key={k} onClick={() => setSort(k)} aria-pressed={sort === k}
-                    className={`px-3 py-1.5 text-sm rounded-md ${sort === k ? 'bg-white/15 text-white' : 'text-gray-400'}`}>{w}</button>
+                    className={`flex-1 px-3 py-2 text-sm font-medium rounded-md ${sort === k ? 'bg-white/15 text-white' : 'text-gray-400 hover:text-gray-200'}`}>{w}</button>
                 ))}
               </div>
-              <div className="flex rounded-lg border border-white/10 p-0.5" role="group" aria-label="Show">
+              <div className="col-span-2 sm:col-span-1 order-last sm:order-none flex rounded-lg border border-white/10 p-0.5" role="group" aria-label="Show">
                 {([['all', 'Everyone'], ['todo', 'To declare'], ['scratched', 'Scratched']] as const).map(([k, w]) => (
                   <button key={k} onClick={() => setShow(k)} aria-pressed={show === k}
-                    className={`px-3 py-1.5 text-sm rounded-md whitespace-nowrap ${show === k ? 'bg-white/15 text-white' : 'text-gray-400'}`}>{w}</button>
+                    className={`flex-1 px-2 py-2 text-sm font-medium rounded-md whitespace-nowrap ${show === k ? 'bg-white/15 text-white' : 'text-gray-400 hover:text-gray-200'}`}>{w}</button>
                 ))}
               </div>
               <button onClick={() => setOpen(open.size ? new Set() : new Set(visible.map((g) => g.key)))}
-                className="ml-auto px-3 py-1.5 text-sm rounded-lg border border-white/10 text-gray-300">
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-white/10 text-gray-300 whitespace-nowrap">
                 {open.size ? 'Close all' : 'Open all'}
               </button>
             </div>
