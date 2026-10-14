@@ -97,6 +97,25 @@ export default async function DeclarationMeetPage({ params }: { params: Promise<
             </span>
           </>
         )}
+        {session.clerkToken && (
+          <>
+            <span className="text-gray-700 mx-2">·</span>
+            <a href={`/declare/clerk/${session.clerkToken}`} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 underline">
+              Clerks&rsquo; page &rarr;
+            </a>
+            <span className="ml-2 text-gray-500">
+              {session.clerkUpdatedAt ? `desk sent ${when(new Date(session.clerkUpdatedAt))}` : 'not sent by the desk yet'}
+            </span>
+          </>
+        )}
+        {session.contactsToken && (
+          <>
+            <span className="text-gray-700 mx-2">·</span>
+            <a href={`/declare/coaches/${session.contactsToken}`} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 underline">
+              Coach text sign-up &rarr;
+            </a>
+          </>
+        )}
       </p>
 
       {/* ── Races and their cutoffs ── */}
