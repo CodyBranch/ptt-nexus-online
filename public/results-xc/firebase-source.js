@@ -152,6 +152,19 @@
     });
   }
 
+  /** The announcer's notes for a race, by entry, as the laptop wrote them. */
+  function announcerDoc(raw, raceId) {
+    const d = raw ? decode(raw) : {};
+    const runners = {};
+    for (const [id, r] of Object.entries(obj(d.runners))) {
+      runners[id] = Object.assign({}, r, {
+        from: r.from ? list(r.from) : undefined, champs: r.champs ? list(r.champs) : undefined, notes: r.notes ? list(r.notes) : undefined,
+      });
+      for (const k of ["from", "champs", "notes"]) if (runners[id][k] === undefined) delete runners[id][k];
+    }
+    return Object.assign({ schema: 1, version: "", raceId }, d, { runners });
+  }
+
   /**
    * One name, anywhere in the meet: the laptop's search (searchMeet), run here
    * over the index it publishes. Names, last names and schools contain the
@@ -253,6 +266,8 @@
     let skew = null;
     let searchIndex = null, searchAt = 0;
     const histories = {};
+    /** Announcer notes by race: { at, p } - only for a page opened with ?announcer. */
+    const notes = {};
 
     function serverNow() { return Date.now() + (skew == null ? 0 : skew); }
 
@@ -532,6 +547,16 @@
         if (!histories[id]) histories[id] = getOnce("history/" + encodeKey(id)).catch(() => null);
         return historyDoc(await histories[id], id);
       }
+      if (parts[0] === "announcer") {
+        // Only a page opened with ?announcer asks. Read once a race, and again
+        // after a few minutes: profiles are pulled again now and then.
+        const id = parts[1];
+        const had = notes[id];
+        if (!had || Date.now() - had.at > 300000) notes[id] = { at: Date.now(), p: getOnce("announcer/" + encodeKey(id)).catch(() => (had ? had.p : null)) };
+        const raw = await notes[id].p;
+        if (!raw) { const e = new Error("No announcer notes for that race."); e.status = 404; throw e; }
+        return announcerDoc(raw, id);
+      }
       if (parts[0] === "search") {
         // Downloaded once somebody searches, and refreshed now and then: a
         // runner added at the tent should be findable at the tent.
@@ -554,5 +579,5 @@
     };
   }
 
-  return { encodeKey, decodeKey, decode, meetDoc, raceDoc, teamDoc, historyDoc, searchDoc, createSource, setDeep };
+  return { encodeKey, decodeKey, decode, meetDoc, raceDoc, teamDoc, historyDoc, announcerDoc, searchDoc, createSource, setDeep };
 });

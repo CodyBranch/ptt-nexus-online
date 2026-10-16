@@ -326,6 +326,19 @@ td.pl{font:600 15px var(--mono);width:40px;text-align:right;color:var(--ink)}
 .acard .gap{font:12.5px var(--mono);color:var(--ink-2)}
 .acard .pin{width:26px;height:26px}
 .tgroup{border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-bottom:10px;overflow:hidden}
+/* Announcer notes on an athlete's page (?announcer): label and line, read aloud. */
+.ann{padding:12px 14px;border:0;border-radius:0;box-shadow:none}
+.ann .annwho{color:var(--ink-2);font-size:13px;margin:0 0 10px}
+.annrows{display:grid;grid-template-columns:fit-content(15em) 1fr;gap:7px 16px;margin:0}
+.annrows dt{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding-top:3px}
+.annrows dd{margin:0;color:var(--ink);font-size:14.5px}
+.annrows dd b{font-weight:700}
+.annrows dt.nat{color:var(--accent)}
+.annnotes{margin:12px 0 0;display:grid;gap:5px;color:var(--ink);font-size:14.5px}
+/* Lines, not a list: the group's list rule (.tgroup li) lays li out as standings. */
+.annnotes p{margin:0;padding-left:16px;position:relative}
+.annnotes p::before{content:"";position:absolute;left:3px;top:.62em;width:5px;height:5px;border-radius:50%;background:var(--muted)}
+@media (max-width:560px){.annrows{grid-template-columns:1fr;gap:1px 0}.annrows dd{margin-bottom:7px}}
 /* Centered on the logo: lined up on the text's baseline, the name, box and
    count sat below the middle of a 28px logo beside them. */
 .tgroup > header{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:10px 12px;background:var(--surface-2);cursor:pointer}
@@ -1415,6 +1428,22 @@ async function loadRace(id,keep){
   }
   applyRace(r,!!keep&&RACE&&RACE.id===r.id);
   loadHistory(r.id);
+  loadAnnouncer(r.id);
+}
+/* The announcer's notes: only for a page opened with ?announcer, the link the
+   booth is given. Fetched once a race and again after a few minutes (profiles
+   are pulled again now and then); nobody else's page asks for them. */
+const ANN=(()=>{try{const m=location.search.match(/[?&]announcer(?:=([^&]*))?(?:&|$)/);return !!m&&!/^(0|false|off|no)$/i.test(m[1]||"");}catch(e){return false;}})();
+const ANNCACHE={};
+function loadAnnouncer(id){
+  if(!ANN)return;
+  const c=ANNCACHE[id];
+  if(c&&(c.loading||Date.now()-c.at<300000))return;
+  ANNCACHE[id]=Object.assign({},c||{doc:undefined},{loading:true,at:Date.now()});
+  getJson("/announcer/"+encodeURIComponent(id))
+    .then(d=>d&&d.runners?d:null).catch(()=>null)
+    .then(d=>{const was=ANNCACHE[id];ANNCACHE[id]={doc:d||(was&&was.doc)||null,at:Date.now(),loading:false};
+      if(state.view==="athlete"&&RACE&&RACE.id===id)renderAthlete();});
 }
 /* Past years. Fetched once per race and kept: it changes when somebody imports
    another season, not while the race is on. A machine with no history on it,
@@ -2074,6 +2103,26 @@ function bestAt(best,meters,distance){
 /* One runner's past on this course, for their own page. Matched on the entry
    id the history document carries, so a shared name between two schools does
    not hand one runner the other's races. */
+function athleteNotes(host,a){
+  if(!ANN||!RACE)return;
+  const c=ANNCACHE[RACE.id];
+  const panel=h("div","panel ann");
+  const n=c&&c.doc?c.doc.runners[a.id]:null;
+  if(!c||c.doc===undefined)panel.appendChild(h("p","note","Loading the announcer notes…"));
+  else if(!n)panel.appendChild(h("p","note",c.doc?"Nothing on file for this runner.":"No announcer notes for this race."));
+  else{
+    const who=[n.cls,n.from&&n.from.length?"before: "+n.from.join(", "):""].filter(Boolean).join(" · ");
+    if(who)panel.appendChild(h("p","annwho",who));
+    const dl=h("dl","annrows");
+    const row=(label,value,cls)=>{if(!value)return;dl.appendChild(h("dt",cls||null,label));dl.appendChild(h("dd",null,value));};
+    row("PR",n.pr);row("Season best",n.sb);row("Last race",n.last);row("Here before",n.here);
+    (n.champs||[]).forEach(g=>row(g.name,g.text,g.national?"nat":null));
+    row("Track",n.track);
+    if(dl.childNodes.length)panel.appendChild(dl);
+    if(n.notes&&n.notes.length){const ul=h("div","annnotes");n.notes.forEach(t=>ul.appendChild(h("p",null,t)));panel.appendChild(ul);}
+  }
+  host.appendChild(histGroup("Announcer notes",null,panel));
+}
 function athleteHistory(host,a){
   if(!HIST||!HIST.returning)return;
   const r0=HIST.returning.find(x=>x.id===a.id);
@@ -2323,6 +2372,9 @@ function renderAthlete(){
   }
   idc.appendChild(facts);
   host.appendChild(idc);
+
+  // What the announcer has to say about them, when the page was opened for the booth.
+  athleteNotes(host,a);
 
   // What this course remembers about them. Sits directly under the identity
   // card, before today's splits: somebody who has run here four times is worth
