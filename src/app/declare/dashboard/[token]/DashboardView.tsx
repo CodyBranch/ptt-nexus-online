@@ -357,7 +357,7 @@ function Latest({ activity, now, fill = false }: { activity: DashboardData['acti
           </div>
           <div className="pl-3.5 text-xs text-gray-400 truncate">
             {a.status === 'opened' ? 'opened their form'
-              : <>{a.teamName} &middot; {a.status === 'declared' ? (a.raceName ?? 'declared') : a.status === 'bib_returned' ? 'bib returned' : 'scratched'}</>}
+              : <>{a.teamName} &middot; {a.status === 'declared' ? (a.raceName ?? 'declared') : a.status === 'bib_returned' ? 'bib returned' : 'scratched'}{a.inFor ? <span className="text-violet-300"> &middot; in for {a.inFor}</span> : null}</>}
           </div>
         </li>
       ))}
@@ -383,6 +383,7 @@ function Roster({ team, raceName, words, now }: {
                 <div className="min-w-0 flex-1">
                   <div className="text-sm truncate">{r.firstName} {r.lastName}</div>
                   <div className="text-[11px] text-gray-500">{[r.bib && `#${r.bib}`, r.year].filter(Boolean).join(' · ')}</div>
+                  {r.inFor && <div className="text-[11px] text-violet-300">Swapped in for {r.inFor}</div>}
                 </div>
                 <div className="text-right">
                   <span className={`text-[11px] px-1.5 py-0.5 rounded ${r.status === 'declared' ? 'bg-emerald-500/15 text-emerald-300' : r.status === 'scratched' ? 'bg-rose-500/15 text-rose-300' : 'bg-gray-700/60 text-gray-400'}`}>

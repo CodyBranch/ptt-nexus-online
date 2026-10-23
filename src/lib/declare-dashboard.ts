@@ -51,6 +51,8 @@ export interface DashRunner {
   bibReturnedAt: string | null;
   /** A headshot from Nexus Online, when the school's are there. */
   photoUrl: string | null;
+  /** Swapped in (an alternate): the runner they went in for, whose bib they run on. */
+  inFor: string | null;
 }
 
 export interface DashTeam {
@@ -110,6 +112,8 @@ export interface DashActivity {
   runnerName: string;
   status: 'declared' | 'scratched' | 'opened' | 'bib_returned';
   raceName: string | null;
+  /** A swap: the runner this one went in for. */
+  inFor?: string | null;
 }
 
 export interface DashboardData {
@@ -214,9 +218,13 @@ export async function loadDashboard(session: NonNullable<Awaited<ReturnType<type
     }).map((a) => {
       const ans = answerOf.get(`${t.id}|${a.id}`);
       if (ans?.updatedAt && (!last || ans.updatedAt > last)) last = ans.updatedAt;
+      // Swapped in: on the runner's bib, which the roster the desk sent still
+      // gives to the runner until the next update.
+      const out = ans?.status === 'declared' && ans.swapFor ? roster.find((x) => x.id === ans.swapFor) : undefined;
       return {
         id: a.id, firstName: a.firstName, lastName: a.lastName,
-        bib: a.bib ? String(a.bib) : null, year: a.year ?? null, gender: a.gender ?? null,
+        bib: a.bib ? String(a.bib) : out?.bib ? String(out.bib) : null, year: a.year ?? null, gender: a.gender ?? null,
+        inFor: out ? `${out.firstName} ${out.lastName}` : null,
         status: (ans?.status === 'declared' || ans?.status === 'scratched' ? ans.status : 'undecided') as RunnerStatus,
         raceId: ans?.status === 'declared' ? ans.raceId ?? null : null,
         answeredAt: ans?.updatedAt ? ans.updatedAt.toISOString() : null,
@@ -288,6 +296,7 @@ export async function loadDashboard(session: NonNullable<Awaited<ReturnType<type
         runnerName: `${who.runner.firstName} ${who.runner.lastName}`,
         status: a.status as 'declared' | 'scratched',
         raceName: a.status === 'declared' && a.raceId ? raceName.get(a.raceId) ?? null : null,
+        inFor: who.runner.inFor,
       }];
     });
   const openings: DashActivity[] = dashTeams.filter((t) => t.openedAt).map((t) => ({
