@@ -91,12 +91,19 @@ interface RosterAthlete {
    */
   status?: 'declared' | 'scratched' | 'entered';
   raceId?: string | null;
+  /**
+   * Entered and alternates: one of the squad not in a race, with no bib to
+   * wear. They come in only by a swap with a runner who is.
+   */
+  alternate?: boolean;
 }
 
 interface Declaration {
   athleteId: string;
-  status: 'declared' | 'scratched';
+  /** 'swapped' / 'unswapped': one side of a swap with an alternate (swapFor). */
+  status: 'declared' | 'scratched' | 'swapped' | 'unswapped';
   raceId: string | null;
+  swapFor?: string | null;
 }
 
 interface Finalization {
@@ -185,6 +192,10 @@ export default function DeclarePage() {
   const [side, setSide] = useState<'all' | 'M' | 'F'>('all');
   /** Races this school has said it is done with. */
   const [finalized, setFinalized] = useState<Set<string>>(new Set());
+  /** Standing swaps: the alternate in, by the runner they went in for. */
+  const [swaps, setSwaps] = useState<Record<string, string>>({});
+  /** The runner whose list of alternates is open. */
+  const [picking, setPicking] = useState<string | null>(null);
 
   // The countdown has to move, or it is a timestamp wearing a countdown's
   // clothes and a coach will trust it after it has gone stale.
@@ -211,11 +222,16 @@ export default function DeclarePage() {
 
         const initial: Record<string, Choice> = {};
         for (const a of json.roster) initial[a.id] = { kind: 'none' };
+        const standing: Record<string, string> = {};
         for (const d of json.declarations) {
+          // A swap taken back, or the runner's side of one: nothing to answer.
+          if (d.status === 'swapped' || d.status === 'unswapped') continue;
+          if (d.status === 'declared' && d.swapFor) standing[d.swapFor] = d.athleteId;
           initial[d.athleteId] = d.status === 'declared' && d.raceId
             ? { kind: 'race', raceId: d.raceId }
             : { kind: 'scratched' };
         }
+        setSwaps(standing);
         // Every list on the form follows the day's running order.
         setData({ ...json, races: byStartTime(json.races) });
         setChoices(initial);
@@ -330,6 +346,51 @@ export default function DeclarePage() {
     }
   };
 
+  /**
+   * An alternate in for a runner: on their bib, in their place. The runner
+   * becomes an alternate. The desk makes it when it next pulls the answers.
+   */
+  const swap = async (outId: string, alternateId: string, raceId: string) => {
+    setPicking(null);
+    setBusy(`swap:${outId}`);
+    try {
+      const res = await request(`/api/declare/${meetToken}/${teamToken}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ swap: { alternateId, forAthleteId: outId } }),
+      });
+      const json = await res.json().catch(() => ({})) as { error?: string; raceId?: string };
+      if (!res.ok) { setError(json.error ?? 'That swap was not made. Reload and try again.'); return; }
+      setSwaps((m) => ({ ...m, [outId]: alternateId }));
+      setChoices((c) => ({ ...c, [alternateId]: { kind: 'race', raceId: json.raceId ?? raceId }, [outId]: { kind: 'none' } }));
+      setError(null);
+    } catch {
+      setError('That swap did not save — check your signal and try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const unswap = async (outId: string, alternateId: string) => {
+    setBusy(`swap:${outId}`);
+    try {
+      const res = await request(`/api/declare/${meetToken}/${teamToken}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unswap: { alternateId } }),
+      });
+      const json = await res.json().catch(() => ({})) as { error?: string };
+      if (!res.ok) { setError(json.error ?? 'That swap was not undone. Reload and try again.'); return; }
+      setSwaps((m) => { const copy = { ...m }; delete copy[outId]; return copy; });
+      setChoices((c) => ({ ...c, [alternateId]: { kind: 'none' }, [outId]: { kind: 'none' } }));
+      setError(null);
+    } catch {
+      setError('That did not save — check your signal and try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const choose = (athleteId: string, choice: Choice) => {
     const before = choices[athleteId] ?? { kind: 'none' as const };
     setChoices((c) => ({ ...c, [athleteId]: choice }));
@@ -348,7 +409,17 @@ export default function DeclarePage() {
    */
   const enteredIn = useCallback((raceId: string) => (data?.roster ?? []).filter((a) =>
     a.status === 'entered' && a.raceId === raceId && a.eligibleRaceIds.includes(raceId)
-    && (choices[a.id]?.kind ?? 'none') === 'none'), [data, choices]);
+    && !a.alternate && !swaps[a.id]
+    && (choices[a.id]?.kind ?? 'none') === 'none'), [data, choices, swaps]);
+
+  /** The runner each swapped-in alternate went in for. */
+  const swappedFor = useMemo(() => new Map(Object.entries(swaps).map(([outId, altId]) => [altId, outId])), [swaps]);
+  /**
+   * In the squad's list or in the alternates': an alternate swapped in is
+   * running; a runner swapped out is an alternate now.
+   */
+  const isAlternate = useCallback((a: RosterAthlete) =>
+    !!swaps[a.id] || (!!a.alternate && !swappedFor.has(a.id)), [swaps, swappedFor]);
 
   const confirmEntered = async (raceId: string) => {
     const who = enteredIn(raceId).map((a) => a.id);
@@ -395,11 +466,14 @@ export default function DeclarePage() {
     return (['M', 'F'] as const).filter((g) => seen.has(g));
   }, [data]);
 
-  const visible = useMemo(() => {
+  const visibleAll = useMemo(() => {
     if (!data) return [];
     if (side === 'all') return data.roster;
     return data.roster.filter((a) => genderSide(a.gender) === side);
   }, [data, side]);
+  // The squad to answer for, and its alternates apart below it.
+  const visible = useMemo(() => visibleAll.filter((a) => !isAlternate(a)), [visibleAll, isAlternate]);
+  const alternatesShown = useMemo(() => visibleAll.filter(isAlternate), [visibleAll, isAlternate]);
 
   // The counts are for the side being looked at: filtered to the men, the
   // coach sees the men's numbers. The other side's unanswered runners are
@@ -425,9 +499,9 @@ export default function DeclarePage() {
     return {
       ...tally(visible.map((a) => a.id)),
       otherUndecided: side === 'all' ? 0
-        : tally((data?.roster ?? []).filter((a) => !shown.has(a.id)).map((a) => a.id)).undecided,
+        : tally((data?.roster ?? []).filter((a) => !shown.has(a.id) && !isAlternate(a)).map((a) => a.id)).undecided,
     };
-  }, [choices, visible, data, side, bibBack]);
+  }, [choices, visible, data, side, bibBack, isAlternate]);
 
   // The next race to close, and the ones already closed. Each race closes on
   // its own — the girls' cutoff passing leaves the boys' races open.
@@ -681,6 +755,52 @@ export default function DeclarePage() {
             // Every race open to them has closed: nothing left to choose.
             const nothingOpen = races.length > 0 && races.every((r) => raceClosed(r.id));
 
+            // An alternate swapped in: running on the runner's bib, until undone.
+            const outId = swappedFor.get(athlete.id);
+            if (outId) {
+              const out = data.roster.find((a) => a.id === outId);
+              const raceId = choice.kind === 'race' ? choice.raceId : null;
+              const race = data.races.find((r) => r.id === raceId);
+              const bib = athlete.bib ?? out?.bib;
+              const fixed = !!raceId && (finalized.has(raceId) || raceClosed(raceId));
+              return (
+                <li key={athlete.id} className="rounded-xl border border-violet-600/50 bg-gray-900 px-4 py-3.5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="font-semibold truncate">{athlete.firstName} {athlete.lastName}</span>
+                    <span className="text-xs text-gray-500 shrink-0 font-mono">
+                      {[bib ? `#${bib}` : null, athlete.year].filter(Boolean).join(' · ')}
+                      <span className="ml-1 text-violet-300">swapped in</span>
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm text-gray-300">
+                    {race ? shortRaceName(race.name) : 'Running'}, in for {out ? `${out.firstName} ${out.lastName}` : 'a runner'}
+                  </p>
+                  {bib && out && (
+                    <p className="mt-1 text-xs text-amber-400">
+                      {out.firstName} hands bib #{bib} to {athlete.firstName}
+                    </p>
+                  )}
+                  {!fixed && (
+                    <button
+                      type="button"
+                      disabled={busy === `swap:${outId}`}
+                      onClick={() => void unswap(outId, athlete.id)}
+                      className="mt-2.5 w-full min-h-[40px] rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-xs
+                        text-gray-200 touch-manipulation active:bg-gray-700 disabled:opacity-40"
+                    >
+                      {busy === `swap:${outId}` ? 'Undoing…' : `Undo swap: ${out?.firstName ?? 'the runner'} runs`}
+                    </button>
+                  )}
+                </li>
+              );
+            }
+
+            // The race they are in now, for a swap: chosen, or entered and not yet answered.
+            const nowIn = choice.kind === 'race' ? choice.raceId
+              : choice.kind === 'none' && (athlete.status === 'entered' || athlete.status === 'declared') ? athlete.raceId ?? null : null;
+            const canSwapIn = nowIn && !lockedIn ? (data.roster.filter((a) =>
+              isAlternate(a) && !swaps[a.id] && a.eligibleRaceIds.includes(nowIn))) : [];
+
             return (
               <li
                 key={athlete.id}
@@ -767,6 +887,42 @@ export default function DeclarePage() {
                   </div>
                 )}
 
+                {/* Entered and alternates: one of the school's alternates in
+                    for this runner, picked from the ones who can run the race. */}
+                {canSwapIn.length > 0 && (picking === athlete.id ? (
+                  <div className="mt-2.5 rounded-lg border border-violet-600/50 p-2">
+                    <p className="px-1 pb-1.5 text-xs text-gray-400">Swap in for {athlete.firstName}:</p>
+                    <div className="flex flex-col gap-1.5">
+                      {canSwapIn.map((a) => (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => void swap(athlete.id, a.id, nowIn!)}
+                          className="min-h-[40px] rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-left text-sm
+                            text-gray-100 touch-manipulation active:bg-gray-700"
+                        >
+                          {a.firstName} {a.lastName}
+                          {a.year && <span className="ml-1.5 text-xs text-gray-500">{a.year}</span>}
+                        </button>
+                      ))}
+                      <button type="button" onClick={() => setPicking(null)}
+                        className="min-h-[36px] text-xs text-gray-400 touch-manipulation">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={busy === `swap:${athlete.id}`}
+                    onClick={() => setPicking(athlete.id)}
+                    className="mt-2.5 w-full min-h-[40px] rounded-lg border border-violet-600/50 bg-violet-500/10 px-3 py-2 text-xs
+                      font-medium text-violet-200 touch-manipulation active:bg-violet-500/20 disabled:opacity-40"
+                  >
+                    {busy === `swap:${athlete.id}` ? 'Swapping…' : 'Swap in an alternate'}
+                  </button>
+                ))}
+
                 {/* A runner scratched hands their bib in at the meet office,
                     so nobody else runs on it; this says whether it is back. */}
                 {choice.kind === 'scratched' && (bibBack.has(athlete.id) ? (
@@ -789,9 +945,33 @@ export default function DeclarePage() {
           })}
         </ul>
 
-        {side !== 'all' && data.roster.length > visible.length && (
+        {/* Entered and alternates: the rest of the squad, with no bib. They
+            come in only by a swap, from a runner's card above. */}
+        {alternatesShown.length > 0 && (
+          <div className="mt-6">
+            <div className="flex items-baseline justify-between gap-3 border-b border-gray-800 pb-1.5 mb-2">
+              <h2 className="text-sm font-semibold text-gray-200">Alternates</h2>
+              <span className="text-xs text-gray-500">no bib · in only by a swap</span>
+            </div>
+            <ul className="space-y-1.5">
+              {alternatesShown.map((a) => {
+                const inFor = swaps[a.id] ? data.roster.find((x) => x.id === swaps[a.id]) : undefined;
+                return (
+                  <li key={a.id} className="flex items-baseline justify-between gap-3 px-1 text-sm">
+                    <span className="truncate text-gray-200">{a.firstName} {a.lastName}</span>
+                    <span className="shrink-0 text-xs text-gray-500">
+                      {inFor ? `swapped out · ${inFor.firstName} ${inFor.lastName} runs` : a.year ?? ''}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+        {side !== 'all' && data.roster.length > visibleAll.length && (
           <p className="text-xs text-gray-500 text-center mt-4">
-            Showing {visible.length} of {data.roster.length}.{' '}
+            Showing {visibleAll.length} of {data.roster.length}.{' '}
             <button
               type="button"
               onClick={() => setSide('all')}

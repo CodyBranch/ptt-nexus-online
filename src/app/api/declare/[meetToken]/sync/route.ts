@@ -63,6 +63,7 @@ export async function GET(
           athleteId: r.athleteId,
           status: r.status,
           raceId: r.raceId,
+          swapFor: r.swapFor ?? null,
           updatedAt: r.updatedAt,
           bibReturnedAt: returned.get(`${t.id}|${r.athleteId}`) ?? null,
         })),

@@ -661,6 +661,7 @@ export const declarationSubmissions = pgTable('declaration_submissions', {
   /**
    * 'declared' — running, in raceId
    * 'scratched' — not running
+   * 'swapped' / 'unswapped' — a swap with an alternate; see swapFor
    * A runner the coach has not answered for has no row at all, which is how
    * "not yet decided" is told apart from "decided, and the answer is out".
    */
@@ -668,6 +669,13 @@ export const declarationSubmissions = pgTable('declaration_submissions', {
 
   // The race they are declared in. Null for a scratch.
   raceId: text('race_id'),
+
+  /**
+   * A swap (entered runners and alternates): on the alternate's answer, the
+   * runner they went in for; on that runner's ('swapped'), the alternate.
+   * The alternate's answer is 'unswapped' once the coach takes it back.
+   */
+  swapFor: text('swap_for'),
 
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => [

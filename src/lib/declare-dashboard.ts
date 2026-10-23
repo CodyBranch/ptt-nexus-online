@@ -28,6 +28,8 @@ interface RaceRow extends DeadlineRace {
 interface RosterRow {
   id: string; firstName: string; lastName: string; bib?: string; gender?: string; year?: string;
   eligibleRaceIds?: string[];
+  /** Entered and alternates: not in a race unless swapped in. */
+  alternate?: boolean;
 }
 
 export type RunnerStatus = 'declared' | 'scratched' | 'undecided';
@@ -203,7 +205,13 @@ export async function loadDashboard(session: NonNullable<Awaited<ReturnType<type
     const roster = JSON.parse(t.rosterJson || '[]') as RosterRow[];
     const org = t.organizationId ? orgById.get(t.organizationId) : undefined;
     let last: Date | null = null;
-    const runners: DashRunner[] = roster.map((a) => {
+    // An alternate is nobody to answer for until swapped in, and a runner
+    // swapped out is an alternate now; neither is "still to answer".
+    const runners: DashRunner[] = roster.filter((a) => {
+      const ans = answerOf.get(`${t.id}|${a.id}`);
+      if (ans?.status === 'swapped') return false;
+      return !a.alternate || (ans?.status === 'declared' && !!ans.swapFor);
+    }).map((a) => {
       const ans = answerOf.get(`${t.id}|${a.id}`);
       if (ans?.updatedAt && (!last || ans.updatedAt > last)) last = ans.updatedAt;
       return {

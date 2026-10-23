@@ -9,6 +9,7 @@ import {
 } from '@/db/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { isClosed, type DeadlineRace } from '@/lib/declare-deadline';
+import { checkSwap, checkUnswap, inSwap, type SwapRosterRow } from '@/lib/declare-swap';
 
 /**
  * The coach's own endpoint.
@@ -82,6 +83,7 @@ export async function GET(
         athleteId: s.athleteId,
         status: s.status,
         raceId: s.raceId,
+        swapFor: s.swapFor ?? null,
         updatedAt: s.updatedAt,
       })),
       finalized: finalized.map((f) => ({
@@ -112,7 +114,14 @@ export async function POST(
     if (!found) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     const { session, access } = found;
-    const body = await request.json() as { declarations?: SubmissionInput[] };
+    const body = await request.json() as {
+      declarations?: SubmissionInput[];
+      /** An alternate in for an entered runner. */
+      swap?: { alternateId: string; forAthleteId: string };
+      /** That taken back. */
+      unswap?: { alternateId: string };
+    };
+    if (body.swap || body.unswap) return swapAnswer(session, access, body);
     const incoming = body.declarations ?? [];
 
     if (!Array.isArray(incoming)) {
@@ -120,7 +129,7 @@ export async function POST(
     }
 
     const roster = JSON.parse(access.rosterJson) as Array<{
-      id: string; eligibleRaceIds?: string[];
+      id: string; eligibleRaceIds?: string[]; alternate?: boolean;
     }>;
     const byId = new Map(roster.map((a) => [a.id, a]));
     const raceList = JSON.parse(session.racesJson) as DeadlineRace[];
@@ -138,6 +147,7 @@ export async function POST(
     // no reason to take it back.
     const declaredNow = await db.select().from(declarationSubmissions)
       .where(eq(declarationSubmissions.teamAccessId, access.id));
+    const answerOf = new Map(declaredNow.map((r) => [r.athleteId, r]));
     const currentRaceOf = new Map(
       declaredNow.filter((r) => r.status === 'declared').map((r) => [r.athleteId, r.raceId]),
     );
@@ -159,6 +169,18 @@ export async function POST(
 
       if (d.status !== 'declared' && d.status !== 'scratched') {
         rejected.push(d.athleteId);
+        continue;
+      }
+      // Entered and alternates: an alternate comes in only by a swap, and a
+      // runner in a swap leaves it only by Undo.
+      if (athlete.alternate && !inSwap(answerOf.get(d.athleteId))) {
+        rejected.push(d.athleteId);
+        reasons[d.athleteId] = 'An alternate comes in only by a swap with a runner in the race';
+        continue;
+      }
+      if (inSwap(answerOf.get(d.athleteId))) {
+        rejected.push(d.athleteId);
+        reasons[d.athleteId] = 'Undo the swap first';
         continue;
       }
 
@@ -234,4 +256,58 @@ export async function POST(
     console.error('Declaration save error:', error);
     return NextResponse.json({ error: 'Failed to save' }, { status: 500 });
   }
+}
+
+// ── A swap, or one taken back ───────────────────────────────────────────────
+
+type Session = typeof meetDeclarationSessions.$inferSelect;
+type Access = typeof teamDeclarationAccess.$inferSelect;
+
+async function swapAnswer(
+  session: Session,
+  access: Access,
+  body: { swap?: { alternateId: string; forAthleteId: string }; unswap?: { alternateId: string } },
+) {
+  const roster = JSON.parse(access.rosterJson) as SwapRosterRow[];
+  const races = new Map((JSON.parse(session.racesJson) as DeadlineRace[]).map((r) => [r.id, r]));
+  const answers = await db.select().from(declarationSubmissions)
+    .where(eq(declarationSubmissions.teamAccessId, access.id));
+  const finalized = new Set((await db.select().from(declarationFinalizations)
+    .where(eq(declarationFinalizations.teamAccessId, access.id))).map((f) => f.raceId));
+  const now = new Date();
+  const rules = { roster, answers, finalized, closed: (raceId: string) => isClosed(races.get(raceId), now) };
+  const at = new Date();
+
+  const write = (tx: Pick<typeof db, 'insert'>, athleteId: string, status: string, raceId: string | null, swapFor: string | null) =>
+    tx.insert(declarationSubmissions).values({
+      teamAccessId: access.id, meetSessionId: session.id, athleteId, status, raceId, swapFor, updatedAt: at,
+    }).onConflictDoUpdate({
+      target: [declarationSubmissions.teamAccessId, declarationSubmissions.athleteId],
+      set: { status, raceId, swapFor, updatedAt: at },
+    });
+
+  if (body.swap) {
+    const { alternateId, forAthleteId } = body.swap;
+    const ok = checkSwap(rules, alternateId, forAthleteId);
+    if (!ok.ok) return NextResponse.json({ error: ok.error }, { status: 409 });
+    await db.transaction(async (tx) => {
+      await write(tx, alternateId, 'declared', ok.raceId, forAthleteId);
+      await write(tx, forAthleteId, 'swapped', ok.raceId, alternateId);
+    });
+    return NextResponse.json({ swapped: true, raceId: ok.raceId });
+  }
+
+  const alternateId = body.unswap!.alternateId;
+  const ok = checkUnswap(rules, alternateId);
+  if (!ok.ok) return NextResponse.json({ error: ok.error }, { status: 409 });
+  await db.transaction(async (tx) => {
+    // Kept, not cleared: the desk undoes a swap it has made when it sees this.
+    await write(tx, alternateId, 'unswapped', ok.raceId, ok.forAthleteId);
+    // The runner is back as the meet entered them, theirs to confirm again.
+    await tx.delete(declarationSubmissions).where(and(
+      eq(declarationSubmissions.teamAccessId, access.id),
+      eq(declarationSubmissions.athleteId, ok.forAthleteId),
+    ));
+  });
+  return NextResponse.json({ unswapped: true });
 }
