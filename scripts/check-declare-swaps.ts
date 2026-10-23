@@ -27,6 +27,7 @@ async function main() {
     { id: 'kofi', firstName: 'Kofi', lastName: 'Mensah', gender: 'M', eligibleRaceIds: ['r-men'], raceId: null, alternate: true },
     { id: 'jaden', firstName: 'Jaden', lastName: 'Laster', gender: 'M', eligibleRaceIds: ['r-men'], raceId: null, alternate: true },
     { id: 'aliyah', firstName: 'Aliyah', lastName: 'Mathis', gender: 'F', eligibleRaceIds: ['r-women'], raceId: null, alternate: true },
+    { id: 'wren', firstName: 'Wren', lastName: 'Hale', bib: '300', gender: 'F', eligibleRaceIds: ['r-women'], status: 'entered', raceId: 'r-women' },
   ];
   const [access] = await db.insert(teamDeclarationAccess).values({ meetSessionId: sessionId, teamToken, teamId: 'T1', teamName: 'Grambling', rosterJson: JSON.stringify(roster) } as never).returning();
 
@@ -90,6 +91,24 @@ async function main() {
   ok('there is nothing left to undo', r.status === 409, r.json);
   r = await call({ swap: { alternateId: 'kofi', forAthleteId: 'dev' } });
   ok('and the alternate can go in again, for somebody else', r.status === 200, r.json);
+
+  console.log('A runner swapped out goes in for somebody else');
+  // Now: Kofi in for Dev, Dev out; Taj back as entered.
+  r = await call({ swap: { alternateId: 'dev', forAthleteId: 'taj' } });
+  ok('Dev, swapped out, goes in for Taj', r.status === 200, r.json);
+  a = await answers();
+  ok('Dev is in for Taj, Taj out', a.get('dev')?.status === 'declared' && a.get('dev')?.swapFor === 'taj' && a.get('taj')?.status === 'swapped');
+  r = await call({ unswap: { alternateId: 'kofi' } });
+  ok("and Kofi's swap can no longer be undone: Dev has nowhere to come back to", r.status === 409 && /somebody else/.test(String(r.json.error)), r.json);
+  r = await call({ unswap: { alternateId: 'dev' } });
+  ok("Dev's own swap still can", r.status === 200, r.json);
+  a = await answers();
+  ok('and Dev is back out for Kofi, Taj back as entered', a.get('dev')?.status === 'swapped' && a.get('dev')?.swapFor === 'kofi' && !a.has('taj'), JSON.stringify(a.get('dev')));
+
+  console.log('Marked not running, then swapped');
+  await call({ declarations: [{ athleteId: 'wren', status: 'scratched', raceId: null }] });
+  r = await call({ swap: { alternateId: 'aliyah', forAthleteId: 'wren' } });
+  ok('an alternate goes in for a runner marked not running, in the race they were entered in', r.status === 200 && r.json.raceId === 'r-women', r.json);
 
   await db.delete(meetDeclarationSessions).where(eq(meetDeclarationSessions.id, sessionId));
   console.log(fail ? `\n${fail} FAILED` : '\nOK');

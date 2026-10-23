@@ -192,8 +192,13 @@ export default function DeclarePage() {
   const [side, setSide] = useState<'all' | 'M' | 'F'>('all');
   /** Races this school has said it is done with. */
   const [finalized, setFinalized] = useState<Set<string>>(new Set());
-  /** Standing swaps: the alternate in, by the runner they went in for. */
-  const [swaps, setSwaps] = useState<Record<string, string>>({});
+  /**
+   * Swaps, both ways round: inFor[alternate] = the runner they went in for;
+   * outFor[runner] = the alternate who went in for them. Kept apart because a
+   * runner swapped out is an alternate and can go in for somebody else, after
+   * which the first swap still stands but can no longer be undone.
+   */
+  const [swapState, setSwapState] = useState<{ inFor: Record<string, string>; outFor: Record<string, string> }>({ inFor: {}, outFor: {} });
   /** The runner whose list of alternates is open. */
   const [picking, setPicking] = useState<string | null>(null);
 
@@ -222,16 +227,18 @@ export default function DeclarePage() {
 
         const initial: Record<string, Choice> = {};
         for (const a of json.roster) initial[a.id] = { kind: 'none' };
-        const standing: Record<string, string> = {};
+        const inFor: Record<string, string> = {};
+        const outFor: Record<string, string> = {};
         for (const d of json.declarations) {
-          // A swap taken back, or the runner's side of one: nothing to answer.
+          // The runner's side of a swap, or one taken back: nothing to answer.
+          if (d.status === 'swapped' && d.swapFor) outFor[d.athleteId] = d.swapFor;
           if (d.status === 'swapped' || d.status === 'unswapped') continue;
-          if (d.status === 'declared' && d.swapFor) standing[d.swapFor] = d.athleteId;
+          if (d.status === 'declared' && d.swapFor) inFor[d.athleteId] = d.swapFor;
           initial[d.athleteId] = d.status === 'declared' && d.raceId
             ? { kind: 'race', raceId: d.raceId }
             : { kind: 'scratched' };
         }
-        setSwaps(standing);
+        setSwapState({ inFor, outFor });
         // Every list on the form follows the day's running order.
         setData({ ...json, races: byStartTime(json.races) });
         setChoices(initial);
@@ -361,7 +368,12 @@ export default function DeclarePage() {
       });
       const json = await res.json().catch(() => ({})) as { error?: string; raceId?: string };
       if (!res.ok) { setError(json.error ?? 'That swap was not made. Reload and try again.'); return; }
-      setSwaps((m) => ({ ...m, [outId]: alternateId }));
+      setSwapState((m) => {
+        const inFor = { ...m.inFor, [alternateId]: outId }; const outFor = { ...m.outFor, [outId]: alternateId };
+        // Each now on one side only: the alternate in, the runner out.
+        delete inFor[outId]; delete outFor[alternateId];
+        return { inFor, outFor };
+      });
       setChoices((c) => ({ ...c, [alternateId]: { kind: 'race', raceId: json.raceId ?? raceId }, [outId]: { kind: 'none' } }));
       setError(null);
     } catch {
@@ -381,7 +393,14 @@ export default function DeclarePage() {
       });
       const json = await res.json().catch(() => ({})) as { error?: string };
       if (!res.ok) { setError(json.error ?? 'That swap was not undone. Reload and try again.'); return; }
-      setSwaps((m) => { const copy = { ...m }; delete copy[outId]; return copy; });
+      setSwapState((m) => {
+        const inFor = { ...m.inFor }; const outFor = { ...m.outFor };
+        delete inFor[alternateId]; delete outFor[outId];
+        // Swapped out before going in for this runner: out again.
+        const earlier = Object.keys(inFor).find((alt) => inFor[alt] === alternateId);
+        if (earlier) outFor[alternateId] = earlier;
+        return { inFor, outFor };
+      });
       setChoices((c) => ({ ...c, [alternateId]: { kind: 'none' }, [outId]: { kind: 'none' } }));
       setError(null);
     } catch {
@@ -409,17 +428,17 @@ export default function DeclarePage() {
    */
   const enteredIn = useCallback((raceId: string) => (data?.roster ?? []).filter((a) =>
     a.status === 'entered' && a.raceId === raceId && a.eligibleRaceIds.includes(raceId)
-    && !a.alternate && !swaps[a.id]
-    && (choices[a.id]?.kind ?? 'none') === 'none'), [data, choices, swaps]);
+    && !a.alternate && !swapState.outFor[a.id]
+    && (choices[a.id]?.kind ?? 'none') === 'none'), [data, choices, swapState]);
 
   /** The runner each swapped-in alternate went in for. */
-  const swappedFor = useMemo(() => new Map(Object.entries(swaps).map(([outId, altId]) => [altId, outId])), [swaps]);
+  const swappedFor = useMemo(() => new Map(Object.entries(swapState.inFor)), [swapState]);
   /**
    * In the squad's list or in the alternates': an alternate swapped in is
    * running; a runner swapped out is an alternate now.
    */
   const isAlternate = useCallback((a: RosterAthlete) =>
-    !!swaps[a.id] || (!!a.alternate && !swappedFor.has(a.id)), [swaps, swappedFor]);
+    !!swapState.outFor[a.id] || (!!a.alternate && !swappedFor.has(a.id)), [swapState, swappedFor]);
 
   const confirmEntered = async (raceId: string) => {
     const who = enteredIn(raceId).map((a) => a.id);
@@ -763,6 +782,9 @@ export default function DeclarePage() {
               const race = data.races.find((r) => r.id === raceId);
               const bib = athlete.bib ?? out?.bib;
               const fixed = !!raceId && (finalized.has(raceId) || raceClosed(raceId));
+              // Only while the runner is still out for them: gone in for
+              // somebody else since, there is no place to put them back in.
+              const undoable = swapState.outFor[outId] === athlete.id;
               return (
                 <li key={athlete.id} className="rounded-xl border border-violet-600/50 bg-gray-900 px-4 py-3.5">
                   <div className="flex items-baseline justify-between gap-3">
@@ -780,7 +802,10 @@ export default function DeclarePage() {
                       {out.firstName} hands bib #{bib} to {athlete.firstName}
                     </p>
                   )}
-                  {!fixed && (
+                  {!fixed && !undoable && out && (
+                    <p className="mt-1 text-xs text-gray-500">{out.firstName} has gone in for somebody else, so this swap stays.</p>
+                  )}
+                  {!fixed && undoable && (
                     <button
                       type="button"
                       disabled={busy === `swap:${outId}`}
@@ -795,11 +820,13 @@ export default function DeclarePage() {
               );
             }
 
-            // The race they are in now, for a swap: chosen, or entered and not yet answered.
+            // The race an alternate would go into in their place: the one they
+            // are in, or the one the meet entered them in if not yet answered
+            // or marked not running (their place and bib are free).
             const nowIn = choice.kind === 'race' ? choice.raceId
-              : choice.kind === 'none' && (athlete.status === 'entered' || athlete.status === 'declared') ? athlete.raceId ?? null : null;
-            const canSwapIn = nowIn && !lockedIn ? (data.roster.filter((a) =>
-              isAlternate(a) && !swaps[a.id] && a.eligibleRaceIds.includes(nowIn))) : [];
+              : (athlete.status === 'entered' || athlete.status === 'declared') ? athlete.raceId ?? null : null;
+            const canSwapIn = nowIn && !lockedIn && !finalized.has(nowIn) && !raceClosed(nowIn) ? (data.roster.filter((a) =>
+              isAlternate(a) && a.eligibleRaceIds.includes(nowIn))) : [];
 
             return (
               <li
@@ -955,7 +982,7 @@ export default function DeclarePage() {
             </div>
             <ul className="space-y-1.5">
               {alternatesShown.map((a) => {
-                const inFor = swaps[a.id] ? data.roster.find((x) => x.id === swaps[a.id]) : undefined;
+                const inFor = swapState.outFor[a.id] ? data.roster.find((x) => x.id === swapState.outFor[a.id]) : undefined;
                 return (
                   <li key={a.id} className="flex items-baseline justify-between gap-3 px-1 text-sm">
                     <span className="truncate text-gray-200">{a.firstName} {a.lastName}</span>

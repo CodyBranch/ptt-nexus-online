@@ -300,9 +300,14 @@ async function swapAnswer(
   const alternateId = body.unswap!.alternateId;
   const ok = checkUnswap(rules, alternateId);
   if (!ok.ok) return NextResponse.json({ error: ok.error }, { status: 409 });
+  // A runner swapped out who had gone in for somebody else: back out, for
+  // the alternate still running on their bib.
+  const before = answers.find((x) => x.status === 'declared' && x.swapFor === alternateId);
   await db.transaction(async (tx) => {
-    // Kept, not cleared: the desk undoes a swap it has made when it sees this.
-    await write(tx, alternateId, 'unswapped', ok.raceId, ok.forAthleteId);
+    // Kept, not cleared: the desk undoes a swap it has made when it sees this
+    // ('swapped' too: a runner out has no swap left with them in it).
+    if (before) await write(tx, alternateId, 'swapped', before.raceId, before.athleteId);
+    else await write(tx, alternateId, 'unswapped', ok.raceId, ok.forAthleteId);
     // The runner is back as the meet entered them, theirs to confirm again.
     await tx.delete(declarationSubmissions).where(and(
       eq(declarationSubmissions.teamAccessId, access.id),
