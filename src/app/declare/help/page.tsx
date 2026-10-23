@@ -22,7 +22,7 @@ const STEPS: Array<{ title: string; body: string }> = [
   { title: 'Find your squad', body: 'Every runner is listed with the races they can run and when each race closes. The count at the top shows who still needs an answer. Use Men and Women to narrow the list.' },
   { title: 'Tap the race each runner is in', body: 'It saves the moment you tap; there is no Submit button. Tap a different race to move a runner, for example to the Open.' },
   { title: 'Tap Not running to scratch', body: 'You can change any answer until that race closes.' },
-  { title: 'Swap in an alternate', body: 'At some meets, runners not in a race are listed as Alternates, with no bib. To run one, tap Swap in an alternate on an entered runner’s card and pick who goes in. The alternate runs on that runner’s bib, so hand it over. Undo swap puts them back, until the race closes or you finalize it.' },
+  { title: 'Swap in an alternate', body: 'At some meets, runners not in a race are listed as Alternates, with no bib. To run one, tap Swap in an alternate on an entered runner’s card and pick who goes in. The alternate runs on that runner’s bib, so hand it over. It works for a runner marked Not running too, and a runner swapped out can go in for someone else. Undo swap puts them back, until the race closes or you finalize it.' },
   { title: 'Confirm the rest', body: 'Runners already entered by the meet can be confirmed as running all at once with the Confirm button on the race.' },
   { title: 'Finalize each race', body: 'When a race is done, tap Finalize. That locks it in; Reopen it if something changes before it closes.' },
   { title: 'That’s it', body: 'Your answers reach the meet’s timing system within about a minute. After a race closes, changes go through the meet office.' },
