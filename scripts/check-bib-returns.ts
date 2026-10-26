@@ -14,7 +14,10 @@ async function main() {
   const meetToken = 'm' + randomUUID().slice(0, 8);
   await db.insert(meetDeclarationSessions).values({ id: sessionId, meetToken, meetName: 'Bib check', returnsToken: 'r' + randomUUID().slice(0, 8) } as never);
   const team = randomUUID();
-  const roster = [{ id: 'a1', firstName: 'Early', lastName: 'Hander', bib: '101', tags: [] }, { id: 'a2', firstName: 'Usual', lastName: 'Order', bib: '102', tags: [] }];
+  // a3 wears two tags, as the desk sends them: the bib's own (103) is the bib,
+  // and the 10000 + bib series is under tags.
+  const roster = [{ id: 'a1', firstName: 'Early', lastName: 'Hander', bib: '101', tags: [] }, { id: 'a2', firstName: 'Usual', lastName: 'Order', bib: '102', tags: [] },
+    { id: 'a3', firstName: 'Two', lastName: 'Tags', bib: '103', tags: ['10103'] }];
   await db.insert(teamDeclarationAccess).values({ id: team, meetSessionId: sessionId, teamToken: 't' + randomUUID().slice(0, 8), teamId: 'T1', teamName: 'Check U', rosterJson: JSON.stringify(roster) } as never);
   const answer = (athleteId: string, status: string) => db.insert(declarationSubmissions)
     .values({ teamAccessId: team, meetSessionId: sessionId, athleteId, status, raceId: status === 'declared' ? 'race1' : null } as never)
@@ -46,6 +49,20 @@ async function main() {
   ok('scratched with the bib still out: outstanding', (await R.returnsView(session)).outstanding.some((o) => o.bib === '102'));
   const r2 = await R.recordReturn(session, '102', { via: 'scan' });
   ok('then scanned: returned', r2.status === 'returned' && (await R.returnState(sessionId)).has(`${team}|a2`), r2.message);
+
+  // a3: the secondary tag is the same bib. A reader at the table sees both
+  // tags on the one bib; either is that bib back, and the other is already in.
+  await answer('a3', 'scratched');
+  const tagScan = await R.recordReturn(session, '10103', { via: 'scan' });
+  ok('the secondary tag scanned: bib 103 back', tagScan.status === 'returned' && (await R.returnState(sessionId)).has(`${team}|a3`)
+    && tagScan.scan?.bib === '103', tagScan.message);
+  const bibScan = await R.recordReturn(session, '103', { via: 'scan' });
+  ok('  its own tag read next: the same bib, already in hand', bibScan.status === 'already_returned', bibScan.message);
+  const typed = await R.recordReturn(session, '10103', { via: 'manual' });
+  ok('  the secondary tag typed by staff: found too', typed.status === 'already_returned', typed.message);
+  const other = await R.recordReturn(session, '19999', { via: 'scan' });
+  ok('a tag on nobody in the meet: unknown', other.status === 'unknown_bib', other.message);
+  ok('  and bib 103 is not outstanding', !(await R.returnsView(session)).outstanding.some((o) => o.bib === '103'));
 
   // Undone scans never count.
   const v = await R.returnsView(session);
