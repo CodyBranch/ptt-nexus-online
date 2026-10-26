@@ -339,6 +339,10 @@ td.pl{font:600 15px var(--mono);width:40px;text-align:right;color:var(--ink)}
 .annnotes p{margin:0;padding-left:16px;position:relative}
 .annnotes p::before{content:"";position:absolute;left:3px;top:.62em;width:5px;height:5px;border-radius:50%;background:var(--muted)}
 @media (max-width:560px){.annrows{grid-template-columns:1fr;gap:1px 0}.annrows dd{margin-bottom:7px}}
+/* The record book's defending champion: the name to say, then the mark. */
+.bookdef .booknm{margin:0 0 4px;font-size:16px;color:var(--ink)}
+.bookdef .booknm b{font:700 18px var(--display)}
+.bookdef .annwho{font-family:var(--mono);font-variant-numeric:tabular-nums}
 /* Centered on the logo: lined up on the text's baseline, the name, box and
    count sat below the middle of a 28px logo beside them. */
 .tgroup > header{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:10px 12px;background:var(--surface-2);cursor:pointer}
@@ -889,6 +893,7 @@ td.pl .mvx{display:none}
       <button role="tab" data-view="compare" id="tab-compare">Compare</button>
       <button role="tab" data-view="teams" id="tab-teams">Teams</button>
       <button role="tab" data-view="history" id="tab-history">History</button>
+      <button role="tab" data-view="book" id="tab-book" hidden>Record book</button>
       <button role="tab" data-view="insights" id="tab-insights">Insights</button>
     </nav>
   </header>
@@ -946,6 +951,7 @@ td.pl .mvx{display:none}
 
   <!-- HISTORY -->
   <section class="view" id="v-history" hidden></section>
+  <section class="view" id="v-book" hidden></section>
 
   <!-- REPLAY -->
   <section class="view" id="v-replay" hidden>
@@ -1443,7 +1449,11 @@ function loadAnnouncer(id){
   getJson("/announcer/"+encodeURIComponent(id))
     .then(d=>d&&d.runners?d:null).catch(()=>null)
     .then(d=>{const was=ANNCACHE[id];ANNCACHE[id]={doc:d||(was&&was.doc)||null,at:Date.now(),loading:false};
-      if(state.view==="athlete"&&RACE&&RACE.id===id)renderAthlete();});
+      if(!RACE||RACE.id!==id)return;
+      // The record book's tab comes and goes with the race's notes.
+      setTabs();
+      if(state.view==="athlete")renderAthlete();
+      else if(state.view==="book")BOOK()?renderBook():setView("results");});
 }
 /* Past years. Fetched once per race and kept: it changes when somebody imports
    another season, not while the race is on. A machine with no history on it,
@@ -1567,7 +1577,7 @@ function ptsLabel(n){return n+(Number(n)===1?" pt":" pts");}
 function statusPill(r){const p=h("span","pill "+(r.status==="live"?"live":r.status==="final"?"final":"up"));p.textContent=r.status==="live"?"Live":r.status==="final"?"Final":"Upcoming";return p;}
 
 /* ============ View switching ============ */
-const views=["events","results","athlete","replay","compare","teams","history","team","insights"];
+const views=["events","results","athlete","replay","compare","teams","history","book","team","insights"];
 function setTabs(){
   // These need a mat to have reported, not merely a gun. Between the two -
   // which on a 5K is the first four or five minutes - the race is live and
@@ -1584,9 +1594,12 @@ function setTabs(){
   const hb=$("#tab-history");hb.disabled=!HIST;hb.title=HIST?"":"Nothing recorded here yet";
   // Insights tell a race that has been run: they open with the first finisher.
   const ib=$("#tab-insights");const fin=!!(LASTK&&MATL[LASTK]==="Finish"&&FIN&&FIN.length);ib.disabled=!fin;ib.title=fin?"":"Opens once runners finish";
+  // The meet's record book is the booth's: there only on a page opened with
+  // ?announcer, and only for a race whose side has a book loaded.
+  const bb=$("#tab-book");bb.hidden=!BOOK();
   // Results and nothing else to go to (a race not yet started, with no
   // history): on a phone, a bar with one tab on it is not shown.
-  const open=["replay","compare","teams","history","insights"].filter(x=>!$("#tab-"+x).disabled).length;
+  const open=["replay","compare","teams","history","insights"].filter(x=>!$("#tab-"+x).disabled).length+(bb.hidden?0:1);
   document.querySelector("nav.views").classList.toggle("solo",open===0);}
 function setView(v){
   // Nothing but Events works until an event is picked, and this gets called
@@ -1596,7 +1609,7 @@ function setView(v){
   // a blank page rather than a wrong one.
   if(!RACE&&v!=="events"&&v!=="athlete"&&v!=="team")v="events";
   const mats=MATS?MATS.length:0;
-  if(!mats&&["replay","compare","teams","insights"].includes(v))v=RACE?"results":"events";if(v==="history"&&HIST===null)v="results";if(v!=="athlete")state.back=v;state.view=v;if(RACE)setHeader();if(v!=="results")document.querySelector(".wrap").classList.remove("wide");views.forEach(x=>{$("#v-"+x).hidden=x!==v;const tb=$("#tab-"+x);if(tb)tb.setAttribute("aria-selected",x===v);});
+  if(!mats&&["replay","compare","teams","insights"].includes(v))v=RACE?"results":"events";if(v==="history"&&HIST===null)v="results";if(v==="book"&&!BOOK())v="results";if(v!=="athlete")state.back=v;state.view=v;if(RACE)setHeader();if(v!=="results")document.querySelector(".wrap").classList.remove("wide");views.forEach(x=>{$("#v-"+x).hidden=x!==v;const tb=$("#tab-"+x);if(tb)tb.setAttribute("aria-selected",x===v);});
   // The whole strip goes on the schedule. Every tab on it except Events needs a
   // race in hand, and the schedule is where you pick one — so there it points
   // either at nothing or, worse, at whichever race the page happened to load
@@ -1609,7 +1622,7 @@ function setView(v){
   const nv=document.querySelector("nav.views");if(nv)nv.hidden=(v==="events"||v==="team");
   const bk=$("#backSched");if(bk)bk.hidden=(v==="events");
   const am=$("#allMeets");if(am&&FBSRC)am.hidden=(v!=="events");
-  try{history.replaceState(null,"","#view="+v);}catch(e){}if(v==="replay"){if(RACE&&MATS.length){buildMap();buildProgress();}drawReplay(true);}if(v==="compare")renderCompare();if(v==="teams")renderTeams();if(v==="insights")renderInsights();if(v==="history")renderHistory();if(v==="team")renderTeam();if(v==="results")renderResults();if(v==="events")renderEvents();if(v==="athlete")renderAthlete();}
+  try{history.replaceState(null,"","#view="+v);}catch(e){}if(v==="replay"){if(RACE&&MATS.length){buildMap();buildProgress();}drawReplay(true);}if(v==="compare")renderCompare();if(v==="teams")renderTeams();if(v==="insights")renderInsights();if(v==="history")renderHistory();if(v==="book")renderBook();if(v==="team")renderTeam();if(v==="results")renderResults();if(v==="events")renderEvents();if(v==="athlete")renderAthlete();}
 // A different tab starts at its top; tapping the one already showing leaves
 // the page where it is.
 document.querySelectorAll("nav.views button[data-view]").forEach(b=>b.addEventListener("click",()=>{
@@ -2247,6 +2260,73 @@ function renderHistory(){
   if(d.returning.length)host.appendChild(histGroup("Been here before",
     d.returning.length+" of "+d.entrants+" in this race "+(d.returning.length===1?"has":"have")+" run this course",
     returningTable(d.returning)));
+}
+/* The meet's record book for this race's side: what the Announcer page shows
+   above its runners, for the booth. Only on a page opened with ?announcer. */
+function BOOK(){if(!ANN||!RACE)return null;const c=ANNCACHE[RACE.id];return c&&c.doc&&c.doc.book||null;}
+function bookTable(cols,rows){
+  const tb=h("table","results-table histtbl");
+  const th=h("thead"),hr=h("tr");
+  cols.forEach(([c,k])=>hr.appendChild(h("th",k||null,c)));
+  th.appendChild(hr);tb.appendChild(th);
+  const b=h("tbody");
+  rows.forEach(cells=>{const r=h("tr");cells.forEach(([v,k,sm])=>{const td=h("td",k||null);
+    if(v instanceof Node)td.appendChild(v);else td.textContent=v==null?"":String(v);
+    if(sm)td.appendChild(h("small",null,sm));r.appendChild(td);});b.appendChild(r);});
+  tb.appendChild(b);
+  const panel=h("div","panel");panel.appendChild(tb);return panel;
+}
+function who(name,school){const d=h("div");d.appendChild(h("div","nm",name));if(school)d.appendChild(h("div","meta",school));return d;}
+function renderBook(){
+  const host=$("#v-book");host.replaceChildren();
+  const b=BOOK();
+  if(!b){host.appendChild(h("p","note","No record book for this race."));return;}
+  host.appendChild(h("p","note",[b.meet+" record book",b.source].filter(Boolean).join(" · ")));
+
+  // The two things said before the gun: who won it last year, and the record.
+  const pair=h("div","histpair");
+  const d=b.defending;
+  if(d){
+    const p=h("div","panel ann bookdef");
+    const nm=h("p","booknm");nm.appendChild(h("b",null,d.name));if(d.school)nm.appendChild(document.createTextNode(", "+d.school));p.appendChild(nm);
+    const line=[d.mark,d.year!=null?String(d.year):""].filter(Boolean).join(" · ");
+    if(line)p.appendChild(h("p","annwho",line));
+    p.appendChild(h("span","pill "+(b.defendingInRace?"final":"up"),b.defendingInRace?"In today’s race":"Not in today’s race"));
+    pair.appendChild(histGroup("Defending champion",null,p));
+  }
+  if(b.records.length){
+    pair.appendChild(histGroup("Meet record",b.records[0].distance||null,bookTable([["#"],["Athlete"],["Time","r"]],
+      // The course under the name, where it can wrap; under the time it pushed the time off a phone.
+      b.records.map((r,i)=>[[i+1,"pl"],[who(r.name,[r.school,r.site].filter(Boolean).join(" · "))],[r.mark,"tm r",r.year!=null?String(r.year):""]]))));
+  }
+  if(pair.children.length)host.appendChild(pair);
+
+  const teams=h("div","histpair");
+  if(b.lastYear&&b.lastYear.results.length){
+    teams.appendChild(histGroup("Last year · "+b.lastYear.year,b.lastYear.site||null,bookTable([["Pl"],["Team"],["Score","r"]],
+      b.lastYear.results.map(r=>[[ord(r.place),"pl"],[r.team],[r.score,"tm r"]]))));
+  }
+  if(b.titleLeaders.length){
+    const s=b.streak;
+    teams.appendChild(histGroup("Most team titles",s?s.team+": "+s.titles+" in a row ("+s.from+"–"+s.to+")":null,bookTable([["School"],["Team","r"],["Indiv.","r"]],
+      b.titleLeaders.map(t=>[[t.school],[t.team,"tm r"],[t.individual,"tm r"]]))));
+  }
+  if(teams.children.length)host.appendChild(teams);
+
+  // Where each school in today's race stands in the book: last year and titles.
+  const here=b.teams.filter(t=>t.lastYear||t.titles);
+  if(here.length){
+    host.appendChild(histGroup("Today’s schools",here.length<b.teams.length?(b.teams.length-here.length)+" not in the book":null,bookTable([["School"],["Last year","r"],["Titles","r"]],
+      here.map(t=>[[t.team],[t.lastYear?ord(t.lastYear.place)+" · "+t.lastYear.score:"—","tm r",t.lastYear?String(t.lastYear.year):""],
+        [t.titles||"—","tm r",t.lastTitle?"last "+t.lastTitle:""]]))));
+  }
+
+  const keys=Object.keys(b.teamRecords||{});
+  if(keys.length){
+    const p=h("div","panel ann");const dl=h("dl","annrows");
+    keys.forEach(k=>{dl.appendChild(h("dt",null,k));const dd=h("dd");(b.teamRecords[k]||[]).forEach(l=>dd.appendChild(h("div",null,l)));dl.appendChild(dd);});
+    p.appendChild(dl);host.appendChild(histGroup("Team records",null,p));
+  }
 }
 /* Been here before. A runner with more than one visit opens to show the lot -
    "five times" is the fact that invites the question, so the answer is one

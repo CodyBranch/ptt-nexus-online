@@ -162,7 +162,18 @@
       });
       for (const k of ["from", "champs", "notes"]) if (runners[id][k] === undefined) delete runners[id][k];
     }
-    return Object.assign({ schema: 1, version: "", raceId }, d, { runners });
+    const out = Object.assign({ schema: 1, version: "", raceId }, d, { runners });
+    // The record book's panel: lists Firebase dropped for being empty come back empty.
+    if (d.book) {
+      const b = obj(d.book);
+      const teamRecords = {};
+      for (const [k, lines] of Object.entries(obj(b.teamRecords))) teamRecords[k] = list(lines);
+      out.book = Object.assign({}, b, {
+        records: list(b.records), titleLeaders: list(b.titleLeaders), teams: list(b.teams), teamRecords,
+      });
+      if (b.lastYear) out.book.lastYear = Object.assign({}, b.lastYear, { results: list(obj(b.lastYear).results) });
+    }
+    return out;
   }
 
   /**
