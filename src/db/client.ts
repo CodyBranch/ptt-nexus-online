@@ -84,3 +84,45 @@ export const db = new Proxy({} as Db, {
     return typeof v === 'function' ? v.bind(d) : v;
   },
 });
+
+/** Drop the instance's connection, so the next query opens a fresh one. */
+export function resetDb(): void {
+  const s = state.__nexusDb;
+  state.__nexusDb = undefined;
+  // Not awaited, for the same reason as above: a dead socket hangs its end.
+  s?.conn.end({ timeout: 1 }).catch(() => {});
+}
+
+/** What a dead or stuck connection looks like from postgres-js and the pooler. */
+function looksLikeConnectionTrouble(e: unknown): boolean {
+  const code = (e as { code?: string } | null)?.code ?? '';
+  const msg = e instanceof Error ? e.message : String(e);
+  return /CONNECTION_(CLOSED|ENDED|DESTROYED)|ECONNRESET|EPIPE|ETIMEDOUT|CONNECT_TIMEOUT/.test(code)
+    || /connection (closed|terminated|ended)|socket hang up|timed out|did not answer/i.test(msg);
+}
+
+/**
+ * A read that may not hang the page.
+ *
+ * XC Rankings sat for a minute and then showed "Connection closed.": the top
+ * of the page had streamed, the list underneath was waiting on a query that
+ * never answered, and the platform stopped the function at its 60 seconds.
+ * A read given this is allowed `ms` to answer; if it is stuck or dies on the
+ * connection, the connection is dropped and the read tried once more on a
+ * fresh one, so a dead socket costs a few seconds, not the page. Reads only:
+ * a write retried could be a write done twice.
+ */
+export async function readWithRetry<T>(label: string, read: () => Promise<T>, ms = 8000): Promise<T> {
+  const attempt = () => new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label}: the database did not answer in ${ms / 1000} seconds`)), ms);
+    read().then((v) => { clearTimeout(timer); resolve(v); }, (e) => { clearTimeout(timer); reject(e); });
+  });
+  try {
+    return await attempt();
+  } catch (e) {
+    if (!looksLikeConnectionTrouble(e)) throw e;
+    console.warn(`[db] ${label}: ${e instanceof Error ? e.message : String(e)} - trying again on a fresh connection`);
+    resetDb();
+    return attempt();
+  }
+}

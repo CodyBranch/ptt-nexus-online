@@ -1,6 +1,6 @@
 'use server';
 
-import { db } from '@/db/client';
+import { db, readWithRetry } from '@/db/client';
 import { organizations, rankingTeams } from '@/db/schema';
 import { and, asc, eq, ilike, ne, or, sql } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/admin-auth';
@@ -49,6 +49,10 @@ export interface PageHead {
  * wait before anything appeared.
  */
 export async function pageHead(): Promise<PageHead> {
+  return readWithRetry('the rankings summary', pageHeadOnce);
+}
+
+async function pageHeadOnce(): Promise<PageHead> {
   const [row] = rowsOf<{
     counts: Record<string, number> | null;
     last: { status: string; error: string | null; started_at: string } | null;
@@ -133,6 +137,10 @@ export interface BoardList {
  * division, gender or kind happens in the browser, without a trip back.
  */
 export async function allBoardLists(): Promise<BoardList[]> {
+  return readWithRetry('the rankings lists', allBoardListsOnce);
+}
+
+async function allBoardListsOnce(): Promise<BoardList[]> {
   const rows = rowsOf<{
     list_id: string; division_id: number; gender: 'men' | 'women'; kind: 'national' | 'regional'; division_name: string | null; region_name: string | null; week: number; released_at: Date | null;
     list_type: string | null; ustfccca_team_id: number; rank: number | null; is_rv: boolean; score: number | null;
@@ -243,6 +251,10 @@ function suggestionOf(o: OrgWithLogo, score?: number, why?: string): Suggestion 
  * nationally is the one a meet will show.
  */
 export async function teamsFor(tab: TeamTab): Promise<TeamRow[]> {
+  return readWithRetry('this list', () => teamsForOnce(tab), 15000);
+}
+
+async function teamsForOnce(tab: TeamTab): Promise<TeamRow[]> {
   const where = tab === 'linked'
     ? or(eq(rankingTeams.matchStatus, 'auto'), eq(rankingTeams.matchStatus, 'confirmed'))
     : eq(rankingTeams.matchStatus, tab);
@@ -389,7 +401,7 @@ export async function matchAgain(): Promise<{ autoMatched: number; review: numbe
 
 
 export async function autoPullState() {
-  return getAutoPull();
+  return readWithRetry('the daily read switch', getAutoPull);
 }
 
 /** Switch the daily read on or off. "Pull now" works either way. */
