@@ -35,6 +35,11 @@ interface RosterAthlete {
    * scanned by its tag still finds them.
    */
   tags?: string[];
+  /**
+   * The tags on the runner's other bibs - 10101 on the back bib of 101. Each
+   * is one more bib to hand in; see declare-returns.
+   */
+  extraBibs?: string[];
   gender?: string;
   year?: string;
   /**

@@ -391,7 +391,7 @@ function Roster({ team, raceName, words, now }: {
                   </span>
                   {r.status === 'scratched' && (
                     <div className={`text-[10px] mt-0.5 ${r.bibReturnedAt ? 'text-violet-300/80' : 'text-amber-300/90'}`}>
-                      {r.bibReturnedAt ? `Bib back ${ago(r.bibReturnedAt, now)}` : 'Bib not returned'}
+                      {r.bibReturnedAt ? `Bib back ${ago(r.bibReturnedAt, now)}` : r.bibsStillOut?.length ? `${r.bibsStillOut.join(' and ')} still out` : 'Bib not returned'}
                     </div>
                   )}
                   {r.status === 'declared' && r.bibReturnedAt && (

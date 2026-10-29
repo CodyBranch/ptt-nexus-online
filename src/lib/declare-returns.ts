@@ -9,6 +9,10 @@
  * A scan never changes a runner on its own. A bib for a runner who has not
  * been scratched is logged as such for staff to decide; a bib on nobody's
  * roster is logged as unknown. Every scan is kept; an undo marks it undone.
+ *
+ * A runner may wear two bibs: the desk sends a back bib's tag under
+ * `extraBibs` (10101 on the back bib of 101). Each bib is scanned in on its
+ * own, and the runner's bibs count as back once every one of them is.
  */
 
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
@@ -18,9 +22,35 @@ import {
 } from '@/db/schema';
 
 type Session = typeof meetDeclarationSessions.$inferSelect;
-interface RosterRow { id: string; firstName: string; lastName: string; bib?: string | number; tags?: string[]; gender?: string; year?: string }
+interface RosterRow {
+  id: string; firstName: string; lastName: string; bib?: string | number; tags?: string[];
+  /** The tags on the runner's other bibs, each one more bib to hand in. */
+  extraBibs?: string[];
+  gender?: string; year?: string;
+}
 
 export type ReturnStatus = 'returned' | 'not_scratched' | 'unknown_bib' | 'already_returned' | 'ambiguous';
+
+/**
+ * A runner's bibs, by the key a scan is filed under: '' for the bib itself
+ * (its number, or any tag on it), and the tag of each further bib.
+ */
+function bibsOf(r: RosterRow): string[] {
+  const extra = (r.extraBibs ?? []).map(normalizeCode).filter((c): c is string => !!c);
+  return ['', ...new Set(extra)];
+}
+
+/** Which of the runner's bibs a scanned code is. */
+function bibOfCode(r: RosterRow, code: string): string {
+  const c = normalizeCode(code);
+  return c && bibsOf(r).includes(c) ? c : '';
+}
+
+/** A bib as staff call it: "bib 101", "back bib (10101)". */
+function bibName(r: RosterRow, key: string): string {
+  if (!key) return `bib ${normalizeBib(r.bib) ?? '-'}`;
+  return bibsOf(r).length === 2 ? `back bib (${key})` : `bib ${key}`;
+}
 
 export interface ReturnScan {
   id: string;
@@ -44,6 +74,9 @@ export interface OutstandingBib {
   bib: string | null;
   tags: string[];
   scratchedAt: string | null;
+  /** How many bibs the runner wears, and which are still out when some are back. */
+  bibCount: number;
+  stillOut: string[];
 }
 
 export async function returnsSession(token: string): Promise<Session | null> {
@@ -133,12 +166,21 @@ async function isScratched(teamAccessId: string, athleteId: string): Promise<boo
  */
 const IN_HAND = ['returned', 'not_scratched'];
 
-async function activeReturn(teamAccessId: string, athleteId: string) {
-  const [row] = await db.select().from(declarationBibReturns).where(and(
-    eq(declarationBibReturns.teamAccessId, teamAccessId), eq(declarationBibReturns.athleteId, athleteId),
+/** Which of the runner's bibs are in hand. */
+async function bibsInHand(teamAccessId: string, runner: RosterRow): Promise<Set<string>> {
+  const rows = await db.select({ code: declarationBibReturns.code }).from(declarationBibReturns).where(and(
+    eq(declarationBibReturns.teamAccessId, teamAccessId), eq(declarationBibReturns.athleteId, runner.id),
     inArray(declarationBibReturns.status, IN_HAND), isNull(declarationBibReturns.undoneAt),
-  )).limit(1);
-  return row ?? null;
+  ));
+  return new Set(rows.map((r) => bibOfCode(runner, r.code)));
+}
+
+/** What a scan leaves still out, said after it: nothing for a runner with one bib. */
+function afterScan(runner: RosterRow, inHand: Set<string>): { stillOut: string[]; note: string } {
+  const all = bibsOf(runner);
+  if (all.length < 2) return { stillOut: [], note: '' };
+  const out = all.filter((k) => !inHand.has(k)).map((k) => bibName(runner, k));
+  return { stillOut: out, note: out.length ? ` - ${out.join(' and ')} still out` : all.length === 2 ? ' - both bibs back' : ` - all ${all.length} bibs back` };
 }
 
 const name = (r: RosterRow) => [r.firstName, r.lastName].filter(Boolean).join(' ');
@@ -152,6 +194,8 @@ const scanOf = (row: typeof declarationBibReturns.$inferSelect, hit: RosterHit |
 /** One bib handed in. Says what it was, in words staff and the scanner log can show. */
 export async function recordReturn(session: Session, raw: unknown, opts: { via: 'scan' | 'manual'; device?: string | null }): Promise<{
   status: ReturnStatus; code: string | null; message: string; scan: ReturnScan | null;
+  /** The runner's other bibs not yet back, when they wear more than one. */
+  stillOut?: string[];
 }> {
   const index = await rosterIndex(session.id);
   const { code, hits } = lookup(index, raw, opts.via);
@@ -161,8 +205,11 @@ export async function recordReturn(session: Session, raw: unknown, opts: { via: 
   const bib = hit ? normalizeBib(hit.runner.bib) : null;
   const said = bib && bib !== code ? `Tag ${code} (bib ${bib})` : `Bib ${code}`;
 
-  if (hit && await activeReturn(hit.teamAccessId, hit.runner.id)) {
-    return { status: 'already_returned', code, message: `${said}: ${name(hit.runner)}, ${hit.teamName} - already returned`, scan: null };
+  const inHand = hit ? await bibsInHand(hit.teamAccessId, hit.runner) : new Set<string>();
+  const which = hit ? bibOfCode(hit.runner, code) : '';
+  if (hit && inHand.has(which)) {
+    const { stillOut, note } = afterScan(hit.runner, inHand);
+    return { status: 'already_returned', code, message: `${said}: ${name(hit.runner)}, ${hit.teamName} - already returned${note}`, scan: null, stillOut };
   }
   const status: ReturnScan['status'] = hits.length > 1 ? 'ambiguous' : !hit ? 'unknown_bib'
     : (await isScratched(hit.teamAccessId, hit.runner.id)) ? 'returned' : 'not_scratched';
@@ -171,11 +218,13 @@ export async function recordReturn(session: Session, raw: unknown, opts: { via: 
     code, bib, status, via: opts.via, device,
   }).returning();
   const who = hit ? `${name(hit.runner)}, ${hit.teamName}` : '';
-  const message = status === 'returned' ? `${said} returned: ${who}`
-    : status === 'not_scratched' ? `${said} is ${who} - not scratched online yet; kept, and counted back once they are`
+  const { stillOut, note } = hit && (status === 'returned' || status === 'not_scratched')
+    ? afterScan(hit.runner, new Set([...inHand, which])) : { stillOut: [], note: '' };
+  const message = status === 'returned' ? `${said} returned: ${who}${note}`
+    : status === 'not_scratched' ? `${said} is ${who} - not scratched online yet; kept, and counted back once they are${note}`
       : status === 'ambiguous' ? `${code} is on ${hits.length} runners (${hits.map((h) => `${name(h.runner)}, ${h.teamName}`).join('; ')}) - left for staff`
         : `${code} is no bib or tag in this meet`;
-  return { status, code, message, scan: scanOf(row, hit) };
+  return { status, code, message, scan: scanOf(row, hit), ...(stillOut.length ? { stillOut } : {}) };
 }
 
 /** A scan taken back: it stays on file, marked undone. */
@@ -217,28 +266,63 @@ export async function scratchFromScan(session: Session, id: string): Promise<boo
  * only, as before.
  */
 export async function returnState(sessionId: string, opts: { evenIfRunning?: boolean } = {}): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  for (const [key, t] of await returnTally(sessionId, opts)) if (t.complete) out.set(key, t.at);
+  return out;
+}
+
+export interface ReturnTally {
+  /** When the last of the runner's bibs came back (each bib by its first scan). */
+  at: string;
+  /** Every bib the runner wears is in hand. */
+  complete: boolean;
+  bibCount: number;
+  /** The runner's bibs still out, by name; empty when complete. */
+  stillOut: string[];
+}
+
+/** Each runner with any bib in hand: which, and whether that is all of them. */
+export async function returnTally(sessionId: string, opts: { evenIfRunning?: boolean } = {}): Promise<Map<string, ReturnTally>> {
   // A bib scanned in before the coach scratched the runner was filed as
   // 'not_scratched' and never counted: when the coach then scratched them
   // online - rather than staff pressing "Scratch and accept" - the portal,
   // the dashboard and the desk all said the bib was still out (Nuttycombe,
   // 2026-10-09). It is the same bib on the same table. It counts once the
   // runner is scratched, by whoever.
-  const [rows, answers] = await Promise.all([
-    db.select({ t: declarationBibReturns.teamAccessId, a: declarationBibReturns.athleteId, at: declarationBibReturns.createdAt, status: declarationBibReturns.status })
+  const [rows, answers, { byId }] = await Promise.all([
+    db.select({ t: declarationBibReturns.teamAccessId, a: declarationBibReturns.athleteId, at: declarationBibReturns.createdAt, status: declarationBibReturns.status, code: declarationBibReturns.code })
       .from(declarationBibReturns)
       .where(and(eq(declarationBibReturns.meetSessionId, sessionId), inArray(declarationBibReturns.status, IN_HAND), isNull(declarationBibReturns.undoneAt))),
     db.select({ t: declarationSubmissions.teamAccessId, a: declarationSubmissions.athleteId, status: declarationSubmissions.status })
       .from(declarationSubmissions).where(eq(declarationSubmissions.meetSessionId, sessionId)),
+    rosterIndex(sessionId),
   ]);
   const scratched = new Set(answers.filter((r) => r.status === 'scratched').map((r) => `${r.t}|${r.a}`));
-  const out = new Map<string, string>();
+  // Runner -> each bib in hand -> when its first scan was.
+  const back = new Map<string, Map<string, string>>();
   for (const r of rows) {
     if (!r.t || !r.a || !r.at) continue;
     const key = `${r.t}|${r.a}`;
     if (r.status === 'not_scratched' && !scratched.has(key) && !opts.evenIfRunning) continue;
+    const runner = byId.get(key)?.runner;
+    const which = runner ? bibOfCode(runner, r.code) : '';
     const at = r.at.toISOString();
-    // The first scan is when it came back.
-    if (!out.has(key) || at < out.get(key)!) out.set(key, at);
+    const bibs = back.get(key) ?? new Map<string, string>();
+    if (!bibs.has(which) || at < bibs.get(which)!) bibs.set(which, at);
+    back.set(key, bibs);
+  }
+  const out = new Map<string, ReturnTally>();
+  for (const [key, bibs] of back) {
+    const runner = byId.get(key)?.runner;
+    // A runner gone from the roster since: one bib, as before.
+    const all = runner ? bibsOf(runner) : [''];
+    const missing = all.filter((k) => !bibs.has(k));
+    out.set(key, {
+      at: [...bibs.values()].sort().at(-1)!,
+      complete: missing.length === 0,
+      bibCount: all.length,
+      stillOut: runner ? missing.map((k) => bibName(runner, k)) : [],
+    });
   }
   return out;
 }
@@ -246,11 +330,11 @@ export async function returnState(sessionId: string, opts: { evenIfRunning?: boo
 /** What the staff page shows: the scans, newest first, and every bib still out. */
 export async function returnsView(session: Session) {
   const { byId } = await rosterIndex(session.id);
-  const [scans, answers, returned] = await Promise.all([
+  const [scans, answers, tally] = await Promise.all([
     db.select().from(declarationBibReturns).where(eq(declarationBibReturns.meetSessionId, session.id))
       .orderBy(desc(declarationBibReturns.createdAt)).limit(200),
     db.select().from(declarationSubmissions).where(eq(declarationSubmissions.meetSessionId, session.id)),
-    returnState(session.id),
+    returnTally(session.id),
   ]);
   const scratched = answers.filter((a) => a.status === 'scratched');
   const scratchedNow = new Set(scratched.map((a) => `${a.teamAccessId}|${a.athleteId}`));
@@ -261,26 +345,29 @@ export async function returnsView(session: Session) {
     return s.status === 'not_scratched' && scratchedNow.has(`${s.teamAccessId}|${s.athleteId}`) ? { ...scan, status: 'returned' } : scan;
   });
   const outstanding: OutstandingBib[] = scratched
-    .filter((s) => !returned.has(`${s.teamAccessId}|${s.athleteId}`))
+    .filter((s) => !tally.get(`${s.teamAccessId}|${s.athleteId}`)?.complete)
     .flatMap((s) => {
       const hit = byId.get(`${s.teamAccessId}|${s.athleteId}`);
       if (!hit) return [];
+      const all = bibsOf(hit.runner);
       return [{
         teamAccessId: s.teamAccessId, teamName: hit.teamName, athleteId: s.athleteId, name: name(hit.runner),
         bib: normalizeBib(hit.runner.bib), tags: hit.runner.tags ?? [], scratchedAt: s.updatedAt ? s.updatedAt.toISOString() : null,
+        bibCount: all.length,
+        stillOut: tally.get(`${s.teamAccessId}|${s.athleteId}`)?.stillOut ?? all.map((k) => bibName(hit.runner, k)),
       }];
     })
     .sort((a, b) => a.teamName.localeCompare(b.teamName) || (Number(a.bib) || 0) - (Number(b.bib) || 0));
   // A bib handed in for a runner who has since been put back in a race: they
-  // need it back before the gun.
+  // need it back before the gun - the one bib of two as much as both.
   const status = new Map(answers.map((a) => [`${a.teamAccessId}|${a.athleteId}`, a.status]));
-  const backButRunning = [...returned.entries()]
+  const backButRunning: OutstandingBib[] = [...tally.entries()]
     .filter(([k]) => status.get(k) === 'declared')
-    .flatMap(([k, at]) => {
+    .flatMap(([k, t]) => {
       const hit = byId.get(k);
       if (!hit) return [];
       return [{ teamAccessId: hit.teamAccessId, teamName: hit.teamName, athleteId: hit.runner.id, name: name(hit.runner),
-        bib: normalizeBib(hit.runner.bib), tags: hit.runner.tags ?? [], scratchedAt: at }];
+        bib: normalizeBib(hit.runner.bib), tags: hit.runner.tags ?? [], scratchedAt: t.at, bibCount: t.bibCount, stillOut: t.stillOut }];
     });
   return {
     meet: { name: session.meetName, date: session.meetDate },

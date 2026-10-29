@@ -245,7 +245,9 @@ export default function ReturnsView({ token, initial }: { token: string; initial
                     <li key={o.athleteId} className="flex items-baseline gap-2 text-sm">
                       <span className="w-12 shrink-0 font-semibold tabular-nums text-gray-200">{o.bib ?? '-'}</span>
                       <span className="min-w-0 truncate text-gray-300">{o.name}</span>
-                      {o.tags.length > 0 && <span className="shrink-0 text-[11px] tabular-nums text-gray-600">{o.tags.join(', ')}</span>}
+                      {o.bibCount > 1 && o.stillOut.length < o.bibCount
+                        ? <span className="shrink-0 text-[11px] text-amber-300">{o.stillOut.join(' and ')} still out</span>
+                        : o.tags.length > 0 && <span className="shrink-0 text-[11px] tabular-nums text-gray-600">{o.tags.join(', ')}</span>}
                     </li>
                   ))}
                 </ul>

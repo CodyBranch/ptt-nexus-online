@@ -17,7 +17,9 @@ async function main() {
   // a3 wears two tags, as the desk sends them: the bib's own (103) is the bib,
   // and the 10000 + bib series is under tags.
   const roster = [{ id: 'a1', firstName: 'Early', lastName: 'Hander', bib: '101', tags: [] }, { id: 'a2', firstName: 'Usual', lastName: 'Order', bib: '102', tags: [] },
-    { id: 'a3', firstName: 'Two', lastName: 'Tags', bib: '103', tags: ['10103'] }];
+    { id: 'a3', firstName: 'Two', lastName: 'Tags', bib: '103', tags: ['10103'] },
+    // a4 wears a back bib: the 10000 series is a bib of its own, so both come back.
+    { id: 'a4', firstName: 'Back', lastName: 'Bib', bib: '104', tags: ['10104'], extraBibs: ['10104'] }];
   await db.insert(teamDeclarationAccess).values({ id: team, meetSessionId: sessionId, teamToken: 't' + randomUUID().slice(0, 8), teamId: 'T1', teamName: 'Check U', rosterJson: JSON.stringify(roster) } as never);
   const answer = (athleteId: string, status: string) => db.insert(declarationSubmissions)
     .values({ teamAccessId: team, meetSessionId: sessionId, athleteId, status, raceId: status === 'declared' ? 'race1' : null } as never)
@@ -63,6 +65,25 @@ async function main() {
   const other = await R.recordReturn(session, '19999', { via: 'scan' });
   ok('a tag on nobody in the meet: unknown', other.status === 'unknown_bib', other.message);
   ok('  and bib 103 is not outstanding', !(await R.returnsView(session)).outstanding.some((o) => o.bib === '103'));
+
+  // a4: two bibs. One scanned is one bib back; the runner is still out until
+  // the other is scanned too, in either order.
+  await answer('a4', 'scratched');
+  const front = await R.recordReturn(session, '104', { via: 'scan' });
+  ok('the front bib scanned: returned, the back bib still out', front.status === 'returned' && front.stillOut?.join() === 'back bib (10104)'
+    && !(await R.returnState(sessionId)).has(`${team}|a4`), front.message);
+  const half = (await R.returnsView(session)).outstanding.find((o) => o.bib === '104');
+  ok('  staff page: still outstanding, saying which bib', half?.bibCount === 2 && half.stillOut.join() === 'back bib (10104)', half);
+  const frontAgain = await R.recordReturn(session, '104', { via: 'scan' });
+  ok('  the front bib again: already in hand, back bib still out', frontAgain.status === 'already_returned' && /back bib \(10104\) still out/.test(frontAgain.message), frontAgain.message);
+  const backBib = await R.recordReturn(session, '10104', { via: 'scan' });
+  ok('the back bib scanned: both bibs back', backBib.status === 'returned' && /both bibs back/.test(backBib.message)
+    && (await R.returnState(sessionId)).has(`${team}|a4`), backBib.message);
+  ok('  and not outstanding', !(await R.returnsView(session)).outstanding.some((o) => o.bib === '104'));
+  const backId = (await R.returnsView(session)).scans.find((s) => s.code === '10104')!.id;
+  await R.undoReturn(session, backId);
+  const tally = (await R.returnTally(sessionId)).get(`${team}|a4`);
+  ok('the back bib scan undone: outstanding again, front still in hand', !tally?.complete && tally?.stillOut.join() === 'back bib (10104)', tally);
 
   // Undone scans never count.
   const v = await R.returnsView(session);

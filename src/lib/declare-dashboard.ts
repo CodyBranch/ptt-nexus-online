@@ -12,7 +12,7 @@
  * still moves it.
  */
 
-import { returnState } from '@/lib/declare-returns';
+import { returnTally } from '@/lib/declare-returns';
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
@@ -49,6 +49,8 @@ export interface DashRunner {
    * been. A scratched runner without one still has their bib.
    */
   bibReturnedAt: string | null;
+  /** Some of a runner's bibs are back and these are still out (a back bib). */
+  bibsStillOut: string[] | null;
   /** A headshot from Nexus Online, when the school's are there. */
   photoUrl: string | null;
   /** Swapped in (an alternate): the runner they went in for, whose bib they run on. */
@@ -170,7 +172,7 @@ export async function loadDashboard(session: NonNullable<Awaited<ReturnType<type
     db.select().from(declarationSubmissions).where(eq(declarationSubmissions.meetSessionId, session.id)),
     db.select().from(declarationFinalizations).where(eq(declarationFinalizations.meetSessionId, session.id)),
     dashboardVersion(session.id),
-    returnState(session.id),
+    returnTally(session.id),
   ]);
 
   const orgIds = [...new Set(teams.map((t) => t.organizationId).filter((id): id is string => !!id))];
@@ -221,6 +223,7 @@ export async function loadDashboard(session: NonNullable<Awaited<ReturnType<type
       // Swapped in: on the runner's bib, which the roster the desk sent still
       // gives to the runner until the next update.
       const out = ans?.status === 'declared' && ans.swapFor ? roster.find((x) => x.id === ans.swapFor) : undefined;
+      const back = returned.get(`${t.id}|${a.id}`);
       return {
         id: a.id, firstName: a.firstName, lastName: a.lastName,
         bib: a.bib ? String(a.bib) : out?.bib ? String(out.bib) : null, year: a.year ?? null, gender: a.gender ?? null,
@@ -228,7 +231,8 @@ export async function loadDashboard(session: NonNullable<Awaited<ReturnType<type
         status: (ans?.status === 'declared' || ans?.status === 'scratched' ? ans.status : 'undecided') as RunnerStatus,
         raceId: ans?.status === 'declared' ? ans.raceId ?? null : null,
         answeredAt: ans?.updatedAt ? ans.updatedAt.toISOString() : null,
-        bibReturnedAt: returned.get(`${t.id}|${a.id}`) ?? null,
+        bibReturnedAt: back?.complete ? back.at : null,
+        bibsStillOut: back && !back.complete ? back.stillOut : null,
         photoUrl: org ? photo.get(`${org.id}|${headshotNameKey(a.firstName, a.lastName)}`) ?? null : null,
       };
     });
