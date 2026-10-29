@@ -1488,12 +1488,13 @@ async function loadRace(id,keep){
    are pulled again now and then); nobody else's page asks for them. */
 const ANN=!!SCREEN||(()=>{try{const m=location.search.match(/[?&]announcer(?:=([^&]*))?(?:&|$)/);return !!m&&!/^(0|false|off|no)$/i.test(m[1]||"");}catch(e){return false;}})();
 const ANNCACHE={};
+/* Returns the fetch in hand, so the second screen can wait for a record book
+   before it opens one. */
 function loadAnnouncer(id){
-  if(!ANN)return;
+  if(!ANN)return Promise.resolve();
   const c=ANNCACHE[id];
-  if(c&&(c.loading||Date.now()-c.at<300000))return;
-  ANNCACHE[id]=Object.assign({},c||{doc:undefined},{loading:true,at:Date.now()});
-  getJson("/announcer/"+encodeURIComponent(id))
+  if(c&&(c.loading||Date.now()-c.at<300000))return c.p||Promise.resolve();
+  const p=getJson("/announcer/"+encodeURIComponent(id))
     .then(d=>d&&d.runners?d:null).catch(()=>null)
     .then(d=>{const was=ANNCACHE[id];ANNCACHE[id]={doc:d||(was&&was.doc)||null,at:Date.now(),loading:false};
       if(!RACE||RACE.id!==id)return;
@@ -1501,6 +1502,8 @@ function loadAnnouncer(id){
       setTabs();
       if(state.view==="athlete")renderAthlete();
       else if(state.view==="book")BOOK()?renderBook():setView("results");});
+  ANNCACHE[id]=Object.assign({},c||{doc:undefined},{loading:true,at:Date.now(),p});
+  return p;
 }
 /* Past years. Fetched once per race and kept: it changes when somebody imports
    another season, not while the race is on. A machine with no history on it,
@@ -2312,6 +2315,7 @@ function histGroup(title,note,body){
 }
 function renderHistory(){
   const host=$("#v-history");host.replaceChildren();
+  screenSendBar(host,"history");
   const d=HIST;
   if(!d){host.appendChild(h("p","note","Nothing has been recorded on this course yet."));return;}
 
@@ -2355,6 +2359,7 @@ function bookTable(cols,rows){
 function who(name,school){const d=h("div");d.appendChild(h("div","nm",name));if(school)d.appendChild(h("div","meta",school));return d;}
 function renderBook(){
   const host=$("#v-book");host.replaceChildren();
+  screenSendBar(host,"book");
   const b=BOOK();
   if(!b){host.appendChild(h("p","note","No record book for this race."));return;}
   host.appendChild(h("p","note",[b.meet+" record book",b.source].filter(Boolean).join(" · ")));
@@ -2384,8 +2389,11 @@ function renderBook(){
   }
   if(b.titleLeaders.length){
     const s=b.streak;
-    teams.appendChild(histGroup("Most team titles",s?s.team+": "+s.titles+" in a row ("+s.from+"–"+s.to+")":null,bookTable([["School"],["Team","r"],["Indiv.","r"]],
-      b.titleLeaders.map(t=>[[t.school],[t.team,"tm r"],[t.individual,"tm r"]]))));
+    // A book that counts only team titles (the SEC's champions pages) has no
+    // individual column to show: a row of zeros would read as none won.
+    const indiv=b.titleLeaders.some(t=>t.individual>0);
+    teams.appendChild(histGroup("Most team titles",s?s.team+": "+s.titles+" in a row ("+s.from+"–"+s.to+")":null,bookTable([["School"],["Team","r"],...(indiv?[["Indiv.","r"]]:[])],
+      b.titleLeaders.map(t=>[[t.school],[t.team,"tm r"],...(indiv?[[t.individual,"tm r"]]:[])]))));
   }
   if(teams.children.length)host.appendChild(teams);
 
@@ -4544,6 +4552,19 @@ function toScreen(msg,label,here){
   screenToast((label?label:msg.kind==="team"?"That school":"That runner")+" is on the second screen",here);
   return true;
 }
+/* On the booth's page, with a screen linked: the race's History or Record
+   book sent whole, for the screen to show while the booth works elsewhere. */
+function screenSendBar(host,kind){
+  if(!SEND_CODE||SCREEN||!RACE)return;
+  const bar=h("div","row");bar.style.margin="0 0 12px";
+  const what=kind==="book"?"record book":"history";
+  const b=h("button","btn","Show the "+what+" on the second screen");b.type="button";
+  b.addEventListener("click",()=>{
+    screenLink.send(SEND_CODE,{kind,race:RACE.id,t:Date.now()});
+    screenToast("The "+what+" for "+RACE.name+" is on the second screen");
+  });
+  bar.appendChild(b);host.appendChild(bar);
+}
 let TOASTTIMER=null;
 function screenToast(text,here){
   const t=$("#screenToast");t.replaceChildren(h("span",null,text));
@@ -4561,7 +4582,7 @@ function renderScreenPanel(){
   const url=screenUrl(SEND_CODE);
   p.appendChild(h("div","eyebrow","Second screen"));
   p.appendChild(h("div","code",SEND_CODE));
-  p.appendChild(h("p",null,"Clicking a runner or a school on this page now shows them on the second screen, and this page stays where it is."));
+  p.appendChild(h("p",null,"Clicking a runner or a school on this page now shows them on the second screen, and this page stays where it is. The History and Record book tabs each have a button to show them there too."));
   const row=h("div","row");
   const open=h("button","btn primary","Open on this computer");open.type="button";
   open.addEventListener("click",()=>window.open(url,"nexus-xc-screen-"+SEND_CODE));
@@ -4609,8 +4630,21 @@ async function screenShow(m){
       if(state.view==="team")state.view="wait";
       openTeamHere(m.id);
       if(m.race)state.teamRace=m.race;
+      return;
     }
-  }catch(e){/* a runner or school no longer in the results: keep what is showing */}
+    if(m.kind==="history"||m.kind==="book"){
+      if(!RACE||RACE.id!==m.race)await loadRace(m.race);
+      // Both are fetched with the race; wait for the one asked for, so it
+      // opens rather than falling back to the results.
+      await (m.kind==="history"?loadHistory(m.race):loadAnnouncer(m.race));
+      setView(m.kind);scrollTo({top:0});
+    }
+  }catch(e){/* a runner, school or race no longer in the results: keep what is showing */}
+  finally{paintScreenTop();}
+}
+/* The screen's top line: the meet, and the race whatever is showing belongs to. */
+function paintScreenTop(){
+  $("#screenMeet").textContent=[MEET.name,RACE&&state.view!=="team"&&state.view!=="wait"?RACE.name:""].filter(Boolean).join(" · ");
 }
 function startScreen(){
   $("#screenTop").hidden=false;
