@@ -14,6 +14,7 @@ import {
   primaryKey,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // ═══════════════════════════════════════════════════════════
 // Organizations
@@ -588,6 +589,21 @@ export const meetDeclarationSessions = pgTable('meet_declaration_sessions', {
   clerkJson: text('clerk_json'),
   clerkUpdatedAt: timestamp('clerk_updated_at', { withTimezone: true }),
 
+  /**
+   * The meet's tablet code (/declare/kiosk/{token}): the PTT Nexus Tablet app
+   * scans it once and is handed the dashboard, the clerks' page and every
+   * school's coach form. It opens every form, so it is shown on the desk
+   * only, never printed for coaches.
+   */
+  kioskToken: text('kiosk_token').unique(),
+
+  /**
+   * The packet pickup page (/declare/pickup/{token}): the table where each
+   * school's packets are handed over, scanned from the team labels' codes.
+   * It writes, so it is a token of its own, like the bib returns'.
+   */
+  pickupToken: text('pickup_token').unique(),
+
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => [
@@ -739,6 +755,39 @@ export const declarationBibReturns = pgTable('declaration_bib_returns', {
 }, (table) => [
   index('idx_bib_returns_session').on(table.meetSessionId, table.createdAt),
   index('idx_bib_returns_athlete').on(table.teamAccessId, table.athleteId),
+]);
+
+// ═══════════════════════════════════════════════════════════
+// Cross Country Declarations — Packet pickup
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * A school's packet handed over at the packet table: one side of the field
+ * ('F' or 'M', or 'X' for a school with no runners on a side yet), by the
+ * code on its team label or by hand. Who took it, and their signature, when
+ * the table asks. 'waiting' is a packet scanned at the table and waiting for
+ * the coach to sign on the sign-off tablet. An undo marks the row undone;
+ * rows are never deleted.
+ */
+export const declarationPacketPickups = pgTable('declaration_packet_pickups', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  meetSessionId: uuid('meet_session_id').notNull()
+    .references(() => meetDeclarationSessions.id, { onDelete: 'cascade' }),
+  teamAccessId: uuid('team_access_id').notNull()
+    .references(() => teamDeclarationAccess.id, { onDelete: 'cascade' }),
+  side: text('side').notNull(), // 'F' | 'M' | 'X'
+  status: text('status').notNull(), // 'picked_up' | 'waiting'
+  pickedUpBy: text('picked_up_by'),
+  /** A PNG data URL, drawn on the table's screen or the sign-off tablet. */
+  signature: text('signature'),
+  via: text('via').notNull().default('scan'), // 'scan' | 'manual'
+  device: text('device'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  signedAt: timestamp('signed_at', { withTimezone: true }),
+  undoneAt: timestamp('undone_at', { withTimezone: true }),
+}, (table) => [
+  index('idx_packet_pickups_session').on(table.meetSessionId, table.createdAt),
+  uniqueIndex('idx_packet_pickups_team').on(table.teamAccessId, table.side).where(sql`undone_at IS NULL`),
 ]);
 
 // ═══════════════════════════════════════════════════════════

@@ -1,4 +1,5 @@
 import { returnState } from '@/lib/declare-returns';
+import { pickupsForDesk } from '@/lib/declare-pickup';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import {
@@ -44,6 +45,8 @@ export async function GET(
     // Bibs handed back for scratched runners - the desk shows them beside the
     // scratch, and flags a course read from a scratched runner's bib still out.
     const returned = await returnState(session.id);
+    // Packets handed over at the packet table, for the desk to show.
+    const pickups = await pickupsForDesk(session.id);
 
     const byTeam = new Map<string, typeof rows>();
     for (const r of rows) {
@@ -59,6 +62,7 @@ export async function GET(
         teamId: t.teamId,
         teamName: t.teamName,
         finalizedRaceIds: finals.filter((f) => f.teamAccessId === t.id).map((f) => f.raceId),
+        packets: pickups.get(t.id) ?? [],
         declarations: (byTeam.get(t.id) ?? []).map((r) => ({
           athleteId: r.athleteId,
           status: r.status,

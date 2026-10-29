@@ -93,6 +93,10 @@ export async function POST(request: NextRequest) {
     const contactsToken = randomBytes(16).toString('hex');
     // The clerks' page: races, boxes and every runner's status, for officials.
     const clerkToken = randomBytes(16).toString('hex');
+    // The meet's tablet code, for the PTT Nexus Tablet app: see the schema's note.
+    const kioskToken = randomBytes(16).toString('hex');
+    // The packet table's link: see the schema's note on pickupToken.
+    const pickupToken = randomBytes(16).toString('hex');
     const orgs = await knownOrganizations(teams.map((t) => t.organizationId));
 
     const [session] = await db.insert(meetDeclarationSessions).values({
@@ -101,6 +105,8 @@ export async function POST(request: NextRequest) {
       returnsToken,
       contactsToken,
       clerkToken,
+      kioskToken,
+      pickupToken,
       textSignup: body.textSignup !== false,
       meetName,
       meetDate: meetDate ?? null,
@@ -157,6 +163,8 @@ export async function POST(request: NextRequest) {
       returnsToken,
       contactsToken,
       clerkToken,
+      kioskToken,
+      pickupToken,
       sessionId: session.id,
       teams: insertedTeams.map((t) => ({
         teamId: t.teamId,
