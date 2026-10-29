@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
       // scripts/export-live-web.js.
       { source: '/results/xc', destination: '/results-xc/meets.html' },
       { source: '/results/xc/:meet', destination: '/results-xc/index.html' },
+      // The announcer's second screen: the same page, which lays itself out
+      // as a focus screen when it sees /screen/ in its address.
+      { source: '/results/xc/:meet/screen/:code', destination: '/results-xc/index.html' },
     ];
   },
 };

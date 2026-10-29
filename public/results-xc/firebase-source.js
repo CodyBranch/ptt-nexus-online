@@ -581,10 +581,42 @@
       const e = new Error("Not found"); e.status = 404; throw e;
     }
 
+    /*
+     * The announcer's second screen on another device. The booth's page writes
+     * what was clicked to screens/{meet}/{code} and the screen listens there.
+     * Outside live/, which only the laptop writes: this is the one place a
+     * browser writes, and its rule lets in a small { kind, t, id, race } and
+     * nothing else.
+     */
+    function screen(code) {
+      const path = "screens/" + encodeKey(cfg.meet) + "/" + encodeKey(code);
+      const url = String(cfg.db).replace(/\/$/, "") + "/" + path.split("/").map(encodeURIComponent).join("/") + ".json";
+      return {
+        send(msg) {
+          if (sdkDb) return sdkDb.ref(path).set(msg);
+          return fetch(url, { method: "PUT", body: JSON.stringify(msg) }).then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); });
+        },
+        listen(fn) {
+          if (sdkDb) {
+            const ref = sdkDb.ref(path);
+            const cb = (snap) => { const v = snap.val(); if (v) fn(v); };
+            ref.on("value", cb, () => {});
+            return () => ref.off("value", cb);
+          }
+          const es = new EventSource(url);
+          es.addEventListener("put", (e) => {
+            try { const m = JSON.parse(e.data); if (m && m.path === "/" && m.data) fn(m.data); } catch (err) { /* not ours */ }
+          });
+          return () => es.close();
+        },
+      };
+    }
+
     return {
       get,
       onChange(fn) { listeners.push(fn); },
       serverNow,
+      screen,
       /** For the checks: the copy as it stands. */
       tree,
     };

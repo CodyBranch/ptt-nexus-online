@@ -873,6 +873,34 @@ td.pl .mvx{display:none}
 .ins-cls i.cl-JR,.ins-legend i.cl-JR{background:color-mix(in srgb,var(--accent) 80%,var(--surface))}
 .ins-cls i.cl-SR,.ins-legend i.cl-SR{background:var(--brand-red)}
 @media (max-width:900px){.ins-sec{scroll-margin-top:96px}.ins-bar{grid-template-columns:minmax(0,110px) 1fr 34px}.ins-margin{width:70px}}
+/* ---------- The announcer's second screen ----------
+   The booth's page gets a button to link one and a toast for each runner or
+   school sent to it. The screen itself is this page at .../screen/{code}: no
+   tabs and no way back (it follows the booth), dark by default, bigger type
+   for reading from a step away, and its own top line in place of the header. */
+.screenbtn .dot{width:8px;height:8px;border-radius:50%;background:var(--line-strong)}
+.screenbtn[data-linked="true"] .dot{background:var(--up)}
+.screenbtn[data-linked="true"]{border-color:var(--accent);color:var(--ink)}
+.screenpanel{padding:14px 16px;margin-bottom:14px;display:grid;gap:10px}
+.screenpanel .code{font-family:var(--display);font-weight:700;font-size:28px;letter-spacing:.14em;line-height:1}
+.screenpanel .lnk{font-family:var(--mono);font-size:12.5px;color:var(--ink-2);word-break:break-all;user-select:all}
+.screenpanel .state{font-size:12.5px;color:var(--ink-2)}
+.screenpanel .state.bad{color:var(--down)}
+.screentoast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:40;display:flex;gap:12px;align-items:center;
+  background:var(--ink);color:var(--surface);padding:9px 14px;border-radius:9px;box-shadow:0 6px 20px rgba(12,21,55,.25);font-size:13px;max-width:calc(100vw - 32px)}
+.screentoast button{font:600 12.5px var(--body);background:transparent;color:inherit;border:1px solid currentColor;border-radius:6px;padding:4px 9px;cursor:pointer;opacity:.85}
+.screentoast button:hover{opacity:1}
+html.screen body{font-size:16px}
+html.screen header.top,html.screen nav.views,html.screen .athbar,html.screen #v-team>.row:first-child,html.screen .allmeets{display:none!important}
+html.screen .wrap{max-width:1320px}
+.screentop{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding-block:18px 14px}
+.screencode{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--muted)}
+html.screen .athhead h2{font-size:40px}
+html.screen .athfacts .val{font-size:34px}
+html.screen h3{font-size:21px}
+.waitscreen{min-height:62vh;display:grid;place-content:center;justify-items:center;text-align:center;gap:10px}
+.waitscreen .code{font-family:var(--display);font-weight:700;font-size:72px;letter-spacing:.16em;line-height:1}
+.waitscreen p{color:var(--ink-2);max-width:44ch;margin:0}
 </style>
 
 </head>
@@ -896,7 +924,20 @@ td.pl .mvx{display:none}
       <button role="tab" data-view="book" id="tab-book" hidden>Record book</button>
       <button role="tab" data-view="insights" id="tab-insights">Insights</button>
     </nav>
+    <button class="themesw screenbtn" id="screenBtn" type="button" aria-expanded="false" aria-controls="screenPanel" hidden>
+      <span class="dot" aria-hidden="true"></span><span id="screenBtnLbl">Second screen</span>
+    </button>
   </header>
+  <!-- The booth's page: the second screen's code, how to open it, and what clicking does while it is linked. -->
+  <div class="panel screenpanel" id="screenPanel" hidden></div>
+  <!-- The second screen's own top line, in place of the header. -->
+  <div class="screentop" id="screenTop" hidden>
+    <span class="eyebrow" id="screenMeet"></span>
+    <span class="screencode" id="screenCode"></span>
+  </div>
+
+  <!-- SECOND SCREEN, before anything has been sent to it -->
+  <section class="view" id="v-wait" hidden></section>
 
   <!-- EVENTS -->
   <section class="view" id="v-events">
@@ -1054,13 +1095,14 @@ td.pl .mvx{display:none}
   </footer>
 </div>
 <div id="tip" hidden></div>
+<div class="screentoast" id="screenToast" role="status" aria-live="polite" hidden></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script src="/results-xc/firebase-source.js"></script>
 <script>
 /* Nexus Online's copy: the results come from Firebase, and the meet from the address. */
-window.LIVE_FIREBASE={db:"https://ptt-nexus-live-default-rtdb.firebaseio.com",meet:decodeURIComponent(location.pathname.replace(/\/+$/,"").split("/").pop()||"")};
+window.LIVE_FIREBASE={db:"https://ptt-nexus-live-default-rtdb.firebaseio.com",meet:decodeURIComponent((location.pathname.match(/\/results\/xc\/([^/]+)/)||[])[1]||location.pathname.replace(/\/+$/,"").split("/").pop()||"")};
 </script>
 <script>
 (function(){
@@ -1070,7 +1112,12 @@ window.LIVE_FIREBASE={db:"https://ptt-nexus-live-default-rtdb.firebaseio.com",me
    race, and one for each race, fetched when it is opened. Nothing is scored here. The running order and
    the team scores at every mat arrive worked out; the one thing this page works out for itself is the
    projection between mats in the replay, where no mat has spoken yet. */
-const API=location.pathname.replace(/\/live\/?$/,"")+"/live/api";
+const API=location.pathname.replace(/\/live(?:\/screen\/[^/]*)?\/?$/,"")+"/live/api";
+/* The announcer's second screen: this page at .../screen/{code}, laid out as
+   a focus screen that shows whichever runner or school the booth's page last
+   clicked. SCREEN is the code on the screen; on the booth's page it is null. */
+const SCREEN=(()=>{const m=location.pathname.match(/\/screen\/([A-Za-z0-9]{6,12})\/?$/);return m?m[1].toUpperCase():null;})();
+if(SCREEN)document.documentElement.classList.add("screen");
 /* How far this device's clock is from the one that wrote the gun.
    Every answer carries the server's own time, so the race clock is counted
    against that and not against whatever the phone believes. Half the round
@@ -1439,7 +1486,7 @@ async function loadRace(id,keep){
 /* The announcer's notes: only for a page opened with ?announcer, the link the
    booth is given. Fetched once a race and again after a few minutes (profiles
    are pulled again now and then); nobody else's page asks for them. */
-const ANN=(()=>{try{const m=location.search.match(/[?&]announcer(?:=([^&]*))?(?:&|$)/);return !!m&&!/^(0|false|off|no)$/i.test(m[1]||"");}catch(e){return false;}})();
+const ANN=!!SCREEN||(()=>{try{const m=location.search.match(/[?&]announcer(?:=([^&]*))?(?:&|$)/);return !!m&&!/^(0|false|off|no)$/i.test(m[1]||"");}catch(e){return false;}})();
 const ANNCACHE={};
 function loadAnnouncer(id){
   if(!ANN)return;
@@ -1577,7 +1624,7 @@ function ptsLabel(n){return n+(Number(n)===1?" pt":" pts");}
 function statusPill(r){const p=h("span","pill "+(r.status==="live"?"live":r.status==="final"?"final":"up"));p.textContent=r.status==="live"?"Live":r.status==="final"?"Final":"Upcoming";return p;}
 
 /* ============ View switching ============ */
-const views=["events","results","athlete","replay","compare","teams","history","book","team","insights"];
+const views=["events","results","athlete","replay","compare","teams","history","book","team","insights","wait"];
 function setTabs(){
   // These need a mat to have reported, not merely a gun. Between the two -
   // which on a 5K is the first four or five minutes - the race is live and
@@ -1607,7 +1654,7 @@ function setView(v){
   // hash, a back button. Reading MATS.length with no race loaded threw, and
   // because every section is hidden before the throw, what the viewer got was
   // a blank page rather than a wrong one.
-  if(!RACE&&v!=="events"&&v!=="athlete"&&v!=="team")v="events";
+  if(!RACE&&v!=="events"&&v!=="athlete"&&v!=="team"&&v!=="wait")v="events";
   const mats=MATS?MATS.length:0;
   if(!mats&&["replay","compare","teams","insights"].includes(v))v=RACE?"results":"events";if(v==="history"&&HIST===null)v="results";if(v==="book"&&!BOOK())v="results";if(v!=="athlete")state.back=v;state.view=v;if(RACE)setHeader();if(v!=="results")document.querySelector(".wrap").classList.remove("wide");views.forEach(x=>{$("#v-"+x).hidden=x!==v;const tb=$("#tab-"+x);if(tb)tb.setAttribute("aria-selected",x===v);});
   // The whole strip goes on the schedule. Every tab on it except Events needs a
@@ -1622,7 +1669,7 @@ function setView(v){
   const nv=document.querySelector("nav.views");if(nv)nv.hidden=(v==="events"||v==="team");
   const bk=$("#backSched");if(bk)bk.hidden=(v==="events");
   const am=$("#allMeets");if(am&&FBSRC)am.hidden=(v!=="events");
-  try{history.replaceState(null,"","#view="+v);}catch(e){}if(v==="replay"){if(RACE&&MATS.length){buildMap();buildProgress();}drawReplay(true);}if(v==="compare")renderCompare();if(v==="teams")renderTeams();if(v==="insights")renderInsights();if(v==="history")renderHistory();if(v==="book")renderBook();if(v==="team")renderTeam();if(v==="results")renderResults();if(v==="events")renderEvents();if(v==="athlete")renderAthlete();}
+  try{history.replaceState(null,"","#view="+v);}catch(e){}if(v==="replay"){if(RACE&&MATS.length){buildMap();buildProgress();}drawReplay(true);}if(v==="compare")renderCompare();if(v==="teams")renderTeams();if(v==="insights")renderInsights();if(v==="history")renderHistory();if(v==="book")renderBook();if(v==="team")renderTeam();if(v==="results")renderResults();if(v==="events")renderEvents();if(v==="athlete")renderAthlete();if(v==="wait")renderWait();}
 // A different tab starts at its top; tapping the one already showing leaves
 // the page where it is.
 document.querySelectorAll("nav.views button[data-view]").forEach(b=>b.addEventListener("click",()=>{
@@ -1642,12 +1689,15 @@ $("#backSched").addEventListener("click",()=>{setView("events");scrollTo({top:0}
     sw.querySelector(".lbl").textContent=d?"Light":"Dark";
     sw.firstElementChild.textContent=d?"◑":"◐";
   };
-  let dark=false;
-  try{dark=localStorage.getItem("xcRaceLab.theme")==="dark";}catch(e){}
+  // The second screen is a booth's screen: dark unless somebody asks for
+  // light, and remembered apart from the results page's own choice.
+  const KEY=SCREEN?"xcRaceLab.screenTheme":"xcRaceLab.theme";
+  let dark=!!SCREEN;
+  try{const v=localStorage.getItem(KEY);if(v)dark=v==="dark";}catch(e){}
   apply(dark);
   sw.addEventListener("click",()=>{
     dark=!dark;apply(dark);
-    try{localStorage.setItem("xcRaceLab.theme",dark?"dark":"light");}catch(e){}
+    try{localStorage.setItem(KEY,dark?"dark":"light");}catch(e){}
     // Logos differ by theme for the schools that have a dark version, so
     // what is on screen is drawn again rather than left with the wrong ones.
     try{if(typeof state!=="undefined"&&state.view&&TEAMS.some(t=>t.logoDarkUrl))setView(state.view);}catch(e){}
@@ -1722,7 +1772,12 @@ function emptyMsg(which,msg){const e=$("#"+which+"Empty"),b=$("#"+which+"Body");
 function unempty(which){$("#"+which+"Empty").hidden=true;$("#"+which+"Body").hidden=false;}
 
 /* ============ ATHLETE ============ */
-function openAthlete(id){state.athlete=id;setView("athlete");scrollTo({top:0,behavior:"smooth"});}
+/* With a second screen linked, a runner or a school clicked on the booth's
+   page goes to the screen and this page stays where it is (see toScreen). */
+function openAthlete(id){
+  if(toScreen({kind:"athlete",id,race:RACE?RACE.id:undefined},byId&&byId[id]?byId[id].name:"",()=>openAthleteHere(id)))return;
+  openAthleteHere(id);}
+function openAthleteHere(id){state.athlete=id;setView("athlete");scrollTo({top:0,behavior:"smooth"});}
 function nameBtn(a,cls){const b=h("button",(cls||"")+" lnk");b.type="button";b.textContent=a.name;
   b.addEventListener("click",e=>{e.stopPropagation();openAthlete(a.id);});return b;}
 /* A school's name that opens the school's page: their runners in every race,
@@ -1781,7 +1836,7 @@ function meetFind(){
         w.appendChild(h("div","nm",a.name));
         w.appendChild(h("div","meta",[a.school,a.bib!=null?"bib "+a.bib:"",a.raceName].filter(Boolean).join(" \u00b7 ")));
         b.appendChild(w);
-        b.addEventListener("click",()=>{close();box.value="";openAthleteInRace(a.raceId,a.id);});
+        b.addEventListener("click",()=>{close();box.value="";openAthleteInRace(a.raceId,a.id,undefined,a.name);});
         row.appendChild(b);list.appendChild(row);});
     }
     list.hidden=false;box.setAttribute("aria-expanded","true");
@@ -1811,12 +1866,20 @@ function meetFind(){
    race whose id was really a runner, then showed the athlete view with nobody
    selected — a blank page, from the one control on the page a viewer is most
    likely to press. */
-function openAthleteInRace(raceId,entryId,back){
-  loadRace(raceId).then(()=>{state.athlete=entryId;state.back=back||"events";setView("athlete");})
+function openAthleteInRace(raceId,entryId,back,name){
+  if(toScreen({kind:"athlete",id:entryId,race:raceId},name||"",()=>openAthleteInRaceHere(raceId,entryId,back)))return;
+  openAthleteInRaceHere(raceId,entryId,back);
+}
+function openAthleteInRaceHere(raceId,entryId,back){
+  return loadRace(raceId).then(()=>{state.athlete=entryId;state.back=back||"events";setView("athlete");})
     .catch(err=>showProblem(err.message||"That athlete could not be opened."));
 }
 let TEAMDOC=null,TEAMID=null,TEAMSEQ=0;
 function openTeam(teamId){
+  if(toScreen({kind:"team",id:teamId,race:state.view!=="events"&&RACE?RACE.id:undefined},teamById[teamId]?teamById[teamId].name:"",()=>openTeamHere(teamId)))return;
+  openTeamHere(teamId);
+}
+function openTeamHere(teamId){
   // Remember where they came from, once: opening another school from a
   // school's page keeps the way back to where they started.
   if(state.view!=="team"){state.teamBack=state.view==="athlete"?"results":state.view;
@@ -2019,7 +2082,7 @@ function teamRace(d,r0){
     if(meta)w.appendChild(h("div","meta",meta));
     if(faces)btn.appendChild(avatar({name:a.name,bib:a.bib||0,photo:a.photoUrl||null},30));
     btn.appendChild(w);
-    btn.addEventListener("click",()=>openAthleteInRace(r.id,a.id,"team"));
+    btn.addEventListener("click",()=>openAthleteInRace(r.id,a.id,"team",a.name));
     ac.appendChild(btn);row.appendChild(ac);
     row.appendChild(h("td","tm",a.ms!=null?fmt(a.ms/1000):""));
     const pv=a.points??a.livePoints;
@@ -2041,7 +2104,7 @@ function teamRace(d,r0){
         if(i){const dd=a.atMats[i-1].place-m.place;if(dd)tr2.appendChild(h("span",dd>0?"up":"down",dd>0?" \u25b2"+dd:" \u25bc"+(-dd)));}
       });
       td.appendChild(tr2);tr.appendChild(td);
-      tr.addEventListener("click",()=>openAthleteInRace(r.id,a.id,"team"));
+      tr.addEventListener("click",()=>openAthleteInRace(r.id,a.id,"team",a.name));
       b.appendChild(tr);
     }});
   tb.appendChild(b);
@@ -2082,7 +2145,7 @@ function teamEntries(r){
       const w=h("div","w");w.appendChild(h("div","nm",a.name));
       if(a.year)w.appendChild(h("div","meta",a.year));
       if(faces)btn.appendChild(avatar({name:a.name,bib:a.bib||0,photo:a.photoUrl||null},30));
-      btn.appendChild(w);btn.addEventListener("click",()=>openAthleteInRace(r.id,a.id,"team"));
+      btn.appendChild(w);btn.addEventListener("click",()=>openAthleteInRace(r.id,a.id,"team",a.name));
       ac.appendChild(btn);row.appendChild(ac);
       const ec=h("td","r");ec.appendChild(entryPill(a.entry));row.appendChild(ec);
       b.appendChild(row);});
@@ -2156,7 +2219,7 @@ function athleteHistory(host,a){
     r.appendChild(h("td","tm",m.year!=null?String(m.year):""));
     r.appendChild(h("td","pl",m.place!=null?ord(m.place):""));
     const tc=h("td","tm r",m.mark);
-    if(m.seconds===r0.best.seconds)tc.appendChild(h("small",null,"best here"));
+    if(r0.best&&m.seconds===r0.best.seconds&&m.year===r0.best.year&&m.raceName===r0.best.raceName)tc.appendChild(h("small",null,"best here"));
     r.appendChild(tc);b.appendChild(r);
     const w=whereRun(m,false);
     if(w){r.classList.add("hasdet");const d=h("tr","hdet");const c=h("td",null,w);c.colSpan=3;d.appendChild(c);b.appendChild(d);}
@@ -2181,7 +2244,20 @@ function whereRun(m,withPlace){
 function homeMeet(d){
   const n={};[...d.raceTop,...d.allTimeTop,...d.winners,...d.returning.map(r=>r.best)]
     .forEach(m=>{if(m&&m.meetName)n[m.meetName]=(n[m.meetName]||0)+1;});
-  let best=null;Object.keys(n).forEach(k=>{if(best==null||n[k]>n[best])best=k;});return best;
+  let best=null;Object.keys(n).forEach(k=>{if(best==null||n[k]>n[best])best=k;});
+  // Only this meet's own past editions go unnamed. A championship held on
+  // somebody else's course would otherwise lose the name of the host's meet
+  // ("Gans Creek Classic") from every row, which is the one thing to say.
+  return best&&sameMeetName(best,MEET&&MEET.name)?best:null;
+}
+/* The same meet in another year: every distinctive word of the shorter name is
+   in the longer, so "Gans Creek Classic (College)" is the Gans Creek Classic
+   and "SEC Cross Country Championships" is not. */
+function sameMeetName(a,b){
+  const stop=/^(the|annual|invitational|invite|classic|meet|xc|cross|country|championships?|champs|open|college|hs|of|and|at)$/;
+  const words=s=>new Set(String(s||"").toLowerCase().replace(/\b(19|20)\d{2}\b/g," ").split(/[^a-z0-9]+/).filter(w=>w.length>=3&&!stop.test(w)));
+  const x=words(a),y=words(b);if(!x.size||!y.size)return false;
+  const [s,l]=x.size<=y.size?[x,y]:[y,x];return [...s].every(w=>l.has(w));
 }
 /* One past time: rank, who, and the time with its year under it, then where
    it was run on a line of its own across the row. The table had a fourth
@@ -2341,7 +2417,10 @@ function returningTable(list){
   th.appendChild(hr);tb.appendChild(th);
   const b=h("tbody");
   list.forEach(r0=>{
-    const many=r0.history.length>1;
+    // No best when every run here was at another distance: those runs still
+    // count and still open, but a 5K time is not their best in an 8K.
+    const best=r0.best||null;
+    const many=r0.history.length>1||!best;
     const r=h("tr",many?"expandable":null);
     const ac=h("td");
     const nm=h("div","nm",r0.name);
@@ -2350,13 +2429,13 @@ function returningTable(list){
     const meta=[r0.team,r0.bib!=null?"#"+r0.bib:""].filter(Boolean).join(" \u00b7 ");
     if(meta)ac.appendChild(h("div","meta",meta));
     r.appendChild(ac);
-    const tc=h("td","tm r",r0.best.mark);
-    const when=[r0.best.year!=null?String(r0.best.year):"",r0.best.place!=null?ord(r0.best.place):""].filter(Boolean).join(" · ");
+    const tc=h("td","tm r",best?best.mark:"—");
+    const when=best?[best.year!=null?String(best.year):"",best.place!=null?ord(best.place):""].filter(Boolean).join(" · "):"other distance";
     if(when)tc.appendChild(h("small",null,when));
     r.appendChild(tc);
     r.appendChild(h("td","tm r runs",String(r0.history.length)));
     b.appendChild(r);
-    const where=[r0.rank!=null?ord(r0.rank)+" fastest here all-time":"",whereRun(r0.best,false)].filter(Boolean).join(" \u00b7 ");
+    const where=[r0.rank!=null?ord(r0.rank)+" fastest here all-time":"",best?whereRun(best,false):""].filter(Boolean).join(" \u00b7 ");
     let det=null;
     if(where){r.classList.add("hasdet");det=h("tr","hdet"+(many?" expandable":""));
       const c=h("td",null,where);c.colSpan=3;det.appendChild(c);b.appendChild(det);}
@@ -4401,6 +4480,147 @@ function showProblem(msg){
   ["results","replay","compare","teams"].forEach(x=>{$("#tab-"+x).disabled=true;});
   views.forEach(x=>{$("#v-"+x).hidden=x!=="events";});
 }
+/* ============ The announcer's second screen ============
+   The booth keeps the whole meet on this page and a second window, monitor or
+   device shows one runner or one school at a time. Linked by a short code:
+   the booth's page carries it as ?screen=CODE, the screen is this page at
+   .../screen/CODE. What was clicked travels three ways, and the screen takes
+   the newest of whatever reaches it:
+     - a BroadcastChannel, for a screen on the same computer (instant, nothing
+       to set up);
+     - on the web copy, Firebase at screens/{meet}/{code};
+     - on the meet's network, the laptop's /live/api/screen/{code}. */
+const SCREEN_CHARS="ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+let SEND_CODE=SCREEN?null:(()=>{const m=location.search.match(/[?&]screen=([A-Za-z0-9]{6,12})(?:&|$)/);return m?m[1].toUpperCase():null;})();
+/** How the last message to another device went: null (none yet), "ok", or what went wrong. */
+let SCREEN_REMOTE=null;
+const screenLink={
+  channel(code){try{return new BroadcastChannel("nexus-xc-screen-"+code);}catch(e){return null;}},
+  bc:null,bcCode:null,
+  send(code,msg){
+    if(this.bcCode!==code){if(this.bc)this.bc.close();this.bc=this.channel(code);this.bcCode=code;}
+    if(this.bc)this.bc.postMessage(msg);
+    const remote=FBSRC&&FBSRC.screen?Promise.resolve(FBSRC.screen(code).send(msg))
+      :fetch(API+"/screen/"+code,{method:"POST",headers:{"Content-Type":"application/json","ngrok-skip-browser-warning":"1"},body:JSON.stringify(msg)})
+        .then(r=>{if(!r.ok)throw new Error("HTTP "+r.status);});
+    return remote.then(()=>{SCREEN_REMOTE="ok";},err=>{SCREEN_REMOTE=/permission|denied|HTTP 40[13]/i.test(String(err&&err.message||err))?"rule":"down";})
+      .then(()=>{if(!$("#screenPanel").hidden)renderScreenPanel();});
+  },
+  listen(code,fn){
+    const bc=this.channel(code);if(bc)bc.onmessage=e=>fn(e.data);
+    if(FBSRC&&FBSRC.screen){FBSRC.screen(code).listen(fn);return;}
+    const tick=()=>fetch(API+"/screen/"+code,{cache:"no-store",headers:{"ngrok-skip-browser-warning":"1"}})
+      .then(r=>r.ok?r.json():null).then(d=>{if(d&&d.message)fn(d.message);}).catch(()=>{})
+      .then(()=>setTimeout(tick,document.hidden?4000:900));
+    tick();
+  },
+};
+function screenUrl(code){return location.origin+location.pathname.replace(/\/+$/,"")+"/screen/"+code;}
+function newScreenCode(){
+  const a=new Uint8Array(6);crypto.getRandomValues(a);
+  return Array.from(a,x=>SCREEN_CHARS[x%SCREEN_CHARS.length]).join("");
+}
+/* The booth's page keeps the code in its own address, so a reload stays linked. */
+function setSendCode(code){
+  SEND_CODE=code;
+  const q=location.search.replace(/^\?/,"").split("&").filter(p=>p&&!/^screen=/.test(p));
+  if(code)q.push("screen="+code);
+  try{history.replaceState(null,"",location.pathname+(q.length?"?"+q.join("&"):"")+location.hash);}catch(e){}
+  paintScreenBtn();
+}
+function paintScreenBtn(){
+  const b=$("#screenBtn");if(!b)return;
+  b.hidden=!ANN||!!SCREEN;
+  b.dataset.linked=String(!!SEND_CODE);
+  $("#screenBtnLbl").textContent=SEND_CODE?"Second screen · "+SEND_CODE:"Second screen";
+}
+/* With a screen linked, what was clicked goes there; returns false (and the
+   page opens it itself) when nothing is linked. `here` opens it on this page
+   after all, from the toast. */
+function toScreen(msg,label,here){
+  if(!SEND_CODE||SCREEN)return false;
+  msg.t=Date.now();if(msg.race===undefined)delete msg.race;
+  screenLink.send(SEND_CODE,msg);
+  screenToast((label?label:msg.kind==="team"?"That school":"That runner")+" is on the second screen",here);
+  return true;
+}
+let TOASTTIMER=null;
+function screenToast(text,here){
+  const t=$("#screenToast");t.replaceChildren(h("span",null,text));
+  if(here){const b=h("button",null,"Open here");b.type="button";b.addEventListener("click",()=>{t.hidden=true;here();});t.appendChild(b);}
+  t.hidden=false;clearTimeout(TOASTTIMER);TOASTTIMER=setTimeout(()=>{t.hidden=true;},4000);
+}
+function renderScreenPanel(){
+  const p=$("#screenPanel");p.replaceChildren();
+  if(!SEND_CODE){
+    p.appendChild(h("p",null,"Show one runner or school at a time on another window, monitor or device, and keep the whole meet here."));
+    const go=h("button","btn primary","Link a second screen");go.type="button";
+    go.addEventListener("click",()=>{setSendCode(newScreenCode());renderScreenPanel();});
+    p.appendChild(go);return;
+  }
+  const url=screenUrl(SEND_CODE);
+  p.appendChild(h("div","eyebrow","Second screen"));
+  p.appendChild(h("div","code",SEND_CODE));
+  p.appendChild(h("p",null,"Clicking a runner or a school on this page now shows them on the second screen, and this page stays where it is."));
+  const row=h("div","row");
+  const open=h("button","btn primary","Open on this computer");open.type="button";
+  open.addEventListener("click",()=>window.open(url,"nexus-xc-screen-"+SEND_CODE));
+  const copy=h("button","btn","Copy link for another device");copy.type="button";
+  copy.addEventListener("click",()=>{(navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(()=>{copy.textContent="Copied";},()=>{copy.textContent="Select the link below to copy it";});});
+  const clear=h("button","btn","Clear the screen");clear.type="button";
+  clear.addEventListener("click",()=>{screenLink.send(SEND_CODE,{kind:"clear",t:Date.now()});});
+  const off=h("button","btn","Unlink");off.type="button";
+  off.addEventListener("click",()=>{setSendCode(null);renderScreenPanel();});
+  [open,copy,clear,off].forEach(b=>row.appendChild(b));p.appendChild(row);
+  p.appendChild(h("div","lnk",url));
+  const st=SCREEN_REMOTE==="rule"?["Another device can't link yet: the live results database has no rule for screens. A screen on this computer works.",true]
+    :SCREEN_REMOTE==="down"?["Another device didn't get the last one: the "+(FBSRC?"results database":"Nexus computer")+" couldn't be reached. A screen on this computer works.",true]
+    :SCREEN_REMOTE==="ok"?["Linked: a screen on this computer or another device follows this page.",false]
+    :["A screen on this computer or another device follows this page once you click someone.",false];
+  p.appendChild(h("div","state"+(st[1]?" bad":""),st[0]));
+}
+function setupScreenButton(){
+  const b=$("#screenBtn");if(!b||!ANN||SCREEN)return;
+  paintScreenBtn();
+  b.addEventListener("click",()=>{const p=$("#screenPanel");p.hidden=!p.hidden;b.setAttribute("aria-expanded",String(!p.hidden));if(!p.hidden)renderScreenPanel();});
+}
+setupScreenButton();
+/* The screen: waits with its code showing, then follows the booth. */
+function renderWait(){
+  const host=$("#v-wait");host.replaceChildren();
+  const w=h("div","waitscreen");
+  w.appendChild(h("div","eyebrow","Second screen"));
+  w.appendChild(h("div","code",SCREEN||""));
+  w.appendChild(h("p",null,"Click a runner or a school on the announcer’s page and they show here."));
+  host.appendChild(w);
+}
+let SCREEN_T=0;
+async function screenShow(m){
+  if(!m||typeof m.t!=="number"||m.t<=SCREEN_T)return;
+  SCREEN_T=m.t;
+  try{
+    if(m.kind==="clear"){setView("wait");return;}
+    if(m.kind==="athlete"){
+      if(m.race)await openAthleteInRaceHere(m.race,m.id,"wait");else openAthleteHere(m.id);
+      scrollTo({top:0});return;
+    }
+    if(m.kind==="team"){
+      if(m.race&&(!RACE||RACE.id!==m.race))await loadRace(m.race);
+      if(state.view==="team")state.view="wait";
+      openTeamHere(m.id);
+      if(m.race)state.teamRace=m.race;
+    }
+  }catch(e){/* a runner or school no longer in the results: keep what is showing */}
+}
+function startScreen(){
+  $("#screenTop").hidden=false;
+  $("#screenMeet").textContent=MEET.name||"";
+  $("#screenCode").textContent="Second screen · "+SCREEN;
+  document.title=(MEET.name?MEET.name+" — ":"")+"Second screen";
+  setView("wait");
+  screenLink.listen(SCREEN,screenShow);
+}
+
 let busy=false,started=false;
 async function start(){
   const doc=await getJson("/meet");ingestMeet(doc);applyClocks(doc);
@@ -4411,7 +4631,8 @@ async function start(){
   await loadRace(pick.id);
   if(window.__savedCourse){try{const c=window.__savedCourse;useKml(c.p,c.b,c.name);buildMap();}catch(e){USER_COURSE=false;useBuiltin();buildMap();}}
   ["results"].forEach(x=>{$("#tab-"+x).disabled=false;});
-  let v0="events";try{const m=location.hash.match(/view=(\w+)/);if(m&&views.includes(m[1])&&m[1]!=="athlete")v0=m[1];}catch(e){}
+  if(SCREEN){startScreen();setFoot(true);started=true;return;}
+  let v0="events";try{const m=location.hash.match(/view=(\w+)/);if(m&&views.includes(m[1])&&m[1]!=="athlete"&&m[1]!=="wait")v0=m[1];}catch(e){}
   setView(v0);setFoot(true);started=true;meetFind();
 }
 /* A redraw from new data keeps the reader where they were.
