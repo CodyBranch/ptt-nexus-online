@@ -51,6 +51,13 @@ function ago(iso: string | null, now: number): string {
   return `${Math.floor(s / 86400)} d ago`;
 }
 
+/** "bib returned", or "both bibs returned" for a runner with a back bib. */
+function bibsWord(count: number, done: string): string {
+  return count === 2 ? `both bibs ${done}` : count > 2 ? `all ${count} bibs ${done}` : `bib ${done}`;
+}
+
+const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
 /** A school's color, when it is one a browser understands; otherwise none. */
 function color(c: string | null | undefined): string | null {
   if (!c) return null;
@@ -357,7 +364,7 @@ function Latest({ activity, now, fill = false }: { activity: DashboardData['acti
           </div>
           <div className="pl-3.5 text-xs text-gray-400 truncate">
             {a.status === 'opened' ? 'opened their form'
-              : <>{a.teamName} &middot; {a.status === 'declared' ? (a.raceName ?? 'declared') : a.status === 'bib_returned' ? 'bib returned' : 'scratched'}{a.inFor ? <span className="text-violet-300"> &middot; in for {a.inFor}</span> : null}</>}
+              : <>{a.teamName} &middot; {a.status === 'declared' ? (a.raceName ?? 'declared') : a.status === 'bib_returned' ? bibsWord(a.bibCount ?? 1, 'returned') : 'scratched'}{a.inFor ? <span className="text-violet-300"> &middot; in for {a.inFor}</span> : null}</>}
           </div>
         </li>
       ))}
@@ -391,11 +398,11 @@ function Roster({ team, raceName, words, now }: {
                   </span>
                   {r.status === 'scratched' && (
                     <div className={`text-[10px] mt-0.5 ${r.bibReturnedAt ? 'text-violet-300/80' : 'text-amber-300/90'}`}>
-                      {r.bibReturnedAt ? `Bib back ${ago(r.bibReturnedAt, now)}` : r.bibsStillOut?.length ? `${r.bibsStillOut.join(' and ')} still out` : 'Bib not returned'}
+                      {r.bibReturnedAt ? `${cap(bibsWord(r.bibCount, 'back'))} ${ago(r.bibReturnedAt, now)}` : r.bibsStillOut?.length ? `${r.bibsStillOut.join(' and ')} still out` : 'Bib not returned'}
                     </div>
                   )}
                   {r.status === 'declared' && r.bibReturnedAt && (
-                    <div className="text-[10px] mt-0.5 text-amber-300/90">Bib was handed in</div>
+                    <div className="text-[10px] mt-0.5 text-amber-300/90">{r.bibCount > 1 ? 'Bibs were handed in' : 'Bib was handed in'}</div>
                   )}
                   {r.answeredAt && r.status !== 'scratched' && !(r.status === 'declared' && r.bibReturnedAt) && <div className="text-[10px] text-gray-600 mt-0.5">{ago(r.answeredAt, now)}</div>}
                 </div>

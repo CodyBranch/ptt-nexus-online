@@ -80,6 +80,10 @@ async function main() {
   ok('the back bib scanned: both bibs back', backBib.status === 'returned' && /both bibs back/.test(backBib.message)
     && (await R.returnState(sessionId)).has(`${team}|a4`), backBib.message);
   ok('  and not outstanding', !(await R.returnsView(session)).outstanding.some((o) => o.bib === '104'));
+  const dash = await (await import('@/lib/declare-dashboard')).loadDashboard(session);
+  const dashA4 = dash.teams.flatMap((t) => t.runners).find((r) => r.id === 'a4');
+  ok('  dashboard: both bibs back', dashA4?.bibReturnedAt != null && dashA4.bibCount === 2
+    && dash.activity.some((a) => a.status === 'bib_returned' && a.runnerName === 'Back Bib' && a.bibCount === 2), dashA4);
   const backId = (await R.returnsView(session)).scans.find((s) => s.code === '10104')!.id;
   await R.undoReturn(session, backId);
   const tally = (await R.returnTally(sessionId)).get(`${team}|a4`);

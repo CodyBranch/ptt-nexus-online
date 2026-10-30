@@ -30,6 +30,8 @@ interface RosterRow {
   eligibleRaceIds?: string[];
   /** Entered and alternates: not in a race unless swapped in. */
   alternate?: boolean;
+  /** Tags on the runner's further bibs (a back bib), each a bib to hand in. */
+  extraBibs?: string[];
 }
 
 export type RunnerStatus = 'declared' | 'scratched' | 'undecided';
@@ -51,6 +53,8 @@ export interface DashRunner {
   bibReturnedAt: string | null;
   /** Some of a runner's bibs are back and these are still out (a back bib). */
   bibsStillOut: string[] | null;
+  /** How many bibs the runner hands in: 2 with a back bib, else 1. */
+  bibCount: number;
   /** A headshot from Nexus Online, when the school's are there. */
   photoUrl: string | null;
   /** Swapped in (an alternate): the runner they went in for, whose bib they run on. */
@@ -116,6 +120,8 @@ export interface DashActivity {
   raceName: string | null;
   /** A swap: the runner this one went in for. */
   inFor?: string | null;
+  /** bib_returned: how many bibs came back (2 with a back bib). */
+  bibCount?: number;
 }
 
 export interface DashboardData {
@@ -233,6 +239,7 @@ export async function loadDashboard(session: NonNullable<Awaited<ReturnType<type
         answeredAt: ans?.updatedAt ? ans.updatedAt.toISOString() : null,
         bibReturnedAt: back?.complete ? back.at : null,
         bibsStillOut: back && !back.complete ? back.stillOut : null,
+        bibCount: back?.bibCount ?? 1 + (a.extraBibs?.length ?? 0),
         photoUrl: org ? photo.get(`${org.id}|${headshotNameKey(a.firstName, a.lastName)}`) ?? null : null,
       };
     });
@@ -308,7 +315,7 @@ export async function loadDashboard(session: NonNullable<Awaited<ReturnType<type
   }));
   const bibsBack: DashActivity[] = dashTeams.flatMap((t) => t.runners.filter((r) => r.bibReturnedAt).map((r) => ({
     at: r.bibReturnedAt!, teamId: t.id, teamName: t.name, runnerName: `${r.firstName} ${r.lastName}`,
-    status: 'bib_returned' as const, raceName: null,
+    status: 'bib_returned' as const, raceName: null, bibCount: r.bibCount,
   })));
   const activity = [...answered, ...openings, ...bibsBack].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 40);
 
