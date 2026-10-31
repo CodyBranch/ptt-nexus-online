@@ -2683,8 +2683,30 @@ function segButtons(container,items,current,on){container.replaceChildren();
     container.appendChild(b);});}
 function pinBtn(id){const b=h("button","pin");const s=state.pinned[id];b.setAttribute("aria-pressed",String(!!s));b.setAttribute("aria-label",(s?"Remove ":"Add ")+byId[id].name+(s?" from":" to")+" compare");b.title=s?"In compare":"Add to compare";if(s)b.style.background=slotColor(s);b.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 17h4V7H3zm7 0h4V3h-4zm7 0h4v-7h-4z"/></svg>';b.addEventListener("click",e=>{e.stopPropagation();togglePin(id,$("#cmpToast"));});return b;}
 function initials(n){return n.split(/\s+/).map(w=>w[0]).slice(0,2).join("");}
+/* Pictures drawn last time, kept for the next redraw. A live race rebuilds its
+   tables every few seconds, and a brand-new <img> is blank until it decodes,
+   even from cache: every logo and face on the page blinked on each update.
+   A picture that has loaded and is no longer on the page is handed back
+   instead, already drawn. */
+const IMGKEEP=new Map();
+// A table is built off the page, so "not on the page" is also true of a
+// picture handed out a row earlier in the same redraw. Each redraw is one
+// pass, and a picture goes out at most once a pass.
+let IMGPASS=0,IMGNEXT=false;
+function imgPass(){if(!IMGNEXT){IMGNEXT=true;setTimeout(()=>{IMGPASS++;IMGNEXT=false;},0);}return IMGPASS;}
+function keptImg(src){
+  const key=new URL(src,location.href).href,list=IMGKEEP.get(key),pass=imgPass();
+  if(list)for(const im of list)if(!im.isConnected&&im.imgPass!==pass&&im.complete&&im.naturalWidth>0){
+    // Sized by whoever had it last (a school page's 56px badge); its new place sizes it.
+    im.imgPass=pass;im.style.cssText="";return im;}
+  return null;
+}
+function keepImg(im){
+  im.addEventListener("load",()=>{const key=im.src;const list=IMGKEEP.get(key)||[];if(!list.includes(im)){list.push(im);IMGKEEP.set(key,list);}},{once:true});
+  return im;
+}
 function avatar(a,size,sq){const d=h("span","avatar"+(sq?" sq":""));d.style.width=size+"px";d.style.height=Math.round(size*1.25)+"px";if(!sq)d.style.borderRadius=Math.max(3,Math.round(size*0.18))+"px";d.style.fontSize=Math.max(9,Math.round(size*0.36))+"px";
-  if(a.photo){const im=document.createElement("img");im.src=a.photo;im.alt="";d.appendChild(im);}
+  if(a.photo){const im=keptImg(a.photo)||keepImg(Object.assign(document.createElement("img"),{alt:""}));if(!im.src)im.src=a.photo;d.appendChild(im);}
   else{d.textContent=initials(a.name);const hue=(a.bib*37)%360;d.style.background=`hsl(${hue} 32% 42%)`;d.title=a.name+" — headshot slot";}
   return d;}
 const SHAPE_D={shield:"M16 2 L29 7 V15 C29 23 23 28.5 16 31 C9 28.5 3 23 3 15 V7 Z",hex:"M16 2 L28 9 V23 L16 30 L4 23 V9 Z",rsq:"M5 3 H27 A2 2 0 0 1 29 5 V27 A2 2 0 0 1 27 29 H5 A2 2 0 0 1 3 27 V5 A2 2 0 0 1 5 3 Z"};
@@ -2725,8 +2747,10 @@ function logoSrc(url,plain){
 }
 // An <img> for a logo: resized first, then the file as it is, then onFail.
 function logoImg(url,onFail){
-  const im=document.createElement("img");im.alt="";im.decoding="async";
-  const first=logoSrc(url),plain=logoSrc(url,true);im.src=first;
+  const first=logoSrc(url),plain=logoSrc(url,true);
+  // One drawn on the last redraw: it loaded, so it needs no fallback either.
+  const kept=keptImg(first)||(first!==plain?keptImg(plain):null);if(kept)return kept;
+  const im=keepImg(document.createElement("img"));im.alt="";im.decoding="async";im.src=first;
   im.addEventListener("error",function retry(){
     if(im.src!==new URL(plain,location.href).href&&first!==plain){im.src=plain;return;}
     im.removeEventListener("error",retry);if(onFail)onFail(im);});
