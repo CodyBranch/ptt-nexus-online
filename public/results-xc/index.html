@@ -584,7 +584,15 @@ nav.views::-webkit-scrollbar{display:none}
   #tab-events{display:none}
   nav.views button:disabled{display:none}
   nav.views.solo{display:none}
-  nav.views button{flex:1 1 0;min-width:0;padding:9px 4px;text-align:center}
+  /* Seven tabs shared one row and ran into each other ("CompareTeams", "Record
+     book" on two lines). Up to five share a row; more go on two even rows, the
+     count set by setTabs. */
+  nav.views:not([hidden]):not(.solo){display:grid;grid-template-columns:repeat(var(--vcols,4),minmax(0,1fr));gap:3px}
+  nav.views button{min-width:0;padding:9px 2px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
+@media (min-width:521px) and (max-width:760px){
+  /* A tablet has the width for all of them on one row. */
+  nav.views:not([hidden]):not(.solo){grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}
   /* Only what can be opened, and no bar at all when that is one thing. */
   .seg button:disabled{display:none}
   .seg.solo{display:none}
@@ -1650,7 +1658,9 @@ function setTabs(){
   // Results and nothing else to go to (a race not yet started, with no
   // history): on a phone, a bar with one tab on it is not shown.
   const open=["replay","compare","teams","history","insights"].filter(x=>!$("#tab-"+x).disabled).length+(bb.hidden?0:1);
-  document.querySelector("nav.views").classList.toggle("solo",open===0);}
+  const nv=document.querySelector("nav.views");nv.classList.toggle("solo",open===0);
+  // On a phone: Results and the open tabs, one row up to five, else two.
+  const n=open+1;nv.style.setProperty("--vcols",String(n<=5?n:Math.ceil(n/2)));}
 function setView(v){
   // Nothing but Events works until an event is picked, and this gets called
   // with something else anyway: a shared or bookmarked #view=results, a stale
