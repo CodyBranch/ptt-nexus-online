@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PickupView as View } from '@/lib/declare-pickup';
+import type { PickupSchool, PickupView as View } from '@/lib/declare-pickup';
 import SignaturePad, { type SignaturePadHandle } from '../SignaturePad';
 import { sideWord } from '../PickupView';
+import SchoolBadge from '../SchoolBadge';
 
 /**
  * The sign-off tablet, facing the coach.
@@ -20,7 +21,7 @@ export default function SignView({ token, initial, terms }: { token: string; ini
   const [who, setWho] = useState('');
   const [signed, setSigned] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [thanks, setThanks] = useState<string | null>(null);
+  const [thanks, setThanks] = useState<{ text: string; school: PickupSchool | undefined } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pad = useRef<SignaturePadHandle>(null);
   const api = `/api/declare/pickup/${token}`;
@@ -63,7 +64,7 @@ export default function SignView({ token, initial, terms }: { token: string; ini
         body: JSON.stringify({ action: 'sign', ids: turn.rows.map((x) => x.id), by: who.trim(), signature: pad.current?.value() }),
       });
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error ?? 'Not saved');
-      setThanks(`Thank you. ${turn.name}'s packets are yours.`);
+      setThanks({ text: `Thank you. ${turn.name}'s packets are yours.`, school: turn.school });
       setTimeout(() => setThanks(null), 4000);
       await refresh();
     } catch (e) {
@@ -84,7 +85,10 @@ export default function SignView({ token, initial, terms }: { token: string; ini
 
       <main className="flex flex-1 items-center justify-center p-6">
         {thanks ? (
-          <p className="text-center text-2xl font-semibold text-emerald-300">{thanks}</p>
+          <div className="flex flex-col items-center gap-5 text-center">
+            {thanks.school && <SchoolBadge name={thanks.school.name} badge={thanks.school.badge} size={120} />}
+            <p className="text-2xl font-semibold text-emerald-300">{thanks.text}</p>
+          </div>
         ) : !turn ? (
           <div className="text-center">
             <p className="text-2xl font-semibold">Packet pickup</p>
@@ -93,8 +97,13 @@ export default function SignView({ token, initial, terms }: { token: string; ini
         ) : (
           <div className="w-full max-w-xl space-y-5">
             <div>
-              <p className="text-sm uppercase tracking-wider text-gray-400">Sign for</p>
-              <h2 className="text-3xl font-bold">{turn.name}</h2>
+              <div className="flex items-center gap-4">
+                <SchoolBadge key={turn.rows[0].teamAccessId} name={turn.name} badge={turn.school?.badge} size={88} />
+                <div className="min-w-0">
+                  <p className="text-sm uppercase tracking-wider text-gray-400">Sign for</p>
+                  <h2 className="text-3xl font-bold">{turn.name}</h2>
+                </div>
+              </div>
               <ul className="mt-2 space-y-1 text-gray-300">
                 {turn.rows.map((r) => {
                   const side = turn.school?.sides.find((x) => x.side === r.side);

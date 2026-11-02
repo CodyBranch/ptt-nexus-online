@@ -15,7 +15,7 @@
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
-  meetDeclarationSessions, teamDeclarationAccess, declarationPacketPickups, declarationCoachContacts,
+  meetDeclarationSessions, teamDeclarationAccess, declarationPacketPickups, declarationCoachContacts, organizations,
 } from '@/db/schema';
 
 type Session = typeof meetDeclarationSessions.$inferSelect;
@@ -36,6 +36,8 @@ export interface PickupSchool {
   teamAccessId: string;
   teamId: string;
   name: string;
+  /** The school's logo and color from its Nexus Online organization, when the desk matched one. */
+  badge: { logoUrl: string | null; logoDarkUrl: string | null; color: string | null } | null;
   coaches: string[];
   sides: PacketSide[];
 }
@@ -67,6 +69,8 @@ export interface PickupResult {
   status: PickupOutcome;
   message: string;
   school: string | null;
+  /** Which school, so the table can show its logo with the answer. */
+  teamAccessId: string | null;
   sides: Side[];
   ids: string[];
 }
@@ -171,14 +175,14 @@ export async function recordPickup(
   opts: RecordOptions,
 ): Promise<PickupResult> {
   if (target.teamAccessId && !UUID.test(target.teamAccessId)) {
-    return { status: 'unknown', message: 'That school is not in this meet.', school: null, sides: [], ids: [] };
+    return { status: 'unknown', message: 'That school is not in this meet.', school: null, teamAccessId: null, sides: [], ids: [] };
   }
   const [access] = await db.select().from(teamDeclarationAccess).where(and(
     eq(teamDeclarationAccess.meetSessionId, session.id),
     target.teamAccessId ? eq(teamDeclarationAccess.id, target.teamAccessId) : eq(teamDeclarationAccess.teamId, target.teamId ?? ''),
   )).limit(1);
   if (!access) {
-    return { status: 'unknown', message: 'That label is not for a school in this meet.', school: null, sides: [], ids: [] };
+    return { status: 'unknown', message: 'That label is not for a school in this meet.', school: null, teamAccessId: null, sides: [], ids: [] };
   }
 
   const packets = packetsOf(access).map((p) => p.side);
@@ -188,7 +192,7 @@ export async function recordPickup(
     return {
       status: 'unknown',
       message: `${access.teamName} has no ${sideName(missing[0], session.genderTerms)} in this meet.`,
-      school: access.teamName, sides: [], ids: [],
+      school: access.teamName, teamAccessId: access.id, sides: [], ids: [],
     };
   }
   const sides = wanted.filter((s) => packets.includes(s));
@@ -236,16 +240,16 @@ export async function recordPickup(
 
   const what = (list: Side[]) => list.map((s) => sideName(s, session.genderTerms)).join(' and ');
   if (!done.length) {
-    return { status: 'already', message: `${access.teamName}: ${what(already)} already picked up.`, school: access.teamName, sides: already, ids };
+    return { status: 'already', message: `${access.teamName}: ${what(already)} already picked up.`, school: access.teamName, teamAccessId: access.id, sides: already, ids };
   }
   const tail = already.length ? ` (${what(already)} was already picked up)` : '';
   if (opts.wait) {
-    return { status: 'waiting', message: `${access.teamName}: ${what(done)} waiting for the coach to sign${tail}.`, school: access.teamName, sides: done, ids };
+    return { status: 'waiting', message: `${access.teamName}: ${what(done)} waiting for the coach to sign${tail}.`, school: access.teamName, teamAccessId: access.id, sides: done, ids };
   }
   return {
     status: 'picked_up',
     message: `${access.teamName}: ${what(done)} picked up${by ? ` by ${by}` : ''}${tail}.`,
-    school: access.teamName, sides: done, ids,
+    school: access.teamName, teamAccessId: access.id, sides: done, ids,
   };
 }
 
@@ -253,7 +257,7 @@ export async function recordPickup(
 export async function recordScan(session: Session, code: unknown, opts: RecordOptions): Promise<PickupResult> {
   const label = parseLabelCode(code);
   if (!label) {
-    return { status: 'unknown', message: `${String(code ?? '').trim() || 'That'} is not a team label's code.`, school: null, sides: [], ids: [] };
+    return { status: 'unknown', message: `${String(code ?? '').trim() || 'That'} is not a team label's code.`, school: null, teamAccessId: null, sides: [], ids: [] };
   }
   return recordPickup(session, { teamId: label.teamId, side: label.side }, opts);
 }
@@ -310,6 +314,13 @@ export async function pickupView(session: Session): Promise<PickupView> {
   const contacts = await db.select({ teamAccessId: declarationCoachContacts.teamAccessId, name: declarationCoachContacts.name })
     .from(declarationCoachContacts).where(eq(declarationCoachContacts.meetSessionId, session.id));
 
+  const orgIds = [...new Set(teams.map((t) => t.organizationId).filter((x): x is string => !!x))];
+  const orgs = orgIds.length
+    ? await db.select({ id: organizations.id, logoUrl: organizations.logoUrl, logoDarkUrl: organizations.logoDarkUrl, color: organizations.primaryColor })
+      .from(organizations).where(inArray(organizations.id, orgIds))
+    : [];
+  const orgOf = new Map(orgs.map((o) => [o.id, o]));
+
   const nameOf = new Map(teams.map((t) => [t.id, t.teamName]));
   const log: PickupLogRow[] = rows.map((r) => ({
     id: r.id,
@@ -336,7 +347,9 @@ export async function pickupView(session: Session): Promise<PickupView> {
       return { ...p, pickup: hit ? { id: hit.id, status: hit.status, by: hit.by, at: hit.at, signed: hit.signed } : null };
     });
     const coaches = [...new Set(contacts.filter((c) => c.teamAccessId === t.id).map((c) => c.name.trim()).filter(Boolean))];
-    return { teamAccessId: t.id, teamId: t.teamId, name: t.teamName, coaches, sides };
+    const o = t.organizationId ? orgOf.get(t.organizationId) : undefined;
+    const badge = o ? { logoUrl: o.logoUrl ?? null, logoDarkUrl: o.logoDarkUrl ?? null, color: o.color ?? null } : null;
+    return { teamAccessId: t.id, teamId: t.teamId, name: t.teamName, badge, coaches, sides };
   }).sort((a, b) => a.name.localeCompare(b.name));
 
   return {

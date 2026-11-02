@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PickupResult, PickupSchool, PickupView as View, Side } from '@/lib/declare-pickup';
 import SignaturePad, { type SignaturePadHandle } from './SignaturePad';
+import SchoolBadge from './SchoolBadge';
 
 /**
  * The packet table.
@@ -56,7 +57,7 @@ export default function PickupView({ token, initial, terms }: { token: string; i
   const [view, setView] = useState<View>(initial);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
-  const [flash, setFlash] = useState<{ status: PickupResult['status']; message: string } | null>(null);
+  const [flash, setFlash] = useState<{ status: PickupResult['status']; message: string; teamAccessId?: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [station, setStation] = useState<Station>(DEFAULT_STATION);
   const [setup, setSetup] = useState(false);
@@ -103,7 +104,7 @@ export default function PickupView({ token, initial, terms }: { token: string; i
       const res = await r.json() as PickupResult & { held?: boolean; error?: string };
       if (res.held) setFlash({ status: 'waiting', message: 'No connection: held on this tablet, and sent as soon as it is back online.' });
       else if (!r.ok) setFlash({ status: 'unknown', message: res.error ?? 'Not recorded' });
-      else setFlash({ status: res.status, message: res.message });
+      else setFlash({ status: res.status, message: res.message, teamAccessId: res.teamAccessId });
       await refresh();
     } catch {
       setFlash({ status: 'unknown', message: 'Not recorded - check the connection and scan again.' });
@@ -178,6 +179,8 @@ export default function PickupView({ token, initial, terms }: { token: string; i
   }, [view.schools, query, onlyLeft]);
 
   const left = view.packets - view.pickedUp;
+  const schoolOf = useMemo(() => new Map(view.schools.map((s) => [s.teamAccessId, s])), [view.schools]);
+  const flashSchool = flash?.teamAccessId ? schoolOf.get(flash.teamAccessId) : undefined;
   const needName = station.askName && !who.trim();
   const needSig = station.sign === 'here' && !signed;
   const scannerUrl = origin ? `${origin}${api}?code=` : '';
@@ -258,7 +261,12 @@ export default function PickupView({ token, initial, terms }: { token: string; i
           <button type="submit" disabled={busy || !code.trim()}
             className="rounded-lg bg-blue-600 px-5 font-semibold hover:bg-blue-500 disabled:opacity-40">Record</button>
         </form>
-        {flash && <p role="status" className={`mt-3 rounded-lg border px-4 py-2.5 text-sm ${FLASH[flash.status]}`}>{flash.message}</p>}
+        {flash && (
+          <div role="status" className={`mt-3 flex items-center gap-3 rounded-lg border px-4 py-2.5 text-sm ${FLASH[flash.status]}`}>
+            {flashSchool && <SchoolBadge key={flashSchool.teamAccessId} name={flashSchool.name} badge={flashSchool.badge} size={44} />}
+            <p className={flashSchool ? 'text-base font-medium' : ''}>{flash.message}</p>
+          </div>
+        )}
         {error && <p className="mt-2 text-sm text-rose-300">{error}</p>}
       </div>
 
@@ -276,6 +284,7 @@ export default function PickupView({ token, initial, terms }: { token: string; i
             {schools.length === 0 && <li className="px-4 py-8 text-center text-sm text-gray-500">{left ? 'No school matches.' : 'Every packet has been picked up.'}</li>}
             {schools.map((s) => (
               <li key={s.teamAccessId} className="flex flex-wrap items-center gap-2 px-4 py-2.5">
+                <SchoolBadge name={s.name} badge={s.badge} />
                 <span className="min-w-0 flex-1 truncate font-medium">{s.name}</span>
                 {s.sides.map((x) => {
                   const p = x.pickup;
@@ -302,6 +311,7 @@ export default function PickupView({ token, initial, terms }: { token: string; i
             {view.log.length === 0 && <li className="px-4 py-8 text-center text-sm text-gray-500">No packets picked up yet.</li>}
             {view.log.slice(0, 60).map((r) => (
               <li key={r.id} className={`flex items-start gap-3 px-4 py-2.5 ${r.undone ? 'opacity-40' : ''}`}>
+                <SchoolBadge name={r.teamName} badge={schoolOf.get(r.teamAccessId)?.badge} size={24} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium">{r.teamName} · {sideWord(r.side, terms)}</div>
                   <div className="text-[11px] text-gray-400">
@@ -327,7 +337,10 @@ export default function PickupView({ token, initial, terms }: { token: string; i
       {pending && (
         <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/70 p-4 sm:items-center" role="dialog" aria-modal="true">
           <div className="w-full max-w-lg space-y-4 rounded-2xl bg-gray-900 p-5 ring-1 ring-gray-700">
-            <h2 className="text-lg font-semibold">{pending.label}</h2>
+            <div className="flex items-center gap-3">
+              <SchoolBadge name={pending.school.name} badge={pending.school.badge} size={48} />
+              <h2 className="text-lg font-semibold">{pending.label}</h2>
+            </div>
             {station.askName && (
               <div>
                 <label htmlFor="pk-who" className="text-sm text-gray-400">Picked up by</label>
