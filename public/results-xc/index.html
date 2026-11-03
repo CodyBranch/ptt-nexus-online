@@ -2234,7 +2234,9 @@ function athleteHistory(host,a){
     const tc=h("td","tm r",m.mark);
     if(r0.best&&m.seconds===r0.best.seconds&&m.year===r0.best.year&&m.raceName===r0.best.raceName)tc.appendChild(h("small",null,"best here"));
     r.appendChild(tc);b.appendChild(r);
-    const w=whereRun(m,false);
+    // Every run names its meet and race here: past runs of this same meet
+    // going unnamed left some rows bare and others not, which read as missing.
+    const w=whereRun(m,false,true);
     if(w){r.classList.add("hasdet");const d=h("tr","hdet");const c=h("td",null,w);c.colSpan=3;d.appendChild(c);b.appendChild(d);}
   });
   tb.appendChild(b);
@@ -2249,9 +2251,13 @@ function athleteHistory(host,a){
    and this race's. What is left is the exception worth reading - a state
    final, another race on the course - and often nothing at all. */
 let HIST_HOME=null;
-function whereRun(m,withPlace){
-  const race=m.raceName&&m.raceName!==RACE.name&&m.raceName!==(HIST&&HIST.knownAs)?m.raceName:"";
-  const meet=m.meetName&&m.meetName!==HIST_HOME?m.meetName:"";
+/* A race's name as compared: "Boys' Class 2 5K" is "Boys Class 2 5k". */
+const raceKey=s=>String(s||"").toLowerCase().replace(/['\u2019]/g,"").replace(/\s+/g," ").trim();
+/* full: the meet and the race on every run, as a runner's own runs here are read. */
+function whereRun(m,withPlace,full){
+  const same=x=>x&&raceKey(m.raceName)===raceKey(x);
+  const race=m.raceName&&(full||!same(RACE.name)&&!same(HIST&&HIST.knownAs))?m.raceName:"";
+  const meet=m.meetName&&(full||m.meetName!==HIST_HOME)?m.meetName:"";
   return [withPlace&&m.place!=null?ord(m.place):"",meet,race].filter(Boolean).join(" \u00b7 ");
 }
 function homeMeet(d){
