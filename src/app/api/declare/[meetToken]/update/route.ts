@@ -10,6 +10,7 @@ import { randomBytes } from 'crypto';
 import { checkRelayAuth } from '@/lib/relay-auth';
 import { knownOrganizations } from '@/lib/declare-orgs';
 import { staffJson } from '@/lib/declare-staff';
+import { cleanItems } from '@/lib/declare-pickup';
 
 // ── Types (the same payload /api/declare/publish takes) ──────────────────────
 
@@ -87,6 +88,8 @@ export async function POST(
       teams: TeamPayload[];
       /** Ask each school's coach to sign up for the meet's texts on their form. Left as it was when not sent. */
       textSignup?: boolean;
+      /** The packet table's pickup items, set on the desk. Left as they were when not sent (an older desk). */
+      pickupItems?: unknown;
     };
     const { meetName, meetDate, genderTerms, races, teams } = body;
 
@@ -120,6 +123,7 @@ export async function POST(
       kioskToken,
       pickupToken,
       ...(typeof body.textSignup === 'boolean' ? { textSignup: body.textSignup } : {}),
+      ...(Array.isArray(body.pickupItems) ? { pickupItemsJson: JSON.stringify(cleanItems(body.pickupItems)) } : {}),
       updatedAt: new Date(),
     }).where(eq(meetDeclarationSessions.id, session.id));
     const orgs = await knownOrganizations(teams.map((t) => t.organizationId));

@@ -9,6 +9,7 @@ import { randomBytes } from 'crypto';
 import { checkRelayAuth } from '@/lib/relay-auth';
 import { knownOrganizations } from '@/lib/declare-orgs';
 import { staffJson } from '@/lib/declare-staff';
+import { cleanItems } from '@/lib/declare-pickup';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,8 @@ export async function POST(request: NextRequest) {
       teams: TeamPayload[];
       /** Ask each school's coach to sign up for the meet's texts on their form. */
       textSignup?: boolean;
+      /** What the packet table hands out besides packets (hats, water bottles), set on the desk. */
+      pickupItems?: unknown;
     };
 
     const { meetName, meetDate, genderTerms, races, teams } = body;
@@ -116,6 +119,7 @@ export async function POST(request: NextRequest) {
       kioskToken,
       pickupToken,
       textSignup: body.textSignup !== false,
+      pickupItemsJson: JSON.stringify(cleanItems(body.pickupItems)),
       meetName,
       meetDate: meetDate ?? null,
       genderTerms: genderTerms === 'men_women' ? 'men_women' : 'boys_girls',

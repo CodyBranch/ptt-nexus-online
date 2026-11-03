@@ -19,8 +19,8 @@ import { covers, sameName, type StaffMember } from '@/lib/declare-staff';
  * device) whether the name is required and where the signature is taken:
  * nowhere, on this screen, or on the sign-off tablet facing the coach.
  *
- * Pickup items (hats, water bottles) are set for the meet under Pickup items,
- * so many per team, per runner or per school. Each station chooses what it
+ * Pickup items (hats, water bottles) are set for the meet on the desk and
+ * sent with the portal, so many per team, per runner or per school. Each station chooses what it
  * hands out - everything at one grouped table, or one item at a station of
  * its own - and the same label opens the school's window at each. Whoever
  * took something at an earlier station is offered first by name at the next.
@@ -139,7 +139,6 @@ export default function PickupView({ token, initial, terms }: { token: string; i
   const [error, setError] = useState<string | null>(null);
   const [station, setStation] = useState<Station>(DEFAULT_STATION);
   const [setup, setSetup] = useState(false);
-  const [itemsSetup, setItemsSetup] = useState(false);
   const [open, setOpen] = useState<Open | null>(null);
   /** A label scanned while a window is open: said in the window. */
   const [notice, setNotice] = useState<string | null>(null);
@@ -308,15 +307,6 @@ export default function PickupView({ token, initial, terms }: { token: string; i
     try { await post({ action: item ? 'undoitem' : 'undo', id }); await refresh(); } catch { setError('That change was not saved - try again'); }
   };
 
-  const saveItems = async (items: PickupItem[]) => {
-    try {
-      await post({ action: 'setitems', items });
-      await refresh();
-      setItemsSetup(false);
-      setFlash({ status: 'picked_up', message: items.length ? `Pickup items saved: ${items.map((i) => i.name).join(', ')}.` : 'No pickup items: packets and coach passes only.' });
-    } catch { setError('The pickup items were not saved - try again'); }
-  };
-
   const practice = async (on: boolean) => {
     setPracticeAsk(null);
     try {
@@ -364,10 +354,7 @@ export default function PickupView({ token, initial, terms }: { token: string; i
               Practice run
             </button>
           )}
-          <button onClick={() => { setItemsSetup((v) => !v); setSetup(false); }} className={`${view.practice ? 'ml-auto lg:ml-0 ' : ''}rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800`}>
-            Pickup items
-          </button>
-          <button onClick={() => { setSetup((v) => !v); setItemsSetup(false); }} className="rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800">
+          <button onClick={() => setSetup((v) => !v)} className={`${view.practice ? 'ml-auto lg:ml-0 ' : ''}rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800`}>
             This station
           </button>
           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${error ? 'bg-amber-500/15 text-amber-300' : view.practice ? 'bg-amber-400/20 text-amber-200' : 'bg-[#e70518]/15 text-red-300'}`}>
@@ -441,6 +428,9 @@ export default function PickupView({ token, initial, terms }: { token: string; i
                 {o.label}
               </label>
             ))}
+            <p className="pt-1 text-xs text-gray-500">
+              {view.items.length ? 'The items' : 'Pickup items (hats, water bottles, a banner)'} are set on the desk: Coach portal, Pickup items.
+            </p>
           </fieldset>
           <h2 className="pt-2 text-sm font-semibold">What a pickup needs at this station</h2>
           <label className="flex items-center gap-2 text-sm">
@@ -473,8 +463,6 @@ export default function PickupView({ token, initial, terms }: { token: string; i
           </label>
         </section>
       )}
-
-      {itemsSetup && <ItemsSetup items={view.items} terms={terms} onSave={(items) => void saveItems(items)} onCancel={() => setItemsSetup(false)} />}
 
       <dl className="grid grid-cols-2 gap-2 px-4 pt-4 sm:grid-cols-4 sm:gap-3 sm:px-6">
         {[
@@ -945,60 +933,6 @@ function PacketWindow({ school, initialSides, extraSides, labels, items, terms, 
         </div>
       </div>
     </div>
-  );
-}
-
-/**
- * The meet's pickup items: each named, with how many go to a team (each side
- * of the field), a runner or a school. Saved for every station at once.
- */
-function ItemsSetup({ items, terms, onSave, onCancel }: {
-  items: PickupItem[]; terms: Terms; onSave: (items: PickupItem[]) => void; onCancel: () => void;
-}) {
-  const [list, setList] = useState<PickupItem[]>(() => items.map(({ id, name, count, per }) => ({ id, name, count, per })));
-  const set = (i: number, patch: Partial<PickupItem>) => setList((l) => l.map((x, j) => (j === i ? { ...x, ...patch } : x)));
-  const team = terms === 'men_women' ? "each of a school's men's and women's teams" : "each of a school's boys' and girls' teams";
-  const field = 'rounded-lg border border-gray-700 bg-gray-900 px-3 py-2';
-  return (
-    <section className="mx-4 mt-4 space-y-3 rounded-xl bg-gray-900/70 p-4 ring-1 ring-violet-500/30 sm:mx-6">
-      <div>
-        <h2 className="text-sm font-semibold">Pickup items</h2>
-        <p className="text-xs text-gray-400">
-          What schools pick up besides their packets: hats, water bottles, a banner. Per team is {team}; per runner counts the runners on each.
-          Every station sees these; each chooses under This station which it hands out.
-        </p>
-      </div>
-      {list.length === 0 && <p className="text-sm text-gray-500">No pickup items yet: packets and coach passes only.</p>}
-      <ul className="space-y-2">
-        {list.map((it, i) => (
-          <li key={it.id || i} className="flex flex-wrap items-center gap-2">
-            <input value={it.name} onChange={(e) => set(i, { name: e.target.value.slice(0, 40) })} placeholder="Hats" aria-label="Item"
-              className={`${field} min-w-0 flex-1 sm:max-w-xs`} />
-            <input type="number" inputMode="numeric" min={1} max={500} value={it.count} aria-label="How many"
-              onChange={(e) => set(i, { count: Math.max(1, Math.min(500, Math.round(Number(e.target.value) || 1))) })}
-              className={`${field} w-20 text-center tabular-nums`} />
-            <select value={it.per} onChange={(e) => set(i, { per: e.target.value as ItemPer })} aria-label="Counted" className={field}>
-              <option value="team">per team</option>
-              <option value="runner">per runner</option>
-              <option value="school">per school</option>
-            </select>
-            <button type="button" onClick={() => setList((l) => l.filter((_, j) => j !== i))}
-              className="rounded-md px-2.5 py-1.5 text-sm text-gray-400 ring-1 ring-gray-700 hover:bg-gray-800">Remove</button>
-          </li>
-        ))}
-      </ul>
-      <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={list.length >= 12} onClick={() => setList((l) => [...l, { id: '', name: '', count: 1, per: 'team' }])}
-          className="rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800 disabled:opacity-40">Add an item</button>
-        <span className="flex-1" />
-        <button type="button" onClick={onCancel} className="rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800">Cancel</button>
-        <button type="button" onClick={() => onSave(list.filter((x) => x.name.trim()))}
-          className="rounded-md bg-violet-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-violet-400">Save for every station</button>
-      </div>
-      {items.some((x) => !list.some((y) => y.id === x.id)) && (
-        <p className="text-xs text-amber-300">An item removed keeps what was already handed over in the log.</p>
-      )}
-    </section>
   );
 }
 

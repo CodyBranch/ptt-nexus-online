@@ -12,8 +12,10 @@
  * leaves the packet 'waiting' until it is signed there.
  *
  * Besides its packets, a school can pick up a count of the meet's other
- * items (session.pickupItemsJson): hats, water bottles, a banner, so many per
- * team, per runner or per school. Each station hands out what it chooses, so
+ * items (session.pickupItemsJson, set on the desk and sent with the portal):
+ * hats, water bottles, a banner, so many per team, per runner or per school.
+ * The desk totals them the same way (its shared/declarations/pickup-items.ts):
+ * keep dueOf in step with it. Each station hands out what it chooses, so
  * one grouped table or a station per item both work off the same label, and
  * each hand-over keeps who took it, when, and where.
  *
@@ -429,7 +431,7 @@ export async function undoItemPickup(session: Session, id: string): Promise<bool
   return rows.length === 1;
 }
 
-/** Save the meet's pickup items. An item removed keeps its hand-overs in the log under its old name. */
+/** Save the meet's pickup items, as the desk sends them. An item removed keeps its hand-overs in the log under its old name. */
 export async function setPickupItems(session: Session, raw: unknown): Promise<PickupItem[]> {
   const items = cleanItems(raw);
   await db.update(meetDeclarationSessions).set({ pickupItemsJson: JSON.stringify(items) }).where(eq(meetDeclarationSessions.id, session.id));
@@ -616,14 +618,14 @@ export async function pickupsForDesk(sessionId: string): Promise<Map<string, Arr
 }
 
 /** What the desk pulls with the answers: each school's pickup items handed over, by desk team id. */
-export async function itemPickupsForDesk(sessionId: string): Promise<Map<string, Array<{ item: string; side: ItemSide; count: number; by: string | null; at: string }>>> {
+export async function itemPickupsForDesk(sessionId: string): Promise<Map<string, Array<{ itemId: string; item: string; side: ItemSide; count: number; by: string | null; at: string }>>> {
   const rows = await db.select().from(declarationItemPickups).where(and(
     eq(declarationItemPickups.meetSessionId, sessionId), isNull(declarationItemPickups.undoneAt), eq(declarationItemPickups.practice, false),
   )).orderBy(declarationItemPickups.createdAt);
-  const out = new Map<string, Array<{ item: string; side: ItemSide; count: number; by: string | null; at: string }>>();
+  const out = new Map<string, Array<{ itemId: string; item: string; side: ItemSide; count: number; by: string | null; at: string }>>();
   for (const r of rows) {
     if (!out.has(r.teamAccessId)) out.set(r.teamAccessId, []);
-    out.get(r.teamAccessId)!.push({ item: r.itemName, side: r.side as ItemSide, count: r.count, by: r.pickedUpBy, at: (r.createdAt ?? new Date()).toISOString() });
+    out.get(r.teamAccessId)!.push({ itemId: r.itemId, item: r.itemName, side: r.side as ItemSide, count: r.count, by: r.pickedUpBy, at: (r.createdAt ?? new Date()).toISOString() });
   }
   return out;
 }
