@@ -15,6 +15,9 @@ import { covers, sameName, type StaffMember } from '@/lib/declare-staff';
  * over as a 'nexus-scan' event. Each station chooses what a pickup needs
  * (kept on this device): nothing, the name of who took it, their signature
  * here, or their signature on the sign-off tablet facing the coach.
+ *
+ * Practice run tries all of that on the real meet: everything recorded
+ * meanwhile is test data, and ending the run deletes it.
  */
 
 const POLL_MS = 3000;
@@ -72,6 +75,8 @@ export default function PickupView({ token, initial, terms }: { token: string; i
   const [origin, setOrigin] = useState('');
   /** The school whose staff list is open for coach passes. */
   const [openStaff, setOpenStaff] = useState<string | null>(null);
+  /** Starting or ending a practice run, waiting on a second tap. */
+  const [practiceAsk, setPracticeAsk] = useState<'start' | 'end' | null>(null);
   const pad = useRef<SignaturePadHandle>(null);
   const input = useRef<HTMLInputElement>(null);
   const api = `/api/declare/pickup/${token}`;
@@ -191,6 +196,21 @@ export default function PickupView({ token, initial, terms }: { token: string; i
     } catch { setError('That change was not saved - try again'); }
   };
 
+  const practice = async (on: boolean) => {
+    setPracticeAsk(null);
+    try {
+      const r = await fetch(api, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'practice', on }) });
+      if (!r.ok) throw new Error(String(r.status));
+      const res = await r.json() as { removed: { pickups: number; passes: number } };
+      const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
+      setFlash(on
+        ? { status: 'waiting', message: 'Practice run started. Scan, sign and hand out passes as on the day: none of it counts.' }
+        : { status: 'picked_up', message: `Practice run ended. Removed ${n(res.removed.pickups, 'practice pickup', 'practice pickups')} and ${n(res.removed.passes, 'coach pass', 'coach passes')}.` });
+      setOpenStaff(null);
+      await refresh();
+    } catch { setError('That change was not saved - try again'); }
+  };
+
   const undo = async (id: string) => {
     try {
       await fetch(api, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'undo', id }) });
@@ -224,15 +244,62 @@ export default function PickupView({ token, initial, terms }: { token: string; i
             <h1 className="text-lg font-bold tracking-tight sm:truncate sm:text-xl">{view.meet.name}</h1>
             <p className="text-xs text-gray-400">Packet pickup{station.device ? ` · ${station.device}` : ''}</p>
           </div>
-          <button onClick={() => setSetup((v) => !v)} className="ml-auto rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800 sm:ml-0">
+          {!view.practice && (
+            <button onClick={() => setPracticeAsk(practiceAsk === 'start' ? null : 'start')} className="ml-auto rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800 sm:ml-0">
+              Practice run
+            </button>
+          )}
+          <button onClick={() => setSetup((v) => !v)} className={`${view.practice ? 'ml-auto sm:ml-0 ' : ''}rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800`}>
             This station
           </button>
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${error ? 'bg-amber-500/15 text-amber-300' : 'bg-[#e70518]/15 text-red-300'}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${error ? 'bg-amber-400' : 'bg-red-500'}`} />
-            {error ? 'Reconnecting' : 'Live'}
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${error ? 'bg-amber-500/15 text-amber-300' : view.practice ? 'bg-amber-400/20 text-amber-200' : 'bg-[#e70518]/15 text-red-300'}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${error ? 'bg-amber-400' : view.practice ? 'bg-amber-300' : 'bg-red-500'}`} />
+            {error ? 'Reconnecting' : view.practice ? 'Practice' : 'Live'}
           </span>
         </div>
       </header>
+
+      {view.practice && (
+        <div role="status" className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-amber-400/30 bg-amber-400/15 px-4 py-2.5 text-sm text-amber-100 sm:px-6">
+          <p className="min-w-0 flex-1">
+            <span className="font-semibold text-amber-200">Practice run since {clock(view.practice.since)}.</span>{' '}
+            Nothing recorded now counts: pickups, signatures and coach passes are test data, kept apart from the real ones and deleted when the run ends.
+          </p>
+          <button onClick={() => setPracticeAsk('end')} className="rounded-md bg-amber-300 px-3 py-1.5 text-sm font-semibold text-gray-950 hover:bg-amber-200">
+            End practice run
+          </button>
+        </div>
+      )}
+
+      {practiceAsk && (
+        <section className="mx-4 mt-4 space-y-3 rounded-xl bg-gray-900/70 p-4 ring-1 ring-amber-400/40 sm:mx-6">
+          {practiceAsk === 'start' ? (
+            <>
+              <h2 className="text-sm font-semibold">Start a practice run?</h2>
+              <p className="text-sm text-gray-300">
+                Every station on this page, the sign-off tablet and scanners calling the scanner URL switch to practice. Scan labels, sign and hand out
+                passes as on the day; it is all test data. Real pickups already recorded are kept and hidden until the run ends.
+              </p>
+              <div className="flex gap-2">
+                <button onClick={() => void practice(true)} className="rounded-md bg-amber-300 px-3 py-1.5 text-sm font-semibold text-gray-950 hover:bg-amber-200">Start practice run</button>
+                <button onClick={() => setPracticeAsk(null)} className="rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800">Cancel</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-sm font-semibold">End the practice run?</h2>
+              <p className="text-sm text-gray-300">
+                Deletes the {view.log.length === 1 ? 'practice pickup' : `${view.log.length} practice pickups`} and {view.passes.given === 1 ? 'coach pass' : `${view.passes.given} coach passes`} recorded
+                in it, and puts every station back on the real pickups.
+              </p>
+              <div className="flex gap-2">
+                <button onClick={() => void practice(false)} className="rounded-md bg-amber-300 px-3 py-1.5 text-sm font-semibold text-gray-950 hover:bg-amber-200">End and delete the test data</button>
+                <button onClick={() => setPracticeAsk(null)} className="rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800">Keep practicing</button>
+              </div>
+            </>
+          )}
+        </section>
+      )}
 
       {setup && (
         <section className="mx-4 mt-4 space-y-3 rounded-xl bg-gray-900/70 p-4 ring-1 ring-gray-800 sm:mx-6">
@@ -348,7 +415,7 @@ export default function PickupView({ token, initial, terms }: { token: string; i
         <section className="rounded-xl bg-gray-900/60 ring-1 ring-gray-800">
           <h2 className="border-b border-gray-800 px-4 py-3 text-sm font-semibold">Pickups</h2>
           <ul className="divide-y divide-gray-800/70">
-            {view.log.length === 0 && <li className="px-4 py-8 text-center text-sm text-gray-500">No packets picked up yet.</li>}
+            {view.log.length === 0 && <li className="px-4 py-8 text-center text-sm text-gray-500">{view.practice ? 'No practice pickups yet.' : 'No packets picked up yet.'}</li>}
             {view.log.slice(0, 60).map((r) => (
               <li key={r.id} className={`flex items-start gap-3 px-4 py-2.5 ${r.undone ? 'opacity-40' : ''}`}>
                 <SchoolBadge name={r.teamName} badge={schoolOf.get(r.teamAccessId)?.badge} size={24} />

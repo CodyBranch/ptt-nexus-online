@@ -603,6 +603,12 @@ export const meetDeclarationSessions = pgTable('meet_declaration_sessions', {
    * It writes, so it is a token of its own, like the bib returns'.
    */
   pickupToken: text('pickup_token').unique(),
+  /**
+   * A practice run at the packet table (xc_packet_pickup_practice.sql): when
+   * set, pickups and coach passes are written as practice, the table shows
+   * only those, and ending it deletes them.
+   */
+  pickupPracticeAt: timestamp('pickup_practice_at', { withTimezone: true }),
 
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -792,9 +798,11 @@ export const declarationPacketPickups = pgTable('declaration_packet_pickups', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   signedAt: timestamp('signed_at', { withTimezone: true }),
   undoneAt: timestamp('undone_at', { withTimezone: true }),
+  /** Recorded during a practice run: never pulled by the desk, deleted when it ends. */
+  practice: boolean('practice').notNull().default(false),
 }, (table) => [
   index('idx_packet_pickups_session').on(table.meetSessionId, table.createdAt),
-  uniqueIndex('idx_packet_pickups_team').on(table.teamAccessId, table.side).where(sql`undone_at IS NULL`),
+  uniqueIndex('idx_packet_pickups_team').on(table.teamAccessId, table.side, table.practice).where(sql`undone_at IS NULL`),
 ]);
 
 /**
@@ -815,9 +823,11 @@ export const declarationStaffCheckins = pgTable('declaration_staff_checkins', {
   device: text('device'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   undoneAt: timestamp('undone_at', { withTimezone: true }),
+  /** Handed out during a practice run: deleted when it ends. */
+  practice: boolean('practice').notNull().default(false),
 }, (table) => [
   index('idx_staff_checkins_session').on(table.meetSessionId, table.createdAt),
-  uniqueIndex('idx_staff_checkins_person').on(table.teamAccessId, sql`lower(${table.name})`, table.item).where(sql`undone_at IS NULL`),
+  uniqueIndex('idx_staff_checkins_person').on(table.teamAccessId, sql`lower(${table.name})`, table.item, table.practice).where(sql`undone_at IS NULL`),
 ]);
 
 // ═══════════════════════════════════════════════════════════

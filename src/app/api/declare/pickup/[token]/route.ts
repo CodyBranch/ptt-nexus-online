@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  pickupSession, pickupView, recordPickup, recordScan, signatureOf, signPickups, undoPickup, checkInStaff, undoCheckin, type PickupResult,
+  pickupSession, pickupView, recordPickup, recordScan, signatureOf, signPickups, undoPickup, checkInStaff, undoCheckin, setPractice, type PickupResult,
 } from '@/lib/declare-pickup';
 
 // ── /api/declare/pickup/[token] ──────────────────────────────────────────────
@@ -19,6 +19,9 @@ import {
 //     'manual' { teamAccessId, side, by?, signature?, wait?, device? }
 //     'sign'   { ids, by, signature }  the coach signs on the sign-off tablet
 //     'undo'   { id }
+//     'checkin' / 'uncheckin'          a coach pass handed out, and taken back
+//     'practice' { on }                start a practice run, or end it and
+//                                      delete everything recorded in it
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +51,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!code) return NextResponse.json(await pickupView(session), { headers: noStore });
     const result = await recordScan(session, code, { via: 'scan', device: q.get('device') ?? q.get('station') });
     if ((q.get('format') ?? '').toLowerCase() === 'json') return NextResponse.json(result, { headers: noStore });
-    return text(`${WORD[result.status]} ${result.message}\n`);
+    // A practice run says so in the scanner's log too.
+    return text(`${WORD[result.status]} ${session.pickupPracticeAt ? 'PRACTICE ' : ''}${result.message}\n`);
   } catch (e) {
     console.error('[declare] pickup GET:', e);
     return text('ERROR the scan was not recorded\n', 500);
@@ -63,7 +67,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const body = await request.json().catch(() => ({})) as {
       action?: string; code?: string; teamAccessId?: string; side?: string;
       by?: string; signature?: string; wait?: boolean; device?: string; ids?: string[]; id?: string;
-      staffId?: string; name?: string; item?: string;
+      staffId?: string; name?: string; item?: string; on?: boolean;
     };
     const opts = { by: body.by, signature: body.signature, wait: body.wait === true, device: body.device };
 
@@ -90,7 +94,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (body.action === 'uncheckin' && body.id) {
       return NextResponse.json({ ok: await undoCheckin(session, body.id) }, { headers: noStore });
     }
-    return NextResponse.json({ error: 'action must be scan, manual, sign, undo, checkin or uncheckin' }, { status: 400 });
+    if (body.action === 'practice' && typeof body.on === 'boolean') {
+      return NextResponse.json(await setPractice(session, body.on), { headers: noStore });
+    }
+    return NextResponse.json({ error: 'action must be scan, manual, sign, undo, checkin, uncheckin or practice' }, { status: 400 });
   } catch (e) {
     console.error('[declare] pickup POST:', e);
     return NextResponse.json({ error: 'The pickup was not recorded' }, { status: 500 });

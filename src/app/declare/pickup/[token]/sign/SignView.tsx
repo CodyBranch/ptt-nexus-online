@@ -82,6 +82,11 @@ export default function SignView({ token, initial, terms }: { token: string; ini
         <h1 className="min-w-0 flex-1 truncate text-lg font-bold">{view.meet.name}</h1>
         {error && <span className="text-sm text-amber-300">{error}</span>}
       </header>
+      {view.practice && (
+        <p role="status" className="border-b border-amber-400/30 bg-amber-400/15 px-6 py-2 text-center text-sm font-semibold text-amber-200">
+          Practice run: signatures here are test data.
+        </p>
+      )}
 
       <main className="flex flex-1 items-center justify-center p-6">
         {thanks ? (

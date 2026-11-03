@@ -10,6 +10,10 @@
  * The table can ask who took it and for their signature, on its own screen,
  * or hand the signing to a sign-off tablet facing the coach: then the scan
  * leaves the packet 'waiting' until it is signed there.
+ *
+ * A practice run (session.pickupPracticeAt set) tests all of it against the
+ * real meet: everything recorded meanwhile is marked practice, the table
+ * shows only that, the desk never pulls it, and ending the run deletes it.
  */
 
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
@@ -72,6 +76,8 @@ export interface StaffCheckin { id: string; teamAccessId: string; staffId: strin
 
 export interface PickupView {
   meet: { name: string; date: string | null };
+  /** A practice run under way: when it started. Everything shown is practice. */
+  practice: { since: string } | null;
   packets: number;
   pickedUp: number;
   /** Coach passes handed out, and how many people the schools' staff lists name. */
@@ -151,9 +157,14 @@ export function packetsOf(access: Pick<Access, 'rosterJson'>): Array<{ side: Sid
   return sides.map((side) => ({ side, athletes: count.get(side) ?? 0, bibs: bibRuns(by.get(side) ?? []) }));
 }
 
-async function activeFor(sessionId: string) {
-  return db.select().from(declarationPacketPickups)
-    .where(and(eq(declarationPacketPickups.meetSessionId, sessionId), isNull(declarationPacketPickups.undoneAt)));
+/** Whether what is recorded now is practice. */
+const practicing = (session: Session) => !!session.pickupPracticeAt;
+
+async function activeFor(session: Session) {
+  return db.select().from(declarationPacketPickups).where(and(
+    eq(declarationPacketPickups.meetSessionId, session.id), isNull(declarationPacketPickups.undoneAt),
+    eq(declarationPacketPickups.practice, practicing(session)),
+  ));
 }
 
 export interface RecordOptions {
@@ -215,7 +226,7 @@ export async function recordPickup(
 
   const by = cleanName(opts.by);
   const signature = cleanSignature(opts.signature);
-  const existing = (await activeFor(session.id)).filter((p) => p.teamAccessId === access.id);
+  const existing = (await activeFor(session)).filter((p) => p.teamAccessId === access.id);
   const now = new Date();
   const done: Side[] = [];
   const already: Side[] = [];
@@ -248,6 +259,7 @@ export async function recordPickup(
       signedAt: signature ? now : null,
       via: opts.via,
       device: cleanName(opts.device),
+      practice: practicing(session),
     }).onConflictDoNothing().returning();
     if (!row) { already.push(side); continue; }
     ids.push(row.id);
@@ -325,7 +337,7 @@ export async function pickupView(session: Session): Promise<PickupView> {
     at: declarationPacketPickups.createdAt,
     undoneAt: declarationPacketPickups.undoneAt,
   }).from(declarationPacketPickups)
-    .where(eq(declarationPacketPickups.meetSessionId, session.id))
+    .where(and(eq(declarationPacketPickups.meetSessionId, session.id), eq(declarationPacketPickups.practice, practicing(session))))
     .orderBy(desc(declarationPacketPickups.createdAt));
   const contacts = await db.select({ teamAccessId: declarationCoachContacts.teamAccessId, name: declarationCoachContacts.name })
     .from(declarationCoachContacts).where(eq(declarationCoachContacts.meetSessionId, session.id));
@@ -340,6 +352,7 @@ export async function pickupView(session: Session): Promise<PickupView> {
   const nameOf = new Map(teams.map((t) => [t.id, t.teamName]));
   const checkins = (await db.select().from(declarationStaffCheckins).where(and(
     eq(declarationStaffCheckins.meetSessionId, session.id), isNull(declarationStaffCheckins.undoneAt),
+    eq(declarationStaffCheckins.practice, practicing(session)),
   )).orderBy(declarationStaffCheckins.createdAt)).map((c): StaffCheckin => ({
     id: c.id, teamAccessId: c.teamAccessId, staffId: c.staffId, name: c.name, item: c.item, at: (c.createdAt ?? new Date()).toISOString(), device: c.device,
   }));
@@ -385,6 +398,7 @@ export async function pickupView(session: Session): Promise<PickupView> {
 
   return {
     meet: { name: session.meetName, date: session.meetDate ?? null },
+    practice: session.pickupPracticeAt ? { since: session.pickupPracticeAt.toISOString() } : null,
     packets,
     pickedUp,
     passes: { given: checkins.length, staff: [...staffOfTeam.values()].reduce((n, l) => n + l.length, 0) },
@@ -407,6 +421,7 @@ export async function pickupsForDesk(sessionId: string): Promise<Map<string, Arr
     eq(declarationPacketPickups.meetSessionId, sessionId),
     isNull(declarationPacketPickups.undoneAt),
     eq(declarationPacketPickups.status, 'picked_up'),
+    eq(declarationPacketPickups.practice, false),
   ));
   const out = new Map<string, Array<{ side: Side; by: string | null; at: string; signed: boolean }>>();
   for (const r of rows) {
@@ -440,6 +455,7 @@ export async function checkInStaff(
   // Two stations at once: the unique index lets one in, the other is told.
   const [row] = await db.insert(declarationStaffCheckins).values({
     meetSessionId: session.id, teamAccessId: access.id, staffId: onList?.id ?? null, name, item, device: cleanName(input.device),
+    practice: practicing(session),
   }).onConflictDoNothing().returning();
   if (!row) return { status: 'already', message: `${name} already has a ${item.toLowerCase()}.`, checkin: null };
   return {
@@ -456,4 +472,26 @@ export async function undoCheckin(session: Session, id: string): Promise<boolean
     eq(declarationStaffCheckins.id, id), eq(declarationStaffCheckins.meetSessionId, session.id), isNull(declarationStaffCheckins.undoneAt),
   )).returning({ id: declarationStaffCheckins.id });
   return rows.length === 1;
+}
+
+/**
+ * Start a practice run, or end one: ending deletes everything recorded as
+ * practice (pickups, signatures and coach passes) and puts the table back on
+ * the real pickups. Says how many of each were removed.
+ */
+export async function setPractice(session: Session, on: boolean): Promise<{ practice: boolean; removed: { pickups: number; passes: number } }> {
+  if (on) {
+    if (!session.pickupPracticeAt) {
+      await db.update(meetDeclarationSessions).set({ pickupPracticeAt: new Date() }).where(eq(meetDeclarationSessions.id, session.id));
+    }
+    return { practice: true, removed: { pickups: 0, passes: 0 } };
+  }
+  const pickups = await db.delete(declarationPacketPickups).where(and(
+    eq(declarationPacketPickups.meetSessionId, session.id), eq(declarationPacketPickups.practice, true),
+  )).returning({ id: declarationPacketPickups.id });
+  const passes = await db.delete(declarationStaffCheckins).where(and(
+    eq(declarationStaffCheckins.meetSessionId, session.id), eq(declarationStaffCheckins.practice, true),
+  )).returning({ id: declarationStaffCheckins.id });
+  await db.update(meetDeclarationSessions).set({ pickupPracticeAt: null }).where(eq(meetDeclarationSessions.id, session.id));
+  return { practice: false, removed: { pickups: pickups.length, passes: passes.length } };
 }
