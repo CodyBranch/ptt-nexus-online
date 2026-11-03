@@ -519,7 +519,9 @@ function PacketWindow({ school, initialSides, extraSides, terms, station, busy, 
   const staff = [...school.staff].sort((a, b) =>
     Number(isHead(b, looking)) - Number(isHead(a, looking))
     || Number(looking.some((s) => covers(b, s))) - Number(looking.some((s) => covers(a, s))));
-  const takers = staff.filter((m) => looking.some((s) => covers(m, s)));
+  /** Covers the packets ticked: offered first, the rest of the staff after. */
+  const coversTicked = (m: StaffMember) => looking.some((s) => covers(m, s));
+  const onFile = staff.length + school.coaches.filter((c) => !school.staff.some((m) => sameName(m.name, c))).length;
   const others = school.coaches.filter((c) => !school.staff.some((m) => sameName(m.name, c)));
   const extra = school.checkins.filter((c) => !school.staff.some((m) => c.staffId === m.id || sameName(c.name, m.name)));
   const typed = by.trim();
@@ -596,22 +598,43 @@ function PacketWindow({ school, initialSides, extraSides, terms, station, busy, 
           {sides.length > 0 && (
             <section className={section}>
               <h3 className={heading}>Picked up by{station.askName ? '' : ' (optional)'}</h3>
-              {takers.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {takers.map((m) => (
-                    <button key={m.id} type="button" onClick={() => pick(m.name)}
-                      className={`rounded-lg px-3 py-1.5 text-left ring-1 ${sameName(m.name, by) ? 'bg-emerald-600/25 ring-emerald-500/60' : 'bg-gray-800 ring-gray-700 hover:bg-gray-700'}`}>
-                      <span className="block text-sm">{m.name}</span>
-                      <span className="block text-[11px] text-gray-400">{rolesText(m, terms) || 'Staff'}{m.approved ? '' : ' · not approved'}</span>
-                    </button>
-                  ))}
-                  {others.map((c) => (
-                    <button key={c} type="button" onClick={() => pick(c)}
-                      className={`rounded-lg px-3 py-1.5 text-sm ring-1 ${sameName(c, by) ? 'bg-emerald-600/25 ring-emerald-500/60' : 'bg-gray-800 ring-gray-700 hover:bg-gray-700'}`}>{c}</button>
-                  ))}
+              {onFile > 0 ? (
+                // Every coach on file, one tap each: those who cover the ticked
+                // packets first (head coaches leading), then the rest of the
+                // staff, then coaches who signed up for texts.
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {staff.map((m) => {
+                    const on = sameName(m.name, by);
+                    return (
+                      <button key={m.id} type="button" onClick={() => pick(m.name)}
+                        className={`flex items-center gap-3 rounded-lg px-3 py-2 text-left ring-1 ${on ? 'bg-emerald-600/25 ring-emerald-500/60'
+                          : coversTicked(m) ? 'bg-gray-800 ring-gray-700 hover:bg-gray-700' : 'bg-gray-900 ring-gray-800 hover:bg-gray-800'}`}>
+                        <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs ${on ? 'border-emerald-400 bg-emerald-500/40 text-white' : 'border-gray-500'}`}>{on ? '✓' : ''}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className={`block truncate text-sm ${coversTicked(m) ? '' : 'text-gray-300'}`}>{m.name}</span>
+                          <span className="block truncate text-[11px] text-gray-400">{rolesText(m, terms) || 'Staff'}{m.approved ? '' : ' · not approved'}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {others.map((c) => {
+                    const on = sameName(c, by);
+                    return (
+                      <button key={c} type="button" onClick={() => pick(c)}
+                        className={`flex items-center gap-3 rounded-lg px-3 py-2 text-left ring-1 ${on ? 'bg-emerald-600/25 ring-emerald-500/60' : 'bg-gray-800 ring-gray-700 hover:bg-gray-700'}`}>
+                        <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs ${on ? 'border-emerald-400 bg-emerald-500/40 text-white' : 'border-gray-500'}`}>{on ? '✓' : ''}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm">{c}</span>
+                          <span className="block text-[11px] text-gray-400">Signed up for texts</span>
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
+              ) : (
+                <p className="text-sm text-gray-400">No coaches on file for {school.name}. Type who took it.</p>
               )}
-              <input value={by} onChange={(e) => setBy(e.target.value)} placeholder={takers.length ? 'Someone else: name' : 'Name'}
+              <input value={by} onChange={(e) => setBy(e.target.value)} placeholder={onFile ? 'Someone else: name' : 'Name'}
                 className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-base" />
               {offList && <p className="text-xs text-amber-300">Not on {school.name}&apos;s staff list. They can still take it; the log will say so.</p>}
             </section>
