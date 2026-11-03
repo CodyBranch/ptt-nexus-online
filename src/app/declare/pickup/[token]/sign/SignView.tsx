@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PickupSchool, PickupView as View } from '@/lib/declare-pickup';
 import SignaturePad, { type SignaturePadHandle } from '../SignaturePad';
-import { sideWord } from '../PickupView';
+import { sideWord, StaffPicks } from '../PickupView';
 import SchoolBadge from '../SchoolBadge';
 
 /**
@@ -119,12 +119,10 @@ export default function SignView({ token, initial, terms }: { token: string; ini
               <label htmlFor="sg-who" className="text-sm text-gray-400">Your name</label>
               <input id="sg-who" value={who} onChange={(e) => setWho(e.target.value)} autoComplete="off"
                 className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-4 py-3 text-lg" />
-              {(turn.school?.coaches.length ?? 0) > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {turn.school!.coaches.map((c) => (
-                    <button key={c} type="button" onClick={() => setWho(c)} className="rounded-md bg-gray-800 px-3 py-1.5 ring-1 ring-gray-700 hover:bg-gray-700">{c}</button>
-                  ))}
-                </div>
+              {/* The school's staff who cover these packets, one tap each. */}
+              {turn.school && (
+                <StaffPicks school={turn.school} side={new Set(turn.rows.map((r) => r.side)).size === 1 ? turn.rows[0].side : 'A'}
+                  terms={terms} who={who} onPick={setWho} />
               )}
             </div>
             <SignaturePad ref={pad} onChange={setSigned} />

@@ -15,8 +15,9 @@
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
-  meetDeclarationSessions, teamDeclarationAccess, declarationPacketPickups, declarationCoachContacts, organizations,
+  meetDeclarationSessions, teamDeclarationAccess, declarationPacketPickups, declarationCoachContacts, organizations, declarationStaffCheckins,
 } from '@/db/schema';
+import { staffOf, covers, sameName, type StaffMember } from '@/lib/declare-staff';
 
 type Session = typeof meetDeclarationSessions.$inferSelect;
 type Access = typeof teamDeclarationAccess.$inferSelect;
@@ -36,6 +37,10 @@ export interface PickupSchool {
   teamAccessId: string;
   teamId: string;
   name: string;
+  /** Who may take its packets (the desk's staff list), for the table to offer by side. */
+  staff: StaffMember[];
+  /** Passes handed to its staff so far (live ones, oldest first). */
+  checkins: StaffCheckin[];
   /** The school's logo and color from its Nexus Online organization, when the desk matched one. */
   badge: { logoUrl: string | null; logoDarkUrl: string | null; color: string | null } | null;
   coaches: string[];
@@ -49,6 +54,12 @@ export interface PickupLogRow {
   side: Side;
   status: 'picked_up' | 'waiting';
   by: string | null;
+  /**
+   * Who that is on the school's staff list: their roles for this packet's
+   * side ("Head Coach"), '' on the list with no role, or null not on it.
+   * Undefined when the school sent no staff list at all.
+   */
+  byRole?: string | null;
   signed: boolean;
   via: string;
   device: string | null;
@@ -56,10 +67,15 @@ export interface PickupLogRow {
   undone: boolean;
 }
 
+/** A coach pass (or another credential) handed to one of a school's staff. */
+export interface StaffCheckin { id: string; teamAccessId: string; staffId: string | null; name: string; item: string; at: string; device: string | null }
+
 export interface PickupView {
   meet: { name: string; date: string | null };
   packets: number;
   pickedUp: number;
+  /** Coach passes handed out, and how many people the schools' staff lists name. */
+  passes: { given: number; staff: number };
   schools: PickupSchool[];
   log: PickupLogRow[];
   waiting: PickupLogRow[];
@@ -322,6 +338,20 @@ export async function pickupView(session: Session): Promise<PickupView> {
   const orgOf = new Map(orgs.map((o) => [o.id, o]));
 
   const nameOf = new Map(teams.map((t) => [t.id, t.teamName]));
+  const checkins = (await db.select().from(declarationStaffCheckins).where(and(
+    eq(declarationStaffCheckins.meetSessionId, session.id), isNull(declarationStaffCheckins.undoneAt),
+  )).orderBy(declarationStaffCheckins.createdAt)).map((c): StaffCheckin => ({
+    id: c.id, teamAccessId: c.teamAccessId, staffId: c.staffId, name: c.name, item: c.item, at: (c.createdAt ?? new Date()).toISOString(), device: c.device,
+  }));
+  const staffOfTeam = new Map(teams.map((t) => [t.id, staffOf(t.staffJson)]));
+  /** Who took it, read against the school's staff list (see PickupLogRow.byRole). */
+  const roleOf = (teamAccessId: string, side: Side, by: string | null): string | null | undefined => {
+    const staff = staffOfTeam.get(teamAccessId) ?? [];
+    if (!staff.length || !by) return undefined;
+    const m = staff.find((x) => sameName(x.name, by));
+    if (!m) return null;
+    return m.roles.filter((r) => r.scope === 'all' || r.scope === side).map((r) => r.role).join(', ') || (covers(m, side) ? '' : m.roles.map((r) => r.role).join(', '));
+  };
   const log: PickupLogRow[] = rows.map((r) => ({
     id: r.id,
     teamAccessId: r.teamAccessId,
@@ -329,6 +359,7 @@ export async function pickupView(session: Session): Promise<PickupView> {
     side: r.side as Side,
     status: r.status as 'picked_up' | 'waiting',
     by: r.by,
+    byRole: roleOf(r.teamAccessId, r.side as Side, r.by),
     signed: !!r.signedAt,
     via: r.via,
     device: r.device,
@@ -349,13 +380,14 @@ export async function pickupView(session: Session): Promise<PickupView> {
     const coaches = [...new Set(contacts.filter((c) => c.teamAccessId === t.id).map((c) => c.name.trim()).filter(Boolean))];
     const o = t.organizationId ? orgOf.get(t.organizationId) : undefined;
     const badge = o ? { logoUrl: o.logoUrl ?? null, logoDarkUrl: o.logoDarkUrl ?? null, color: o.color ?? null } : null;
-    return { teamAccessId: t.id, teamId: t.teamId, name: t.teamName, badge, coaches, sides };
+    return { teamAccessId: t.id, teamId: t.teamId, name: t.teamName, badge, coaches, staff: staffOfTeam.get(t.id) ?? [], checkins: checkins.filter((c) => c.teamAccessId === t.id), sides };
   }).sort((a, b) => a.name.localeCompare(b.name));
 
   return {
     meet: { name: session.meetName, date: session.meetDate ?? null },
     packets,
     pickedUp,
+    passes: { given: checkins.length, staff: [...staffOfTeam.values()].reduce((n, l) => n + l.length, 0) },
     schools,
     log: log.slice(0, 200),
     // Oldest first: the coach at the front of the line signs first.
@@ -382,4 +414,46 @@ export async function pickupsForDesk(sessionId: string): Promise<Map<string, Arr
     out.get(r.teamAccessId)!.push({ side: r.side as Side, by: r.by, at: (r.at ?? new Date()).toISOString(), signed: !!r.signedAt });
   }
   return out;
+}
+
+/**
+ * Hand a coach pass (or another item) to one of a school's staff. A person on
+ * its staff list is named by their desk id; a walk-up by name alone. The same
+ * person and item twice is one pass: the second is told so.
+ */
+export async function checkInStaff(
+  session: Session,
+  input: { teamAccessId: unknown; staffId?: unknown; name?: unknown; item?: unknown; device?: unknown },
+): Promise<{ status: 'checked_in' | 'already' | 'unknown'; message: string; checkin: StaffCheckin | null }> {
+  const teamAccessId = String(input.teamAccessId ?? '');
+  if (!UUID.test(teamAccessId)) return { status: 'unknown', message: 'That school is not in this meet.', checkin: null };
+  const [access] = await db.select().from(teamDeclarationAccess).where(and(
+    eq(teamDeclarationAccess.meetSessionId, session.id), eq(teamDeclarationAccess.id, teamAccessId),
+  )).limit(1);
+  if (!access) return { status: 'unknown', message: 'That school is not in this meet.', checkin: null };
+  const staff = staffOf(access.staffJson);
+  const listed = typeof input.staffId === 'string' ? staff.find((m) => m.id === input.staffId) : undefined;
+  const name = listed?.name ?? cleanName(input.name);
+  if (!name) return { status: 'unknown', message: 'A name is needed.', checkin: null };
+  const item = (typeof input.item === 'string' ? input.item.trim().slice(0, 40) : '') || 'Coach pass';
+  const onList = listed ?? staff.find((m) => sameName(m.name, name));
+  // Two stations at once: the unique index lets one in, the other is told.
+  const [row] = await db.insert(declarationStaffCheckins).values({
+    meetSessionId: session.id, teamAccessId: access.id, staffId: onList?.id ?? null, name, item, device: cleanName(input.device),
+  }).onConflictDoNothing().returning();
+  if (!row) return { status: 'already', message: `${name} already has a ${item.toLowerCase()}.`, checkin: null };
+  return {
+    status: 'checked_in',
+    message: `${access.teamName}: ${item.toLowerCase()} for ${name}${onList ? '' : ' (not on the staff list)'}.`,
+    checkin: { id: row.id, teamAccessId: access.id, staffId: row.staffId, name, item, at: (row.createdAt ?? new Date()).toISOString(), device: row.device },
+  };
+}
+
+/** Take a pass back (handed to the wrong person, or returned). */
+export async function undoCheckin(session: Session, id: string): Promise<boolean> {
+  if (!UUID.test(id)) return false;
+  const rows = await db.update(declarationStaffCheckins).set({ undoneAt: new Date() }).where(and(
+    eq(declarationStaffCheckins.id, id), eq(declarationStaffCheckins.meetSessionId, session.id), isNull(declarationStaffCheckins.undoneAt),
+  )).returning({ id: declarationStaffCheckins.id });
+  return rows.length === 1;
 }

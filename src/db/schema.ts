@@ -641,6 +641,13 @@ export const teamDeclarationAccess = pgTable('team_declaration_access', {
   /** The school's Nexus Online organization, when the desk knows it: its logo, colors and headshots. */
   organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'set null' }),
 
+  /**
+   * The school's staff for the packet table (xc_declaration_staff.sql): JSON
+   * [{id, name, roles: [{role, scope: 'all'|'F'|'M'}], approved}]. Names and
+   * roles only; phones and emails stay on the desk.
+   */
+  staffJson: text('staff_json').notNull().default('[]'),
+
   /** When the coach first opened the form, and most recently. Null: never opened. */
   openedAt: timestamp('opened_at', { withTimezone: true }),
   lastOpenedAt: timestamp('last_opened_at', { withTimezone: true }),
@@ -788,6 +795,29 @@ export const declarationPacketPickups = pgTable('declaration_packet_pickups', {
 }, (table) => [
   index('idx_packet_pickups_session').on(table.meetSessionId, table.createdAt),
   uniqueIndex('idx_packet_pickups_team').on(table.teamAccessId, table.side).where(sql`undone_at IS NULL`),
+]);
+
+/**
+ * Staff checked in at the packet table (xc_declaration_staff.sql): a coach
+ * pass or another credential handed to one of a school's staff, so the table
+ * can count how many have gone out. staffId is the desk's id for someone on
+ * the staff list; a walk-up has only a name. item names what was handed over.
+ */
+export const declarationStaffCheckins = pgTable('declaration_staff_checkins', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  meetSessionId: uuid('meet_session_id').notNull()
+    .references(() => meetDeclarationSessions.id, { onDelete: 'cascade' }),
+  teamAccessId: uuid('team_access_id').notNull()
+    .references(() => teamDeclarationAccess.id, { onDelete: 'cascade' }),
+  staffId: text('staff_id'),
+  name: text('name').notNull(),
+  item: text('item').notNull().default('Coach pass'),
+  device: text('device'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  undoneAt: timestamp('undone_at', { withTimezone: true }),
+}, (table) => [
+  index('idx_staff_checkins_session').on(table.meetSessionId, table.createdAt),
+  uniqueIndex('idx_staff_checkins_person').on(table.teamAccessId, sql`lower(${table.name})`, table.item).where(sql`undone_at IS NULL`),
 ]);
 
 // ═══════════════════════════════════════════════════════════

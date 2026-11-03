@@ -9,6 +9,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
 import { checkRelayAuth } from '@/lib/relay-auth';
 import { knownOrganizations } from '@/lib/declare-orgs';
+import { staffJson } from '@/lib/declare-staff';
 
 // ── Types (the same payload /api/declare/publish takes) ──────────────────────
 
@@ -47,6 +48,8 @@ interface TeamPayload {
   /** The school's Nexus Online organization, when the desk has matched one. */
   organizationId?: string | null;
   roster: RosterAthlete[];
+  /** The school's staff for the packet table: names and roles (lib/declare-staff). */
+  staff?: unknown;
 }
 
 // ── POST /api/declare/[meetToken]/update ────────────────────────────────────
@@ -136,6 +139,7 @@ export async function POST(
           teamName: team.name,
           rosterJson: JSON.stringify(team.roster),
           organizationId: orgOf(team),
+          staffJson: staffJson(team.staff),
         }).where(eq(teamDeclarationAccess.id, access.id));
       } else {
         [access] = await db.insert(teamDeclarationAccess).values({
@@ -145,6 +149,7 @@ export async function POST(
           teamName: team.name,
           rosterJson: JSON.stringify(team.roster),
           organizationId: orgOf(team),
+          staffJson: staffJson(team.staff),
         }).returning();
         newTeams.push({ teamId: access.teamId, teamName: access.teamName, teamToken: access.teamToken });
       }

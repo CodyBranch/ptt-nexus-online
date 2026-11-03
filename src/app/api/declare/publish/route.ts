@@ -8,6 +8,7 @@ import {
 import { randomBytes } from 'crypto';
 import { checkRelayAuth } from '@/lib/relay-auth';
 import { knownOrganizations } from '@/lib/declare-orgs';
+import { staffJson } from '@/lib/declare-staff';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -58,6 +59,8 @@ interface TeamPayload {
   /** The school's Nexus Online organization, when the desk has matched one. */
   organizationId?: string | null;
   roster: RosterAthlete[];
+  /** The school's staff for the packet table: names and roles (lib/declare-staff). */
+  staff?: unknown;
 }
 
 // ── POST /api/declare/publish ───────────────────────────────────────────────
@@ -127,6 +130,7 @@ export async function POST(request: NextRequest) {
         teamName: team.name,
         rosterJson: JSON.stringify(team.roster),
         organizationId: team.organizationId && orgs.has(team.organizationId) ? team.organizationId : null,
+        staffJson: staffJson(team.staff),
       })),
     ).returning();
 
