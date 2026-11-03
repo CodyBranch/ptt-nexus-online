@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  pickupSession, pickupView, recordPickup, recordScan, signatureOf, signPickups, undoPickup, checkInStaff, undoCheckin, setPractice, type PickupResult,
+  pickupSession, pickupView, recordPickup, recordScan, signatureOf, signPickups, undoPickup, checkInStaff, undoCheckin, setPractice,
+  recordItems, undoItemPickup, setPickupItems, type PickupResult,
 } from '@/lib/declare-pickup';
 
 // ── /api/declare/pickup/[token] ──────────────────────────────────────────────
@@ -20,6 +21,10 @@ import {
 //     'sign'   { ids, by, signature }  the coach signs on the sign-off tablet
 //     'undo'   { id }
 //     'checkin' / 'uncheckin'          a coach pass handed out, and taken back
+//     'items' { teamAccessId, lines: [{ itemId, side, count }], by?, device? }
+//                                      pickup items handed over (hats, bottles)
+//     'undoitem' { id }                one of those hand-overs taken back
+//     'setitems' { items }             the meet's pickup items, saved
 //     'practice' { on }                start a practice run, or end it and
 //                                      delete everything recorded in it
 
@@ -67,7 +72,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const body = await request.json().catch(() => ({})) as {
       action?: string; code?: string; teamAccessId?: string; side?: string;
       by?: string; signature?: string; wait?: boolean; device?: string; ids?: string[]; id?: string;
-      staffId?: string; name?: string; item?: string; on?: boolean;
+      staffId?: string; name?: string; item?: string; on?: boolean; lines?: unknown; items?: unknown;
     };
     const opts = { by: body.by, signature: body.signature, wait: body.wait === true, device: body.device };
 
@@ -94,10 +99,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (body.action === 'uncheckin' && body.id) {
       return NextResponse.json({ ok: await undoCheckin(session, body.id) }, { headers: noStore });
     }
+    if (body.action === 'items' && body.teamAccessId) {
+      return NextResponse.json(await recordItems(session, { ...body, teamAccessId: body.teamAccessId, lines: body.lines }), { headers: noStore });
+    }
+    if (body.action === 'undoitem' && body.id) {
+      return NextResponse.json({ ok: await undoItemPickup(session, body.id) }, { headers: noStore });
+    }
+    if (body.action === 'setitems' && Array.isArray(body.items)) {
+      return NextResponse.json({ items: await setPickupItems(session, body.items) }, { headers: noStore });
+    }
     if (body.action === 'practice' && typeof body.on === 'boolean') {
       return NextResponse.json(await setPractice(session, body.on), { headers: noStore });
     }
-    return NextResponse.json({ error: 'action must be scan, manual, sign, undo, checkin, uncheckin or practice' }, { status: 400 });
+    return NextResponse.json({ error: 'action must be scan, manual, sign, undo, checkin, uncheckin, items, undoitem, setitems or practice' }, { status: 400 });
   } catch (e) {
     console.error('[declare] pickup POST:', e);
     return NextResponse.json({ error: 'The pickup was not recorded' }, { status: 500 });

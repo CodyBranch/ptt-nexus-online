@@ -609,6 +609,13 @@ export const meetDeclarationSessions = pgTable('meet_declaration_sessions', {
    * only those, and ending it deletes them.
    */
   pickupPracticeAt: timestamp('pickup_practice_at', { withTimezone: true }),
+  /**
+   * What else the packet table hands each school besides its packets
+   * (xc_pickup_items.sql): hats, water bottles, a banner. A JSON list of
+   * { id, name, count, per }: count of each per team (each side of the
+   * field), per runner, or per school. Set on the packet table's page.
+   */
+  pickupItemsJson: text('pickup_items_json').notNull().default('[]'),
 
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -828,6 +835,35 @@ export const declarationStaffCheckins = pgTable('declaration_staff_checkins', {
 }, (table) => [
   index('idx_staff_checkins_session').on(table.meetSessionId, table.createdAt),
   uniqueIndex('idx_staff_checkins_person').on(table.teamAccessId, sql`lower(${table.name})`, table.item, table.practice).where(sql`undone_at IS NULL`),
+]);
+
+/**
+ * Pickup items handed over at the packet table (xc_pickup_items.sql): a count
+ * of one of the meet's items (pickup_items_json) to a school, for one side of
+ * the field or ('S') the whole school, with who took them and when. One row
+ * per hand-over, so a short count topped up later is two rows; Undo marks one
+ * undone. itemName is kept so the log still reads after an item is renamed
+ * or removed.
+ */
+export const declarationItemPickups = pgTable('declaration_item_pickups', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  meetSessionId: uuid('meet_session_id').notNull()
+    .references(() => meetDeclarationSessions.id, { onDelete: 'cascade' }),
+  teamAccessId: uuid('team_access_id').notNull()
+    .references(() => teamDeclarationAccess.id, { onDelete: 'cascade' }),
+  itemId: text('item_id').notNull(),
+  itemName: text('item_name').notNull(),
+  side: text('side').notNull(), // 'F' | 'M' | 'X' | 'S'
+  count: integer('count').notNull(),
+  pickedUpBy: text('picked_up_by'),
+  device: text('device'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  undoneAt: timestamp('undone_at', { withTimezone: true }),
+  /** Handed over during a practice run: deleted when it ends. */
+  practice: boolean('practice').notNull().default(false),
+}, (table) => [
+  index('idx_item_pickups_session').on(table.meetSessionId, table.createdAt),
+  index('idx_item_pickups_team').on(table.teamAccessId, table.itemId),
 ]);
 
 // ═══════════════════════════════════════════════════════════

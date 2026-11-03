@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PickupResult, PickupSchool, PickupView as View, Side } from '@/lib/declare-pickup';
+import type { ItemLine, ItemPer, ItemSide, PickupItem, PickupResult, PickupSchool, PickupView as View, Side } from '@/lib/declare-pickup';
 import SignaturePad, { type SignaturePadHandle } from './SignaturePad';
 import SchoolBadge from './SchoolBadge';
 import { covers, sameName, type StaffMember } from '@/lib/declare-staff';
@@ -19,6 +19,12 @@ import { covers, sameName, type StaffMember } from '@/lib/declare-staff';
  * device) whether the name is required and where the signature is taken:
  * nowhere, on this screen, or on the sign-off tablet facing the coach.
  *
+ * Pickup items (hats, water bottles) are set for the meet under Pickup items,
+ * so many per team, per runner or per school. Each station chooses what it
+ * hands out - everything at one grouped table, or one item at a station of
+ * its own - and the same label opens the school's window at each. Whoever
+ * took something at an earlier station is offered first by name at the next.
+ *
  * Practice run tries all of that on the real meet: everything recorded
  * meanwhile is test data, and ending the run deletes it.
  */
@@ -27,13 +33,30 @@ const POLL_MS = 3000;
 const STATION_KEY = 'nexus-pickup-station';
 
 type SignMode = 'none' | 'here' | 'tablet';
-interface Station { askName: boolean; sign: SignMode; device: string }
-const DEFAULT_STATION: Station = { askName: false, sign: 'none', device: '' };
+interface Station {
+  askName: boolean;
+  sign: SignMode;
+  device: string;
+  /**
+   * What this station hands out: 'packets', 'passes' and 'i:<item id>' for
+   * each pickup item. Null is everything, items added later included.
+   */
+  hands: string[] | null;
+}
+const DEFAULT_STATION: Station = { askName: false, sign: 'none', device: '', hands: null };
+
+/** Whether a station hands this out. */
+const handsOut = (station: Station, key: string) => !station.hands || station.hands.includes(key);
+const itemKey = (id: string) => `i:${id}`;
+const lineKey = (l: { itemId: string; side: ItemSide }) => `${l.itemId}|${l.side}`;
 
 type Terms = 'men_women' | 'boys_girls';
 
-/** A school's packet window: the school, and the packets ticked when it opened. */
-interface Open { teamAccessId: string; sides: Side[] }
+/**
+ * A school's packet window: the school, the packets ticked when it opened,
+ * and the labels read (a side, or 'A' for all) that tick its item lines.
+ */
+interface Open { teamAccessId: string; sides: Side[]; labels: Array<Side | 'A'> }
 
 /** What the window hands over when confirmed. */
 interface HandOver {
@@ -42,6 +65,8 @@ interface HandOver {
   signature: string | null;
   /** Coach passes: someone on the staff list by id, or a walk-up by name. */
   passes: Array<{ staffId?: string; name?: string }>;
+  /** Pickup items: how many of each item for each side (or the school). */
+  items: Array<{ itemId: string; side: ItemSide; count: number }>;
 }
 
 const LABEL_CODE = /^NXPKT-([0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12})-([FMA])$/i;
@@ -61,14 +86,48 @@ function clock(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
-export function sideWord(side: Side | 'A', terms: Terms): string {
+export function sideWord(side: ItemSide | 'A', terms: Terms): string {
   if (side === 'A') return 'All packets';
+  if (side === 'S') return 'School';
   if (side === 'X') return 'Packet';
   return side === 'F' ? (terms === 'men_women' ? 'Women' : 'Girls') : (terms === 'men_women' ? 'Men' : 'Boys');
 }
 
 /** The packets still to hand over. */
 const remaining = (s: PickupSchool): Side[] => s.sides.filter((x) => !x.pickup).map((x) => x.side);
+
+/** An item's lines a label ticks: its side's, the school's, or with 'A' every one. */
+const labelTicks = (l: ItemLine, labels: Array<Side | 'A'>) => labels.includes('A') || l.side === 'S' || labels.includes(l.side as Side);
+
+const PER_WORD: Record<ItemPer, string> = { team: 'per team', runner: 'per runner', school: 'per school' };
+
+/**
+ * Who took something for this school at an earlier station, newest first:
+ * the names the next station offers before anyone else, with what they took.
+ */
+export function earlierNames(school: PickupSchool, items: PickupItem[]): Array<{ name: string; what: string; at: string }> {
+  const seen: Array<{ name: string; what: string; at: string }> = [];
+  for (const x of school.sides) if (x.pickup?.by) seen.push({ name: x.pickup.by, what: 'Packets', at: x.pickup.at });
+  for (const l of school.items) {
+    const name = items.find((i) => i.id === l.itemId)?.name ?? 'Item';
+    for (const h of l.handOvers) if (h.by) seen.push({ name: h.by, what: name, at: h.at });
+  }
+  for (const c of school.checkins) seen.push({ name: c.name, what: c.item, at: c.at });
+  seen.sort((a, b) => b.at.localeCompare(a.at));
+  const out: Array<{ name: string; what: string; at: string }> = [];
+  for (const n of seen) {
+    const had = out.find((o) => sameName(o.name, n.name));
+    if (!had) out.push({ ...n });
+    else if (!had.what.split(', ').includes(n.what)) had.what += `, ${n.what}`;
+  }
+  return out.slice(0, 8);
+}
+
+/** Anything still to hand over at this station. */
+function leftHere(s: PickupSchool, station: Station): boolean {
+  if (handsOut(station, 'packets') && s.sides.some((x) => x.pickup?.status !== 'picked_up')) return true;
+  return s.items.some((l) => handsOut(station, itemKey(l.itemId)) && l.given < l.due);
+}
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -80,6 +139,7 @@ export default function PickupView({ token, initial, terms }: { token: string; i
   const [error, setError] = useState<string | null>(null);
   const [station, setStation] = useState<Station>(DEFAULT_STATION);
   const [setup, setSetup] = useState(false);
+  const [itemsSetup, setItemsSetup] = useState(false);
   const [open, setOpen] = useState<Open | null>(null);
   /** A label scanned while a window is open: said in the window. */
   const [notice, setNotice] = useState<string | null>(null);
@@ -137,11 +197,12 @@ export default function PickupView({ token, initial, terms }: { token: string; i
       return;
     }
     const label = m[2].toUpperCase() as Side | 'A';
-    const sides = label === 'A' ? remaining(school) : remaining(school).filter((x) => x === label);
+    const sides = !handsOut(station, 'packets') ? []
+      : label === 'A' ? remaining(school) : remaining(school).filter((x) => x === label);
     if (open) {
       if (open.teamAccessId === school.teamAccessId) {
-        // The same school's other label: tick its packet too.
-        setOpen({ ...open, sides: [...new Set([...open.sides, ...sides])] });
+        // The same school's other label: tick its packet and items too.
+        setOpen({ ...open, sides: [...new Set([...open.sides, ...sides])], labels: [...new Set([...open.labels, label])] });
       } else {
         setNotice(`That was ${school.name}'s label. Finish this school first, or cancel and scan it again.`);
       }
@@ -149,8 +210,8 @@ export default function PickupView({ token, initial, terms }: { token: string; i
     }
     setFlash(null);
     setNotice(null);
-    setOpen({ teamAccessId: school.teamAccessId, sides });
-  }, [view.schools, open]);
+    setOpen({ teamAccessId: school.teamAccessId, sides, labels: [label] });
+  }, [view.schools, open, station]);
 
   // The tablet app's camera.
   useEffect(() => {
@@ -212,6 +273,17 @@ export default function PickupView({ token, initial, terms }: { token: string; i
         held ||= !!res.held;
         if (res.status === 'checked_in' || res.held) given++;
       }
+      if (h.items.length) {
+        const res = await post({ action: 'items', teamAccessId: school.teamAccessId, lines: h.items, by: h.by || undefined, device });
+        held ||= !!res.held;
+        if (res.status === 'already' && typeof res.message === 'string') first ??= res.message;
+        else {
+          const counts = new Map<string, number>();
+          for (const l of h.items) counts.set(l.itemId, (counts.get(l.itemId) ?? 0) + l.count);
+          const what = [...counts].map(([id, n]) => `${n} ${(view.items.find((i) => i.id === id)?.name ?? 'items').toLowerCase()}`);
+          said.push(`${what.join(', ')}${!h.sides.length && h.by ? ` to ${h.by}` : ''}`);
+        }
+      }
       if (given) said.push(plural(given, 'coach pass', 'coach passes'));
       setFlash({
         status: held || wait ? 'waiting' : 'picked_up',
@@ -232,17 +304,26 @@ export default function PickupView({ token, initial, terms }: { token: string; i
     try { await post({ action: 'uncheckin', id }); await refresh(); } catch { setError('That change was not saved - try again'); }
   };
 
-  const undo = async (id: string) => {
-    try { await post({ action: 'undo', id }); await refresh(); } catch { setError('That change was not saved - try again'); }
+  const undo = async (id: string, item = false) => {
+    try { await post({ action: item ? 'undoitem' : 'undo', id }); await refresh(); } catch { setError('That change was not saved - try again'); }
+  };
+
+  const saveItems = async (items: PickupItem[]) => {
+    try {
+      await post({ action: 'setitems', items });
+      await refresh();
+      setItemsSetup(false);
+      setFlash({ status: 'picked_up', message: items.length ? `Pickup items saved: ${items.map((i) => i.name).join(', ')}.` : 'No pickup items: packets and coach passes only.' });
+    } catch { setError('The pickup items were not saved - try again'); }
   };
 
   const practice = async (on: boolean) => {
     setPracticeAsk(null);
     try {
-      const res = await post({ action: 'practice', on }) as unknown as { removed: { pickups: number; passes: number } };
+      const res = await post({ action: 'practice', on }) as unknown as { removed: { pickups: number; passes: number; items?: number } };
       setFlash(on
-        ? { status: 'waiting', message: 'Practice run started. Scan, sign and hand out passes as on the day: none of it counts.' }
-        : { status: 'picked_up', message: `Practice run ended. Removed ${plural(res.removed.pickups, 'practice pickup', 'practice pickups')} and ${plural(res.removed.passes, 'coach pass', 'coach passes')}.` });
+        ? { status: 'waiting', message: 'Practice run started. Scan, sign and hand out passes and items as on the day: none of it counts.' }
+        : { status: 'picked_up', message: `Practice run ended. Removed ${plural(res.removed.pickups, 'practice pickup', 'practice pickups')}, ${plural(res.removed.items ?? 0, 'item hand-over', 'item hand-overs')} and ${plural(res.removed.passes, 'coach pass', 'coach passes')}.` });
       await refresh();
     } catch { setError('That change was not saved - try again'); }
   };
@@ -251,16 +332,22 @@ export default function PickupView({ token, initial, terms }: { token: string; i
     const words = query.toLowerCase().split(/\s+/).filter(Boolean);
     return view.schools.filter((s) => {
       if (words.length && !words.every((w) => s.name.toLowerCase().includes(w))) return false;
-      if (onlyLeft && !words.length) return s.sides.some((x) => x.pickup?.status !== 'picked_up');
+      if (onlyLeft && !words.length) return leftHere(s, station);
       return true;
     });
-  }, [view.schools, query, onlyLeft]);
+  }, [view.schools, query, onlyLeft, station]);
 
   const left = view.packets - view.pickedUp;
   const schoolOf = useMemo(() => new Map(view.schools.map((s) => [s.teamAccessId, s])), [view.schools]);
   const flashSchool = flash?.teamAccessId ? schoolOf.get(flash.teamAccessId) : undefined;
   const openSchool = open ? schoolOf.get(open.teamAccessId) : undefined;
   const scannerUrl = origin ? `${origin}${api}?code=` : '';
+  const hereItems = view.items.filter((i) => handsOut(station, itemKey(i.id)));
+  const anyLeft = view.schools.some((s) => leftHere(s, station));
+  /** What this station hands out, said in the header: "Hats", "Packets, Hats". */
+  const handsWord = station.hands
+    ? [handsOut(station, 'packets') ? 'Packets' : '', ...hereItems.map((i) => i.name), handsOut(station, 'passes') ? 'Coach passes' : ''].filter(Boolean).join(', ')
+    : '';
 
   return (
     <div className="min-h-screen bg-[#0a0f24] pb-16 text-gray-100">
@@ -268,16 +355,19 @@ export default function PickupView({ token, initial, terms }: { token: string; i
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6 sm:py-4">
           {/* eslint-disable-next-line @next/next/no-img-element -- a static brand image, as on the dashboard */}
           <img src="/live/primetime-on-dark.png" alt="PrimeTime Timing" className="h-5 w-auto sm:h-7" />
-          <div className="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1">
-            <h1 className="text-lg font-bold tracking-tight sm:truncate sm:text-xl">{view.meet.name}</h1>
-            <p className="text-xs text-gray-400">Packet pickup{station.device ? ` · ${station.device}` : ''}</p>
+          <div className="order-last w-full min-w-0 lg:order-none lg:w-auto lg:flex-1">
+            <h1 className="text-lg font-bold tracking-tight sm:text-xl lg:truncate">{view.meet.name}</h1>
+            <p className="text-xs text-gray-400">Packet pickup{station.device ? ` · ${station.device}` : ''}{handsWord ? ` · ${handsWord}` : ''}</p>
           </div>
           {!view.practice && (
-            <button onClick={() => setPracticeAsk(practiceAsk === 'start' ? null : 'start')} className="ml-auto rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800 sm:ml-0">
+            <button onClick={() => setPracticeAsk(practiceAsk === 'start' ? null : 'start')} className="ml-auto rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800 lg:ml-0">
               Practice run
             </button>
           )}
-          <button onClick={() => setSetup((v) => !v)} className={`${view.practice ? 'ml-auto sm:ml-0 ' : ''}rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800`}>
+          <button onClick={() => { setItemsSetup((v) => !v); setSetup(false); }} className={`${view.practice ? 'ml-auto lg:ml-0 ' : ''}rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800`}>
+            Pickup items
+          </button>
+          <button onClick={() => { setSetup((v) => !v); setItemsSetup(false); }} className="rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800">
             This station
           </button>
           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${error ? 'bg-amber-500/15 text-amber-300' : view.practice ? 'bg-amber-400/20 text-amber-200' : 'bg-[#e70518]/15 text-red-300'}`}>
@@ -318,7 +408,7 @@ export default function PickupView({ token, initial, terms }: { token: string; i
               <h2 className="text-sm font-semibold">End the practice run?</h2>
               <p className="text-sm text-gray-300">
                 Deletes the {view.log.length === 1 ? 'practice pickup' : `${view.log.length} practice pickups`} and {view.passes.given === 1 ? 'coach pass' : `${view.passes.given} coach passes`} recorded
-                in it, and puts every station back on the real pickups.
+                in it, items included, and puts every station back on the real pickups.
               </p>
               <div className="flex gap-2">
                 <button onClick={() => void practice(false)} className="rounded-md bg-amber-300 px-3 py-1.5 text-sm font-semibold text-gray-950 hover:bg-amber-200">End and delete the test data</button>
@@ -331,11 +421,33 @@ export default function PickupView({ token, initial, terms }: { token: string; i
 
       {setup && (
         <section className="mx-4 mt-4 space-y-3 rounded-xl bg-gray-900/70 p-4 ring-1 ring-gray-800 sm:mx-6">
-          <h2 className="text-sm font-semibold">What a pickup needs at this station</h2>
+          <fieldset className="space-y-1 text-sm">
+            <legend className="mb-1 text-sm font-semibold">What this station hands out</legend>
+            <p className="mb-1 text-xs text-gray-400">
+              Everything makes one grouped table. Split it up with a station per item: each scans the same label and opens only its own.
+            </p>
+            {[
+              { key: 'packets', label: 'Packets' },
+              ...view.items.map((i) => ({ key: itemKey(i.id), label: `${i.name} (${i.count} ${PER_WORD[i.per]})` })),
+              { key: 'passes', label: 'Coach passes' },
+            ].map((o, _, all) => (
+              <label key={o.key} className="flex items-center gap-2">
+                <input type="checkbox" checked={handsOut(station, o.key)} onChange={(e) => {
+                  const now = new Set(station.hands ?? all.map((x) => x.key));
+                  if (e.target.checked) now.add(o.key); else now.delete(o.key);
+                  // Every box ticked is everything, so an item added later comes here too.
+                  saveStation({ ...station, hands: all.every((x) => now.has(x.key)) ? null : [...now] });
+                }} />
+                {o.label}
+              </label>
+            ))}
+          </fieldset>
+          <h2 className="pt-2 text-sm font-semibold">What a pickup needs at this station</h2>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={station.askName} onChange={(e) => saveStation({ ...station, askName: e.target.checked })} />
             Require the name of who picked it up
           </label>
+          <p className="-mt-2 pl-6 text-xs text-gray-500">Names taken at earlier stations are offered first, one tap each.</p>
           <fieldset className="space-y-1 text-sm">
             <legend className="mb-1 text-gray-400">Signature</legend>
             {([
@@ -362,12 +474,22 @@ export default function PickupView({ token, initial, terms }: { token: string; i
         </section>
       )}
 
+      {itemsSetup && <ItemsSetup items={view.items} terms={terms} onSave={(items) => void saveItems(items)} onCancel={() => setItemsSetup(false)} />}
+
       <dl className="grid grid-cols-2 gap-2 px-4 pt-4 sm:grid-cols-4 sm:gap-3 sm:px-6">
         {[
-          { k: 'Packets', v: view.packets, sub: `${view.schools.length} schools`, cls: 'text-gray-100' },
-          { k: 'Picked up', v: view.pickedUp, sub: view.waiting.length ? `${view.waiting.length} waiting to sign` : 'handed over', cls: 'text-emerald-300' },
-          { k: 'Still here', v: left, sub: left ? 'to hand over' : 'every packet is out', cls: left ? 'text-amber-300' : 'text-gray-500' },
-          { k: 'Coach passes', v: view.passes.given, sub: view.passes.staff ? `of ${view.passes.staff} on staff lists` : 'handed out', cls: 'text-sky-300' },
+          ...(handsOut(station, 'packets') ? [
+            { k: 'Packets', v: view.packets, sub: `${view.schools.length} schools`, cls: 'text-gray-100' },
+            { k: 'Picked up', v: view.pickedUp, sub: view.waiting.length ? `${view.waiting.length} waiting to sign` : 'handed over', cls: 'text-emerald-300' },
+            { k: 'Still here', v: left, sub: left ? 'to hand over' : 'every packet is out', cls: left ? 'text-amber-300' : 'text-gray-500' },
+          ] : []),
+          ...hereItems.map((i) => ({
+            k: i.name, v: `${i.given}/${i.due}`, sub: `${i.schoolsDone} of ${i.schools} schools have theirs`,
+            cls: i.due && i.given >= i.due ? 'text-emerald-300' : 'text-violet-200',
+          })),
+          ...(handsOut(station, 'passes') ? [
+            { k: 'Coach passes', v: view.passes.given, sub: view.passes.staff ? `of ${view.passes.staff} on staff lists` : 'handed out', cls: 'text-sky-300' },
+          ] : []),
         ].map((s) => (
           <div key={s.k} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 sm:py-2.5">
             <dt className="text-[10px] uppercase tracking-wider text-gray-400 sm:text-[11px]">{s.k}</dt>
@@ -406,29 +528,44 @@ export default function PickupView({ token, initial, terms }: { token: string; i
               className="w-40 rounded-md border border-gray-700 bg-gray-900 px-2 py-1 text-sm" />
           </div>
           <ul className="divide-y divide-gray-800/70">
-            {schools.length === 0 && <li className="px-4 py-8 text-center text-sm text-gray-500">{left ? 'No school matches.' : 'Every packet has been picked up.'}</li>}
+            {schools.length === 0 && <li className="px-4 py-8 text-center text-sm text-gray-500">{anyLeft ? 'No school matches.' : 'Everything this station hands out has been picked up.'}</li>}
             {schools.map((s) => (
               <li key={s.teamAccessId} className="flex flex-wrap items-center gap-2 px-4 py-2.5">
-                <button onClick={() => setOpen({ teamAccessId: s.teamAccessId, sides: remaining(s) })}
-                  className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-white" title="Open this school's packets and coach passes">
+                <button onClick={() => setOpen({ teamAccessId: s.teamAccessId, sides: handsOut(station, 'packets') ? remaining(s) : [], labels: ['A'] })}
+                  className="flex min-w-0 flex-1 basis-full items-center gap-2 text-left hover:text-white sm:basis-auto" title="Open this school's packets, items and coach passes">
                   <SchoolBadge name={s.name} badge={s.badge} />
                   <span className="min-w-0 flex-1 truncate font-medium">{s.name}</span>
                 </button>
-                {(s.staff.length > 0 || s.checkins.length > 0) && (
-                  <button onClick={() => setOpen({ teamAccessId: s.teamAccessId, sides: [] })}
+                {handsOut(station, 'passes') && (s.staff.length > 0 || s.checkins.length > 0) && (
+                  <button onClick={() => setOpen({ teamAccessId: s.teamAccessId, sides: [], labels: [] })}
                     title="Coach passes handed to this school's staff"
                     className="rounded-md bg-gray-800 px-2.5 py-1 text-xs font-medium text-gray-300 ring-1 ring-gray-700 hover:bg-gray-700">
                     Passes {s.checkins.length}{s.staff.length ? `/${s.staff.length}` : ''}
                   </button>
                 )}
-                {s.sides.map((x) => {
+                {hereItems.map((i) => {
+                  const lines = s.items.filter((l) => l.itemId === i.id);
+                  if (!lines.length) return null;
+                  const due = lines.reduce((n, l) => n + l.due, 0);
+                  const given = lines.reduce((n, l) => n + l.given, 0);
+                  const done = lines.every((l) => l.given >= l.due);
+                  return (
+                    <button key={i.id} onClick={() => setOpen({ teamAccessId: s.teamAccessId, sides: [], labels: ['A'] })}
+                      title={done ? `${i.name}: all ${due} handed over` : `${i.name}: ${given} of ${due} handed over`}
+                      className={`rounded-md px-2.5 py-1 text-xs font-medium ring-1 ${done ? 'bg-emerald-500/15 text-emerald-200 ring-emerald-500/30'
+                        : given ? 'bg-violet-500/15 text-violet-200 ring-violet-500/30' : 'bg-gray-800 text-gray-200 ring-gray-700 hover:bg-gray-700'}`}>
+                      {i.name} · {given}/{due}{done ? ' ✓' : ''}
+                    </button>
+                  );
+                })}
+                {handsOut(station, 'packets') && s.sides.map((x) => {
                   const p = x.pickup;
                   const cls = p?.status === 'picked_up' ? 'bg-emerald-500/15 text-emerald-200 ring-emerald-500/30'
                     : p?.status === 'waiting' ? 'bg-sky-500/15 text-sky-200 ring-sky-500/30'
                       : 'bg-gray-800 text-gray-200 ring-gray-700 hover:bg-gray-700';
                   return (
                     <button key={x.side} disabled={!!p}
-                      onClick={() => setOpen({ teamAccessId: s.teamAccessId, sides: [x.side] })}
+                      onClick={() => setOpen({ teamAccessId: s.teamAccessId, sides: [x.side], labels: [x.side] })}
                       title={p ? `${p.status === 'waiting' ? 'Waiting to sign' : 'Picked up'}${p.by ? ` by ${p.by}` : ''} at ${clock(p.at)}` : `Hand over (${x.bibs || 'no bibs'})`}
                       className={`rounded-md px-2.5 py-1 text-xs font-medium ring-1 ${cls}`}>
                       {sideWord(x.side, terms)} · {x.athletes}{p?.status === 'picked_up' ? ' ✓' : p?.status === 'waiting' ? ' …' : ''}
@@ -443,12 +580,14 @@ export default function PickupView({ token, initial, terms }: { token: string; i
         <section className="rounded-xl bg-gray-900/60 ring-1 ring-gray-800">
           <h2 className="border-b border-gray-800 px-4 py-3 text-sm font-semibold">Pickups</h2>
           <ul className="divide-y divide-gray-800/70">
-            {view.log.length === 0 && <li className="px-4 py-8 text-center text-sm text-gray-500">{view.practice ? 'No practice pickups yet.' : 'No packets picked up yet.'}</li>}
+            {view.log.length === 0 && <li className="px-4 py-8 text-center text-sm text-gray-500">{view.practice ? 'No practice pickups yet.' : 'Nothing picked up yet.'}</li>}
             {view.log.slice(0, 60).map((r) => (
               <li key={r.id} className={`flex items-start gap-3 px-4 py-2.5 ${r.undone ? 'opacity-40' : ''}`}>
                 <SchoolBadge name={r.teamName} badge={schoolOf.get(r.teamAccessId)?.badge} size={24} />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{r.teamName} · {sideWord(r.side, terms)}</div>
+                  <div className="truncate text-sm font-medium">
+                    {r.teamName} · {r.item ? `${r.item.count} ${r.item.name}${r.side === 'S' || r.side === 'X' ? '' : ` · ${sideWord(r.side, terms)}`}` : sideWord(r.side, terms)}
+                  </div>
                   <div className="text-[11px] text-gray-400">
                     {r.undone ? 'Undone: ' : ''}{r.status === 'waiting' ? 'Waiting to sign' : r.undone ? 'picked up' : 'Picked up'}
                     {r.by ? ` by ${r.by}` : ''}{r.byRole ? ` (${r.byRole})` : ''}
@@ -458,7 +597,7 @@ export default function PickupView({ token, initial, terms }: { token: string; i
                   </div>
                 </div>
                 {!r.undone && (
-                  <button onClick={() => undo(r.id)} className="shrink-0 rounded-md px-2.5 py-1 text-xs text-gray-400 ring-1 ring-gray-700 hover:bg-gray-800">Undo</button>
+                  <button onClick={() => undo(r.id, !!r.item)} className="shrink-0 rounded-md px-2.5 py-1 text-xs text-gray-400 ring-1 ring-gray-700 hover:bg-gray-800">Undo</button>
                 )}
               </li>
             ))}
@@ -466,15 +605,16 @@ export default function PickupView({ token, initial, terms }: { token: string; i
         </section>
       </main>
 
-      <footer className="mt-6 border-t border-gray-800 px-4 py-3 text-xs text-gray-500 sm:px-6">
+      {handsOut(station, 'packets') && <footer className="mt-6 border-t border-gray-800 px-4 py-3 text-xs text-gray-500 sm:px-6">
         <span className="mr-2">Scanner URL (marks a packet picked up straight away, no window):</span>
         <code className="break-all text-gray-300">{scannerUrl}<span className="text-gray-500">{'{label code}'}</span></code>
-      </footer>
+      </footer>}
 
       {open && openSchool && (
-        <PacketWindow key={openSchool.teamAccessId} school={openSchool} initialSides={open.sides} extraSides={open.sides}
-          terms={terms} station={station} busy={busy} notice={notice}
-          onCancel={closeWindow} onConfirm={(h) => void handOver(openSchool, h)} onTakeBack={(id) => void takeBack(id)} />
+        <PacketWindow key={openSchool.teamAccessId} school={openSchool} initialSides={open.sides} extraSides={open.sides} labels={open.labels}
+          items={view.items} terms={terms} station={station} busy={busy} notice={notice}
+          onCancel={closeWindow} onConfirm={(h) => void handOver(openSchool, h)} onTakeBack={(id) => void takeBack(id)}
+          onUndoItem={(id) => void undo(id, true)} />
       )}
     </div>
   );
@@ -490,17 +630,26 @@ const isHead = (m: StaffMember, sides: Array<Side | 'A'>) =>
   m.roles.some((r) => /head/i.test(r.role) && (r.scope === 'all' || sides.includes(r.scope as Side) || sides.includes('A')));
 
 /**
- * A school's packet window, opened by a scan or a tap: the packets to hand
- * over (the scanned label's ticked, the others there to tick), who took them
- * (the school's staff who cover those packets, head coaches first, or anyone
- * typed), and coach passes for its staff, with the person taking the packets
- * ticked for one. One confirm records it all.
+ * A school's packet window, opened by a scan or a tap: what this station
+ * hands out - the packets (the scanned label's ticked, the others there to
+ * tick) and each pickup item still due, counted - who took them (whoever took
+ * something at an earlier station first, then the school's staff who cover
+ * those packets, head coaches first, or anyone typed), and coach passes for
+ * its staff, with the person taking the packets ticked for one. One confirm
+ * records it all.
  */
-function PacketWindow({ school, initialSides, extraSides, terms, station, busy, notice, onCancel, onConfirm, onTakeBack }: {
-  school: PickupSchool; initialSides: Side[]; extraSides: Side[]; terms: Terms; station: Station; busy: boolean; notice: string | null;
-  onCancel: () => void; onConfirm: (h: HandOver) => void; onTakeBack: (id: string) => void;
+function PacketWindow({ school, initialSides, extraSides, labels, items, terms, station, busy, notice, onCancel, onConfirm, onTakeBack, onUndoItem }: {
+  school: PickupSchool; initialSides: Side[]; extraSides: Side[]; labels: Array<Side | 'A'>; items: PickupItem[];
+  terms: Terms; station: Station; busy: boolean; notice: string | null;
+  onCancel: () => void; onConfirm: (h: HandOver) => void; onTakeBack: (id: string) => void; onUndoItem: (id: string) => void;
 }) {
   const [sides, setSides] = useState<Side[]>(initialSides);
+  /** The item lines this station hands out, in the meet's order. */
+  const lines = school.items.filter((l) => handsOut(station, itemKey(l.itemId)));
+  const ticksFor = (ls: Array<Side | 'A'>) => Object.fromEntries(
+    lines.filter((l) => l.given < l.due && labelTicks(l, ls)).map((l) => [lineKey(l), l.due - l.given] as const));
+  /** How many of each item line go out now; a line not here is not ticked. */
+  const [give, setGive] = useState<Record<string, number>>(() => ticksFor(labels));
   const [by, setBy] = useState('');
   const [passes, setPasses] = useState<string[]>([]);
   /** Passes the table unticked by hand: picking that person again does not tick it back. */
@@ -510,8 +659,17 @@ function PacketWindow({ school, initialSides, extraSides, terms, station, busy, 
   const [signed, setSigned] = useState(false);
   const pad = useRef<SignaturePadHandle>(null);
 
-  // Another label of the same school scanned while open adds its packet.
+  // Another label of the same school scanned while open adds its packet and items.
   useEffect(() => { setSides((s) => [...new Set([...s, ...extraSides])]); }, [extraSides]);
+  const labelsKey = labels.join(',');
+  useEffect(() => { setGive((g) => ({ ...ticksFor(labels), ...g })); }, [labelsKey]);
+
+  const showPackets = handsOut(station, 'packets');
+  const showPasses = handsOut(station, 'passes');
+  const ticked = lines.filter((l) => (give[lineKey(l)] ?? 0) > 0);
+  const handing = sides.length > 0 || ticked.length > 0;
+  const earlier = earlierNames(school, items);
+  const itemsLeft = lines.filter((l) => l.given < l.due).length;
 
   const toHand = school.sides.filter((x) => !x.pickup);
   const passOf = (m: StaffMember) => school.checkins.find((c) => c.staffId === m.id || (!c.staffId && sameName(c.name, m.name)));
@@ -531,22 +689,23 @@ function PacketWindow({ school, initialSides, extraSides, terms, station, busy, 
     setBy(name);
     const m = school.staff.find((x) => sameName(x.name, name));
     // Whoever takes the packets usually takes a pass with them.
-    if (m && untouched && !passOf(m)) setPasses((p) => (p.includes(m.id) ? p : [...p, m.id]));
+    if (m && showPasses && untouched && !passOf(m)) setPasses((p) => (p.includes(m.id) ? p : [...p, m.id]));
   };
   const togglePass = (id: string) => { setUntouched(false); setPasses((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id])); };
   const toggleSide = (s: Side) => setSides((x) => (x.includes(s) ? x.filter((y) => y !== s) : [...x, s]));
 
   const passCount = passes.length + walkUps.length;
-  const needName = station.askName && sides.length > 0 && !typed;
+  const needName = station.askName && handing && !typed;
   const needSig = station.sign === 'here' && sides.length > 0 && !signed;
-  const nothing = sides.length === 0 && passCount === 0;
-  const verb = sides.length === 0 ? '' : station.sign === 'tablet' ? 'Send to sign-off tablet' : 'Hand over';
+  const nothing = !handing && passCount === 0;
+  const verb = !handing ? '' : sides.length && station.sign === 'tablet' ? 'Send to sign-off tablet' : 'Hand over';
   const label = [verb, passCount ? `${verb ? '+ ' : 'Give '}${plural(passCount, 'pass', 'passes')}` : ''].filter(Boolean).join(' ');
 
   const confirm = () => onConfirm({
     sides, by: typed,
     signature: station.sign === 'here' && sides.length ? pad.current?.value() ?? null : null,
     passes: [...passes.map((staffId) => ({ staffId })), ...walkUps.map((name) => ({ name }))],
+    items: ticked.map((l) => ({ itemId: l.itemId, side: l.side, count: give[lineKey(l)] })),
   });
 
   const section = 'space-y-2';
@@ -560,8 +719,11 @@ function PacketWindow({ school, initialSides, extraSides, terms, station, busy, 
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-xl font-bold">{school.name}</h2>
             <p className="text-sm text-gray-400">
-              {toHand.length ? `${plural(toHand.length, 'packet', 'packets')} to hand over` : 'Every packet is out'}
-              {school.staff.length ? ` · ${school.checkins.length} of ${school.staff.length} staff have a pass` : ''}
+              {[
+                showPackets ? (toHand.length ? `${plural(toHand.length, 'packet', 'packets')} to hand over` : 'Every packet is out') : '',
+                lines.length ? (itemsLeft ? `${plural(itemsLeft, 'item', 'items')} still due` : 'Every item is out') : '',
+                showPasses && school.staff.length ? `${school.checkins.length} of ${school.staff.length} staff have a pass` : '',
+              ].filter(Boolean).join(' · ') || 'Nothing to hand out here'}
             </p>
           </div>
           <button onClick={onCancel} aria-label="Close" className="rounded-md px-2 py-1 text-xl leading-none text-gray-400 hover:bg-gray-800">×</button>
@@ -570,7 +732,7 @@ function PacketWindow({ school, initialSides, extraSides, terms, station, busy, 
         <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
           {notice && <p role="alert" className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">{notice}</p>}
 
-          <section className={section}>
+          {showPackets && <section className={section}>
             <h3 className={heading}>Packets</h3>
             <div className="grid gap-2 sm:grid-cols-2">
               {school.sides.map((x) => {
@@ -593,11 +755,79 @@ function PacketWindow({ school, initialSides, extraSides, terms, station, busy, 
                 );
               })}
             </div>
-          </section>
+          </section>}
 
-          {sides.length > 0 && (
+          {items.filter((it) => lines.some((l) => l.itemId === it.id)).map((it) => (
+            <section key={it.id} className={section}>
+              <h3 className={heading}>{it.name} <span className="font-normal normal-case tracking-normal text-gray-500">· {it.count} {PER_WORD[it.per]}</span></h3>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {lines.filter((l) => l.itemId === it.id).map((l) => {
+                  const k = lineKey(l);
+                  const done = l.given >= l.due;
+                  const n = give[k] ?? 0;
+                  const on = n > 0;
+                  const last = l.handOvers[l.handOvers.length - 1];
+                  return (
+                    <div key={k} className={`rounded-lg px-3 py-2.5 ring-1 ${done ? 'bg-gray-950/40 text-gray-500 ring-gray-800'
+                      : on ? 'bg-violet-600/20 ring-violet-500/60' : 'bg-gray-800/60 ring-gray-700'}`}>
+                      <div className="flex items-center gap-3">
+                        <button type="button" disabled={done} aria-pressed={on}
+                          aria-label={`${it.name}: ${sideWord(l.side, terms)}`}
+                          onClick={() => setGive((g) => ({ ...g, [k]: on ? 0 : l.due - l.given }))}
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs ${done || on ? 'border-violet-300 bg-violet-500/30 text-violet-50' : 'border-gray-500'}`}>
+                          {done || on ? '✓' : ''}
+                        </button>
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-medium">{sideWord(l.side, terms)} · {l.given}/{l.due}</span>
+                          <span className="block truncate text-xs text-gray-400">
+                            {last ? `${last.count} ${last.by ? `to ${last.by} ` : ''}at ${clock(last.at)}${last.device ? ` · ${last.device}` : ''}` : 'None given yet'}
+                          </span>
+                        </span>
+                        {on && (
+                          <span className="flex items-center gap-1">
+                            <button type="button" aria-label="One fewer" onClick={() => setGive((g) => ({ ...g, [k]: Math.max(0, n - 1) }))}
+                              className="h-8 w-8 rounded-md bg-gray-800 text-lg leading-none ring-1 ring-gray-700 hover:bg-gray-700">−</button>
+                            <input type="number" inputMode="numeric" min={0} value={n} aria-label={`How many ${it.name}`}
+                              onChange={(e) => setGive((g) => ({ ...g, [k]: Math.max(0, Math.min(999, Math.round(Number(e.target.value) || 0))) }))}
+                              className="h-8 w-12 rounded-md border border-gray-700 bg-gray-950 text-center tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                            <button type="button" aria-label="One more" onClick={() => setGive((g) => ({ ...g, [k]: Math.min(999, n + 1) }))}
+                              className="h-8 w-8 rounded-md bg-gray-800 text-lg leading-none ring-1 ring-gray-700 hover:bg-gray-700">+</button>
+                          </span>
+                        )}
+                        {!on && last && (
+                          <button type="button" onClick={() => onUndoItem(last.id)} className="rounded px-1.5 text-[11px] text-gray-400 ring-1 ring-gray-700 hover:bg-gray-800">Undo</button>
+                        )}
+                      </div>
+                      {on && n < l.due - l.given && <p className="mt-1 pl-8 text-[11px] text-amber-300">{l.due - l.given - n} still owed after this</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+
+          {handing && (
             <section className={section}>
               <h3 className={heading}>Picked up by{station.askName ? '' : ' (optional)'}</h3>
+              {earlier.length > 0 && (
+                // Whoever took something at an earlier station: most likely
+                // the same person at this one, so first and one tap.
+                <div className="space-y-1.5">
+                  <p className="text-[11px] text-gray-400">Here earlier for {school.name}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {earlier.map((e) => {
+                      const on = sameName(e.name, by);
+                      return (
+                        <button key={e.name} type="button" onClick={() => pick(e.name)}
+                          className={`rounded-lg px-3 py-1.5 text-left ring-1 ${on ? 'bg-emerald-600/25 ring-emerald-500/60' : 'bg-gray-800 ring-gray-700 hover:bg-gray-700'}`}>
+                          <span className="block text-sm font-medium">{e.name}</span>
+                          <span className="block text-[11px] text-gray-400">{e.what} · {clock(e.at)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {onFile > 0 ? (
                 // Every coach on file, one tap each: those who cover the ticked
                 // packets first (head coaches leading), then the rest of the
@@ -631,16 +861,16 @@ function PacketWindow({ school, initialSides, extraSides, terms, station, busy, 
                     );
                   })}
                 </div>
-              ) : (
+              ) : !earlier.length ? (
                 <p className="text-sm text-gray-400">No coaches on file for {school.name}. Type who took it.</p>
-              )}
+              ) : null}
               <input value={by} onChange={(e) => setBy(e.target.value)} placeholder={onFile ? 'Someone else: name' : 'Name'}
                 className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-base" />
               {offList && <p className="text-xs text-amber-300">Not on {school.name}&apos;s staff list. They can still take it; the log will say so.</p>}
             </section>
           )}
 
-          {(school.staff.length > 0 || school.checkins.length > 0) && (
+          {showPasses && (school.staff.length > 0 || school.checkins.length > 0) && (
             <section className={section}>
               <h3 className={heading}>Coach passes</h3>
               <ul className="divide-y divide-gray-800 rounded-lg ring-1 ring-gray-800">
@@ -710,11 +940,65 @@ function PacketWindow({ school, initialSides, extraSides, terms, station, busy, 
           <button onClick={onCancel} className="h-12 flex-1 rounded-xl text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800">Cancel</button>
           <button onClick={confirm} disabled={busy || nothing || needName || needSig}
             className="h-12 flex-[2] rounded-xl bg-emerald-600 font-semibold text-white hover:bg-emerald-500 disabled:opacity-40">
-            {busy ? 'Saving…' : nothing ? 'Tick a packet or a pass' : needName ? 'Who picked it up?' : needSig ? 'Sign above' : label}
+            {busy ? 'Saving…' : nothing ? 'Tick something to hand over' : needName ? 'Who picked it up?' : needSig ? 'Sign above' : label}
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * The meet's pickup items: each named, with how many go to a team (each side
+ * of the field), a runner or a school. Saved for every station at once.
+ */
+function ItemsSetup({ items, terms, onSave, onCancel }: {
+  items: PickupItem[]; terms: Terms; onSave: (items: PickupItem[]) => void; onCancel: () => void;
+}) {
+  const [list, setList] = useState<PickupItem[]>(() => items.map(({ id, name, count, per }) => ({ id, name, count, per })));
+  const set = (i: number, patch: Partial<PickupItem>) => setList((l) => l.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const team = terms === 'men_women' ? "each of a school's men's and women's teams" : "each of a school's boys' and girls' teams";
+  const field = 'rounded-lg border border-gray-700 bg-gray-900 px-3 py-2';
+  return (
+    <section className="mx-4 mt-4 space-y-3 rounded-xl bg-gray-900/70 p-4 ring-1 ring-violet-500/30 sm:mx-6">
+      <div>
+        <h2 className="text-sm font-semibold">Pickup items</h2>
+        <p className="text-xs text-gray-400">
+          What schools pick up besides their packets: hats, water bottles, a banner. Per team is {team}; per runner counts the runners on each.
+          Every station sees these; each chooses under This station which it hands out.
+        </p>
+      </div>
+      {list.length === 0 && <p className="text-sm text-gray-500">No pickup items yet: packets and coach passes only.</p>}
+      <ul className="space-y-2">
+        {list.map((it, i) => (
+          <li key={it.id || i} className="flex flex-wrap items-center gap-2">
+            <input value={it.name} onChange={(e) => set(i, { name: e.target.value.slice(0, 40) })} placeholder="Hats" aria-label="Item"
+              className={`${field} min-w-0 flex-1 sm:max-w-xs`} />
+            <input type="number" inputMode="numeric" min={1} max={500} value={it.count} aria-label="How many"
+              onChange={(e) => set(i, { count: Math.max(1, Math.min(500, Math.round(Number(e.target.value) || 1))) })}
+              className={`${field} w-20 text-center tabular-nums`} />
+            <select value={it.per} onChange={(e) => set(i, { per: e.target.value as ItemPer })} aria-label="Counted" className={field}>
+              <option value="team">per team</option>
+              <option value="runner">per runner</option>
+              <option value="school">per school</option>
+            </select>
+            <button type="button" onClick={() => setList((l) => l.filter((_, j) => j !== i))}
+              className="rounded-md px-2.5 py-1.5 text-sm text-gray-400 ring-1 ring-gray-700 hover:bg-gray-800">Remove</button>
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" disabled={list.length >= 12} onClick={() => setList((l) => [...l, { id: '', name: '', count: 1, per: 'team' }])}
+          className="rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800 disabled:opacity-40">Add an item</button>
+        <span className="flex-1" />
+        <button type="button" onClick={onCancel} className="rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800">Cancel</button>
+        <button type="button" onClick={() => onSave(list.filter((x) => x.name.trim()))}
+          className="rounded-md bg-violet-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-violet-400">Save for every station</button>
+      </div>
+      {items.some((x) => !list.some((y) => y.id === x.id)) && (
+        <p className="text-xs text-amber-300">An item removed keeps what was already handed over in the log.</p>
+      )}
+    </section>
   );
 }
 
@@ -724,10 +1008,11 @@ function PacketWindow({ school, initialSides, extraSides, terms, station, busy, 
  * not on the list. A name typed that is on neither is taken, and marked in
  * the log as not on the staff list. (The sign-off tablet's picker.)
  */
-export function StaffPicks({ school, side, terms, who, onPick }: {
+export function StaffPicks({ school, side: sideIn, terms, who, onPick }: {
   school: { name: string; staff: StaffMember[]; coaches: string[] };
-  side: Side | 'A'; terms: Terms; who: string; onPick: (name: string) => void;
+  side: ItemSide | 'A'; terms: Terms; who: string; onPick: (name: string) => void;
 }) {
+  const side = sideIn === 'S' ? 'A' : sideIn;
   const head = (m: StaffMember) => (isHead(m, [side]) ? 0 : 1);
   const staff = school.staff.filter((m) => covers(m, side)).sort((a, b) => head(a) - head(b));
   const others = school.coaches.filter((c) => !school.staff.some((m) => sameName(m.name, c)));

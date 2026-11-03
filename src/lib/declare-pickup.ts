@@ -11,6 +11,12 @@
  * or hand the signing to a sign-off tablet facing the coach: then the scan
  * leaves the packet 'waiting' until it is signed there.
  *
+ * Besides its packets, a school can pick up a count of the meet's other
+ * items (session.pickupItemsJson): hats, water bottles, a banner, so many per
+ * team, per runner or per school. Each station hands out what it chooses, so
+ * one grouped table or a station per item both work off the same label, and
+ * each hand-over keeps who took it, when, and where.
+ *
  * A practice run (session.pickupPracticeAt set) tests all of it against the
  * real meet: everything recorded meanwhile is marked practice, the table
  * shows only that, the desk never pulls it, and ending the run deletes it.
@@ -20,6 +26,7 @@ import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
   meetDeclarationSessions, teamDeclarationAccess, declarationPacketPickups, declarationCoachContacts, organizations, declarationStaffCheckins,
+  declarationItemPickups,
 } from '@/db/schema';
 import { staffOf, covers, sameName, type StaffMember } from '@/lib/declare-staff';
 
@@ -29,6 +36,22 @@ interface RosterRow { id: string; bib?: string | number | null; gender?: string 
 
 export type Side = 'F' | 'M' | 'X';
 export type PickupOutcome = 'picked_up' | 'waiting' | 'already' | 'unknown';
+
+/** How a pickup item is counted: so many per team (each side of the field), per runner, or per school. */
+export type ItemPer = 'team' | 'runner' | 'school';
+/** One of the meet's pickup items, set on the packet table's page. */
+export interface PickupItem { id: string; name: string; count: number; per: ItemPer }
+/** A side of the field, or 'S' for an item counted for the whole school. */
+export type ItemSide = Side | 'S';
+
+/** One item for one side of a school (or the school): how many are due, and each hand-over so far. */
+export interface ItemLine {
+  itemId: string;
+  side: ItemSide;
+  due: number;
+  given: number;
+  handOvers: Array<{ id: string; count: number; by: string | null; at: string; device: string | null }>;
+}
 
 export interface PacketSide {
   side: Side;
@@ -49,13 +72,15 @@ export interface PickupSchool {
   badge: { logoUrl: string | null; logoDarkUrl: string | null; color: string | null } | null;
   coaches: string[];
   sides: PacketSide[];
+  /** Its pickup items, in the meet's order: a line per side (or one for the school) with anything due. */
+  items: ItemLine[];
 }
 
 export interface PickupLogRow {
   id: string;
   teamAccessId: string;
   teamName: string;
-  side: Side;
+  side: ItemSide;
   status: 'picked_up' | 'waiting';
   by: string | null;
   /**
@@ -69,6 +94,8 @@ export interface PickupLogRow {
   device: string | null;
   at: string;
   undone: boolean;
+  /** A pickup item's hand-over rather than a packet: which item, and how many. */
+  item?: { id: string; name: string; count: number };
 }
 
 /** A coach pass (or another credential) handed to one of a school's staff. */
@@ -82,6 +109,8 @@ export interface PickupView {
   pickedUp: number;
   /** Coach passes handed out, and how many people the schools' staff lists name. */
   passes: { given: number; staff: number };
+  /** The meet's pickup items, each with how many are due and given, and how many schools have all theirs. */
+  items: Array<PickupItem & { due: number; given: number; schoolsDone: number; schools: number }>;
   schools: PickupSchool[];
   log: PickupLogRow[];
   waiting: PickupLogRow[];
@@ -155,6 +184,48 @@ export function packetsOf(access: Pick<Access, 'rosterJson'>): Array<{ side: Sid
   const sides = [...count.keys()].sort((a, b) => 'FMX'.indexOf(a) - 'FMX'.indexOf(b));
   if (!sides.length) return [{ side: 'X', athletes: 0, bibs: '' }];
   return sides.map((side) => ({ side, athletes: count.get(side) ?? 0, bibs: bibRuns(by.get(side) ?? []) }));
+}
+
+const PERS = new Set<ItemPer>(['team', 'runner', 'school']);
+const MAX_ITEMS = 12;
+
+/** The items as sent from the page, cleaned: at most 12, each named, counted 1-500, with an id of its own. */
+export function cleanItems(raw: unknown): PickupItem[] {
+  if (!Array.isArray(raw)) return [];
+  const ids = new Set<string>();
+  return raw.slice(0, MAX_ITEMS).flatMap((x): PickupItem[] => {
+    const o = (x ?? {}) as Record<string, unknown>;
+    const name = String(o.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 40);
+    if (!name) return [];
+    const count = Math.min(500, Math.max(1, Math.round(Number(o.count) || 1)));
+    const per = PERS.has(o.per as ItemPer) ? (o.per as ItemPer) : 'team';
+    let id = typeof o.id === 'string' && /^[a-z0-9]{1,16}$/.test(o.id) ? o.id : '';
+    while (!id || ids.has(id)) id = Math.random().toString(36).slice(2, 10);
+    ids.add(id);
+    return [{ id, name, count, per }];
+  });
+}
+
+/** The meet's pickup items, as last saved. */
+export function itemsOf(session: Pick<Session, 'pickupItemsJson'>): PickupItem[] {
+  try { return cleanItems(JSON.parse(session.pickupItemsJson ?? '[]')); } catch { return []; }
+}
+
+/** What a school is due of each item: per team for each of its packets, per runner on each side, or once for the school. */
+export function dueOf(items: PickupItem[], packets: Array<{ side: Side; athletes: number }>): Array<{ itemId: string; side: ItemSide; due: number }> {
+  return items.flatMap((it) => {
+    if (it.per === 'school') return [{ itemId: it.id, side: 'S' as const, due: it.count }];
+    return packets
+      .map((p) => ({ itemId: it.id, side: p.side as ItemSide, due: it.per === 'runner' ? it.count * p.athletes : it.count }))
+      .filter((l) => l.due > 0);
+  });
+}
+
+/** An item line said in a log or an answer: "Hats (women)", or just "Banner" for the school. */
+export function itemWhat(name: string, side: ItemSide, terms: string): string {
+  if (side === 'S' || side === 'X') return name;
+  const men = terms === 'men_women';
+  return `${name} (${side === 'F' ? (men ? 'women' : 'girls') : (men ? 'men' : 'boys')})`;
 }
 
 /** Whether what is recorded now is practice. */
@@ -290,6 +361,81 @@ export async function recordScan(session: Session, code: unknown, opts: RecordOp
   return recordPickup(session, { teamId: label.teamId, side: label.side }, opts);
 }
 
+export interface ItemResult {
+  status: 'picked_up' | 'already' | 'unknown';
+  message: string;
+  ids: string[];
+}
+
+/**
+ * Hand over pickup items to a school: so many of an item for a side (or the
+ * school), each line its own row with who took it and when. A line with
+ * nothing left to give is not given again (two stations, or a scan read
+ * twice), and said so; giving more than is left is allowed - extras happen.
+ */
+export async function recordItems(
+  session: Session,
+  input: { teamAccessId: unknown; lines: unknown; by?: unknown; device?: unknown },
+): Promise<ItemResult> {
+  const teamAccessId = String(input.teamAccessId ?? '');
+  if (!UUID.test(teamAccessId)) return { status: 'unknown', message: 'That school is not in this meet.', ids: [] };
+  const [access] = await db.select().from(teamDeclarationAccess).where(and(
+    eq(teamDeclarationAccess.meetSessionId, session.id), eq(teamDeclarationAccess.id, teamAccessId),
+  )).limit(1);
+  if (!access) return { status: 'unknown', message: 'That school is not in this meet.', ids: [] };
+
+  const items = itemsOf(session);
+  const due = dueOf(items, packetsOf(access));
+  const given = await db.select({ itemId: declarationItemPickups.itemId, side: declarationItemPickups.side, count: declarationItemPickups.count })
+    .from(declarationItemPickups).where(and(
+      eq(declarationItemPickups.teamAccessId, access.id), isNull(declarationItemPickups.undoneAt),
+      eq(declarationItemPickups.practice, practicing(session)),
+    ));
+  const by = cleanName(input.by);
+  const device = cleanName(input.device);
+  const lines = (Array.isArray(input.lines) ? input.lines : []).slice(0, 40) as Array<Record<string, unknown>>;
+  const done: string[] = [];
+  const already: string[] = [];
+  const ids: string[] = [];
+  for (const l of lines) {
+    const item = items.find((i) => i.id === l?.itemId);
+    const line = item && due.find((d) => d.itemId === item.id && d.side === l.side);
+    const count = Math.min(999, Math.max(0, Math.round(Number(l?.count) || 0)));
+    if (!item || !line || !count) continue;
+    const what = itemWhat(item.name, line.side, session.genderTerms);
+    const left = line.due - given.filter((g) => g.itemId === item.id && g.side === line.side).reduce((n, g) => n + g.count, 0);
+    if (left <= 0) { already.push(what); continue; }
+    const [row] = await db.insert(declarationItemPickups).values({
+      meetSessionId: session.id, teamAccessId: access.id, itemId: item.id, itemName: item.name, side: line.side,
+      count, pickedUpBy: by, device, practice: practicing(session),
+    }).returning({ id: declarationItemPickups.id });
+    ids.push(row.id);
+    done.push(`${count} ${what}`);
+  }
+  if (!done.length && !already.length) return { status: 'unknown', message: `${access.teamName}: nothing to hand over.`, ids };
+  if (!done.length) return { status: 'already', message: `${access.teamName}: ${already.join(', ')} already handed over.`, ids };
+  return {
+    status: 'picked_up',
+    message: `${access.teamName}: ${done.join(', ')}${by ? ` to ${by}` : ''}${already.length ? ` (${already.join(', ')} already handed over)` : ''}.`,
+    ids,
+  };
+}
+
+export async function undoItemPickup(session: Session, id: string): Promise<boolean> {
+  if (!UUID.test(id)) return false;
+  const rows = await db.update(declarationItemPickups).set({ undoneAt: new Date() }).where(and(
+    eq(declarationItemPickups.meetSessionId, session.id), eq(declarationItemPickups.id, id), isNull(declarationItemPickups.undoneAt),
+  )).returning({ id: declarationItemPickups.id });
+  return rows.length === 1;
+}
+
+/** Save the meet's pickup items. An item removed keeps its hand-overs in the log under its old name. */
+export async function setPickupItems(session: Session, raw: unknown): Promise<PickupItem[]> {
+  const items = cleanItems(raw);
+  await db.update(meetDeclarationSessions).set({ pickupItemsJson: JSON.stringify(items) }).where(eq(meetDeclarationSessions.id, session.id));
+  return items;
+}
+
 /** The coach signs for packets waiting on the sign-off tablet. */
 export async function signPickups(session: Session, ids: string[], by: unknown, signature: unknown): Promise<boolean> {
   const sig = cleanSignature(signature);
@@ -356,14 +502,20 @@ export async function pickupView(session: Session): Promise<PickupView> {
   )).orderBy(declarationStaffCheckins.createdAt)).map((c): StaffCheckin => ({
     id: c.id, teamAccessId: c.teamAccessId, staffId: c.staffId, name: c.name, item: c.item, at: (c.createdAt ?? new Date()).toISOString(), device: c.device,
   }));
+  const itemRows = await db.select().from(declarationItemPickups).where(and(
+    eq(declarationItemPickups.meetSessionId, session.id), eq(declarationItemPickups.practice, practicing(session)),
+  )).orderBy(desc(declarationItemPickups.createdAt));
+  const items = itemsOf(session);
+
   const staffOfTeam = new Map(teams.map((t) => [t.id, staffOf(t.staffJson)]));
   /** Who took it, read against the school's staff list (see PickupLogRow.byRole). */
-  const roleOf = (teamAccessId: string, side: Side, by: string | null): string | null | undefined => {
+  const roleOf = (teamAccessId: string, side: ItemSide, by: string | null): string | null | undefined => {
     const staff = staffOfTeam.get(teamAccessId) ?? [];
     if (!staff.length || !by) return undefined;
     const m = staff.find((x) => sameName(x.name, by));
     if (!m) return null;
-    return m.roles.filter((r) => r.scope === 'all' || r.scope === side).map((r) => r.role).join(', ') || (covers(m, side) ? '' : m.roles.map((r) => r.role).join(', '));
+    const s = side === 'S' ? 'X' : side;
+    return m.roles.filter((r) => r.scope === 'all' || r.scope === s).map((r) => r.role).join(', ') || (covers(m, s) ? '' : m.roles.map((r) => r.role).join(', '));
   };
   const log: PickupLogRow[] = rows.map((r) => ({
     id: r.id,
@@ -379,7 +531,23 @@ export async function pickupView(session: Session): Promise<PickupView> {
     at: (r.at ?? new Date()).toISOString(),
     undone: !!r.undoneAt,
   }));
+  const itemLog: PickupLogRow[] = itemRows.map((r) => ({
+    id: r.id,
+    teamAccessId: r.teamAccessId,
+    teamName: nameOf.get(r.teamAccessId) ?? '',
+    side: r.side as ItemSide,
+    status: 'picked_up',
+    by: r.pickedUpBy,
+    byRole: roleOf(r.teamAccessId, r.side as ItemSide, r.pickedUpBy),
+    signed: false,
+    via: 'manual',
+    device: r.device,
+    at: (r.createdAt ?? new Date()).toISOString(),
+    undone: !!r.undoneAt,
+    item: { id: r.itemId, name: items.find((i) => i.id === r.itemId)?.name ?? r.itemName, count: r.count },
+  }));
   const active = log.filter((r) => !r.undone);
+  const activeItems = itemRows.filter((r) => !r.undoneAt);
 
   let packets = 0;
   let pickedUp = 0;
@@ -390,11 +558,17 @@ export async function pickupView(session: Session): Promise<PickupView> {
       if (hit?.status === 'picked_up') pickedUp++;
       return { ...p, pickup: hit ? { id: hit.id, status: hit.status, by: hit.by, at: hit.at, signed: hit.signed } : null };
     });
+    const lines = dueOf(items, sides).map((d): ItemLine => {
+      const handOvers = activeItems.filter((r) => r.teamAccessId === t.id && r.itemId === d.itemId && r.side === d.side).reverse()
+        .map((r) => ({ id: r.id, count: r.count, by: r.pickedUpBy, at: (r.createdAt ?? new Date()).toISOString(), device: r.device }));
+      return { ...d, given: handOvers.reduce((n, h) => n + h.count, 0), handOvers };
+    });
     const coaches = [...new Set(contacts.filter((c) => c.teamAccessId === t.id).map((c) => c.name.trim()).filter(Boolean))];
     const o = t.organizationId ? orgOf.get(t.organizationId) : undefined;
     const badge = o ? { logoUrl: o.logoUrl ?? null, logoDarkUrl: o.logoDarkUrl ?? null, color: o.color ?? null } : null;
-    return { teamAccessId: t.id, teamId: t.teamId, name: t.teamName, badge, coaches, staff: staffOfTeam.get(t.id) ?? [], checkins: checkins.filter((c) => c.teamAccessId === t.id), sides };
+    return { teamAccessId: t.id, teamId: t.teamId, name: t.teamName, badge, coaches, staff: staffOfTeam.get(t.id) ?? [], checkins: checkins.filter((c) => c.teamAccessId === t.id), sides, items: lines };
   }).sort((a, b) => a.name.localeCompare(b.name));
+  const allLog = [...log, ...itemLog].sort((a, b) => b.at.localeCompare(a.at));
 
   return {
     meet: { name: session.meetName, date: session.meetDate ?? null },
@@ -402,8 +576,18 @@ export async function pickupView(session: Session): Promise<PickupView> {
     packets,
     pickedUp,
     passes: { given: checkins.length, staff: [...staffOfTeam.values()].reduce((n, l) => n + l.length, 0) },
+    items: items.map((it) => {
+      const per = schools.map((s) => s.items.filter((l) => l.itemId === it.id)).filter((l) => l.length);
+      return {
+        ...it,
+        due: per.flat().reduce((n, l) => n + l.due, 0),
+        given: per.flat().reduce((n, l) => n + l.given, 0),
+        schoolsDone: per.filter((l) => l.every((x) => x.given >= x.due)).length,
+        schools: per.length,
+      };
+    }),
     schools,
-    log: log.slice(0, 200),
+    log: allLog.slice(0, 200),
     // Oldest first: the coach at the front of the line signs first.
     waiting: active.filter((r) => r.status === 'waiting').reverse(),
   };
@@ -427,6 +611,19 @@ export async function pickupsForDesk(sessionId: string): Promise<Map<string, Arr
   for (const r of rows) {
     if (!out.has(r.teamAccessId)) out.set(r.teamAccessId, []);
     out.get(r.teamAccessId)!.push({ side: r.side as Side, by: r.by, at: (r.at ?? new Date()).toISOString(), signed: !!r.signedAt });
+  }
+  return out;
+}
+
+/** What the desk pulls with the answers: each school's pickup items handed over, by desk team id. */
+export async function itemPickupsForDesk(sessionId: string): Promise<Map<string, Array<{ item: string; side: ItemSide; count: number; by: string | null; at: string }>>> {
+  const rows = await db.select().from(declarationItemPickups).where(and(
+    eq(declarationItemPickups.meetSessionId, sessionId), isNull(declarationItemPickups.undoneAt), eq(declarationItemPickups.practice, false),
+  )).orderBy(declarationItemPickups.createdAt);
+  const out = new Map<string, Array<{ item: string; side: ItemSide; count: number; by: string | null; at: string }>>();
+  for (const r of rows) {
+    if (!out.has(r.teamAccessId)) out.set(r.teamAccessId, []);
+    out.get(r.teamAccessId)!.push({ item: r.itemName, side: r.side as ItemSide, count: r.count, by: r.pickedUpBy, at: (r.createdAt ?? new Date()).toISOString() });
   }
   return out;
 }
@@ -476,15 +673,15 @@ export async function undoCheckin(session: Session, id: string): Promise<boolean
 
 /**
  * Start a practice run, or end one: ending deletes everything recorded as
- * practice (pickups, signatures and coach passes) and puts the table back on
+ * practice (pickups, signatures, coach passes and items) and puts the table back on
  * the real pickups. Says how many of each were removed.
  */
-export async function setPractice(session: Session, on: boolean): Promise<{ practice: boolean; removed: { pickups: number; passes: number } }> {
+export async function setPractice(session: Session, on: boolean): Promise<{ practice: boolean; removed: { pickups: number; passes: number; items: number } }> {
   if (on) {
     if (!session.pickupPracticeAt) {
       await db.update(meetDeclarationSessions).set({ pickupPracticeAt: new Date() }).where(eq(meetDeclarationSessions.id, session.id));
     }
-    return { practice: true, removed: { pickups: 0, passes: 0 } };
+    return { practice: true, removed: { pickups: 0, passes: 0, items: 0 } };
   }
   const pickups = await db.delete(declarationPacketPickups).where(and(
     eq(declarationPacketPickups.meetSessionId, session.id), eq(declarationPacketPickups.practice, true),
@@ -492,6 +689,9 @@ export async function setPractice(session: Session, on: boolean): Promise<{ prac
   const passes = await db.delete(declarationStaffCheckins).where(and(
     eq(declarationStaffCheckins.meetSessionId, session.id), eq(declarationStaffCheckins.practice, true),
   )).returning({ id: declarationStaffCheckins.id });
+  const handed = await db.delete(declarationItemPickups).where(and(
+    eq(declarationItemPickups.meetSessionId, session.id), eq(declarationItemPickups.practice, true),
+  )).returning({ id: declarationItemPickups.id });
   await db.update(meetDeclarationSessions).set({ pickupPracticeAt: null }).where(eq(meetDeclarationSessions.id, session.id));
-  return { practice: false, removed: { pickups: pickups.length, passes: passes.length } };
+  return { practice: false, removed: { pickups: pickups.length, passes: passes.length, items: handed.length } };
 }

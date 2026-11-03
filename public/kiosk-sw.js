@@ -210,8 +210,9 @@ self.addEventListener('fetch', (event) => {
         await tell({ type: 'kiosk-live' });
         return res;
       } catch {
-        // Scans and taps are held; signing and undo need the meet now.
-        if (action !== 'scan' && action !== 'manual') throw new Error('offline');
+        // Scans, taps, items and coach passes are held; signing, undo and
+        // setting up need the meet now.
+        if (!['scan', 'manual', 'items', 'checkin'].includes(action)) throw new Error('offline');
         await holdOne({ url: req.url, body, at: new Date().toISOString() });
         await tellQueue();
         return jsonResponse({ held: true, status: 'waiting', message: 'Held until the tablet is back online.' });
