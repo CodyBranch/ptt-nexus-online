@@ -590,7 +590,7 @@ export const meetDeclarationSessions = pgTable('meet_declaration_sessions', {
   clerkUpdatedAt: timestamp('clerk_updated_at', { withTimezone: true }),
 
   /**
-   * The meet's tablet code (/declare/kiosk/{token}): the PTT Nexus Tablet app
+   * The meet's tablet code (/declare/kiosk/{token}): the Nexus XC Tablet app
    * scans it once and is handed the dashboard, the clerks' page and every
    * school's coach form. It opens every form, so it is shown on the desk
    * only, never printed for coaches.

@@ -1,5 +1,5 @@
 /**
- * The meet's tablet code: what the PTT Nexus Tablet app is handed for it.
+ * The meet's tablet code: what the Nexus XC Tablet app is handed for it.
  *
  * The app scans the code once (/declare/kiosk/{token}) and keeps the links,
  * so a tablet at the coaches' table can open the live dashboard, the clerks'

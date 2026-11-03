@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 /**
  * The meet tablet's "lost sync" banner, and its offline helper.
  *
- * Only inside the PTT Nexus Tablet app (its user agent says PTTNexusTablet):
+ * Only inside the Nexus XC Tablet app (its user agent says PTTNexusTablet):
  * there the declare pages register /kiosk-sw.js, which keeps the last copy of
  * each page and holds a coach's answers while the Wi-Fi is down. This shows
  * when the page is that last copy, and how many changes are waiting to send.

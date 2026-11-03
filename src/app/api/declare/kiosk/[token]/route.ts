@@ -3,7 +3,7 @@ import { kioskLinks, kioskSession } from '@/lib/declare-kiosk';
 
 // ── GET /api/declare/kiosk/[token] ──────────────────────────────────────────
 //
-// What the PTT Nexus Tablet app asks after scanning a meet's tablet code:
+// What the Nexus XC Tablet app asks after scanning a meet's tablet code:
 // the meet, its live dashboard, its clerks' page and every school's coach
 // form. The app asks again whenever it comes back online, so schools added
 // at the desk later reach the tablet. The token in the path is the only key.

@@ -11,7 +11,7 @@ import { covers, sameName, type StaffMember } from '@/lib/declare-staff';
  *
  * The box at the top takes a team label's code: a USB or Bluetooth scanner
  * types it and presses Enter, an Android scanner in keyboard mode does the
- * same, and the PTT Nexus Tablet app's Scan button hands its camera's read
+ * same, and the Nexus XC Tablet app's Scan button hands its camera's read
  * over as a 'nexus-scan' event. A scan looks the school up and opens its
  * packet window: which packets go out, who took them, and which of the
  * school's staff get a coach pass, all confirmed at once. Tapping a school
