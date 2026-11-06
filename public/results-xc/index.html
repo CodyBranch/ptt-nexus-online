@@ -163,6 +163,7 @@ td.pl{font:600 15px var(--mono);width:40px;text-align:right;color:var(--ink)}
 /* Two ten-deep lists want to be read together, not one after the other. */
 .histpair{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;align-items:start}
 .histpair > .tgroup{min-width:0}
+.tgroup > .histlvl{margin:8px 12px 0}
 .histtbl td{padding:4px 8px}
 .histtbl th{padding:7px 8px;font-size:10.5px}
 .histtbl td.pl{font:600 13px var(--mono);width:30px}
@@ -2329,6 +2330,39 @@ function histGroup(title,note,body){
   if(note)hd.appendChild(h("span","sp",note));
   g.appendChild(hd);g.appendChild(body);return g;
 }
+/* The course's list, with a toggle between every time run here and one
+   level's: at a course that hosts the SEC and the state meet, the high school
+   girls' all-time list is otherwise ten college women. Only offered when the
+   course has run both; opens on this race's level, then on whatever the
+   viewer last picked. */
+const HIST_LEVELS=[["all","All"],["high_school","High school"],["college","College"]];
+const HIST_LEVEL_NOTE={all:"any race, same side of the field",high_school:"high school races only",college:"college races only"};
+function courseGroup(d){
+  const by=d.allTimeByLevel||{};
+  const have=HIST_LEVELS.filter(([k])=>k==="all"||(by[k]&&by[k].length));
+  if(have.length<2)return histGroup("Fastest on this course",HIST_LEVEL_NOTE.all,markTable(d.allTimeTop));
+  let pick=null;try{pick=localStorage.getItem("xcRaceLab.histLevel");}catch(e){}
+  if(!have.some(([k])=>k===pick))pick=have.some(([k])=>k===d.level)?d.level:"all";
+  const g=h("div","tgroup"),hd=h("header");
+  hd.appendChild(h("h4",null,"Fastest on this course"));
+  const note=h("span","sp");hd.appendChild(note);
+  const seg=h("div","seg histlvl");seg.setAttribute("role","group");seg.setAttribute("aria-label","Which marks");
+  g.appendChild(hd);g.appendChild(seg);
+  let body=null;
+  const show=k=>{
+    pick=k;note.textContent=HIST_LEVEL_NOTE[k];
+    [...seg.children].forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.k===k)));
+    const t=markTable(k==="all"?d.allTimeTop:by[k]);
+    if(body)body.replaceWith(t);else g.appendChild(t);body=t;
+  };
+  have.forEach(([k,label])=>{
+    const b=h("button",null,label);b.type="button";b.dataset.k=k;
+    b.onclick=()=>{try{localStorage.setItem("xcRaceLab.histLevel",k);}catch(e){}show(k);};
+    seg.appendChild(b);
+  });
+  show(pick);
+  return g;
+}
 function renderHistory(){
   const host=$("#v-history");host.replaceChildren();
   screenSendBar(host,"history");
@@ -2346,8 +2380,7 @@ function renderHistory(){
   const pair=h("div","histpair");
   if(d.raceTop.length)pair.appendChild(histGroup("Fastest in this race",
     d.years?"across "+d.years+" years":null,markTable(d.raceTop)));
-  if(d.allTimeTop.length)pair.appendChild(histGroup("Fastest on this course",
-    "any race, same side of the field",markTable(d.allTimeTop)));
+  if(d.allTimeTop.length)pair.appendChild(courseGroup(d));
   if(pair.children.length)host.appendChild(pair);
 
   if(d.winners.length)host.appendChild(histGroup("Past winners","newest first",

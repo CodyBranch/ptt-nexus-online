@@ -146,8 +146,10 @@
   function historyDoc(raw, raceId) {
     const d = raw ? decode(raw) : {};
     const marks = (xs) => list(xs).map((m) => (m.splits ? Object.assign({}, m, { splits: list(m.splits) }) : m));
+    const byLevel = d.allTimeByLevel
+      ? { college: marks(d.allTimeByLevel.college), high_school: marks(d.allTimeByLevel.high_school) } : undefined;
     return Object.assign({ schema: 1, version: "", raceId, entrants: 0 }, d, {
-      raceTop: marks(d.raceTop), allTimeTop: marks(d.allTimeTop), winners: marks(d.winners),
+      raceTop: marks(d.raceTop), allTimeTop: marks(d.allTimeTop), allTimeByLevel: byLevel, winners: marks(d.winners),
       returning: list(d.returning).map((x) => Object.assign({}, x, { history: marks(x.history) })),
     });
   }
