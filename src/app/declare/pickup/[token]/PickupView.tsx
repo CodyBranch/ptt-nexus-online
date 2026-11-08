@@ -78,6 +78,17 @@ const FLASH: Record<PickupResult['status'], string> = {
   unknown: 'border-rose-500/50 bg-rose-500/10 text-rose-200',
 };
 
+/**
+ * Whether the label box can take focus by itself. A desk with a USB or
+ * Bluetooth scanner needs it there, since the scanner types into whatever has
+ * focus. On a touch screen focus brings up the keyboard, which covered the
+ * page after every hand-over on a phone (2026-11-08): there the box is focused
+ * only when tapped, and the tablet app's Scan button needs no focus at all.
+ */
+function quietFocus(): boolean {
+  return typeof window !== 'undefined' && !window.matchMedia('(pointer: coarse)').matches;
+}
+
 function loadStation(): Station {
   try { return { ...DEFAULT_STATION, ...JSON.parse(localStorage.getItem(STATION_KEY) ?? '{}') }; } catch { return DEFAULT_STATION; }
 }
@@ -150,7 +161,11 @@ export default function PickupView({ token, initial, terms }: { token: string; i
   const input = useRef<HTMLInputElement>(null);
   const api = `/api/declare/pickup/${token}`;
 
-  useEffect(() => { setStation(loadStation()); setOrigin(window.location.origin); }, []);
+  useEffect(() => {
+    setStation(loadStation());
+    setOrigin(window.location.origin);
+    if (quietFocus()) input.current?.focus();
+  }, []);
   const saveStation = (s: Station) => {
     setStation(s);
     try { localStorage.setItem(STATION_KEY, JSON.stringify(s)); } catch { /* kept for this visit only */ }
@@ -182,7 +197,7 @@ export default function PickupView({ token, initial, terms }: { token: string; i
   const closeWindow = useCallback(() => {
     setOpen(null);
     setNotice(null);
-    setTimeout(() => input.current?.focus(), 0);
+    if (quietFocus()) setTimeout(() => input.current?.focus(), 0);
   }, []);
 
   /** A label read by the scanner box, the tablet's camera, or while a window is open. */
@@ -339,6 +354,13 @@ export default function PickupView({ token, initial, terms }: { token: string; i
     ? [handsOut(station, 'packets') ? 'Packets' : '', ...hereItems.map((i) => i.name), handsOut(station, 'passes') ? 'Coach passes' : ''].filter(Boolean).join(', ')
     : '';
 
+  const statusPill = (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${error ? 'bg-amber-500/15 text-amber-300' : view.practice ? 'bg-amber-400/20 text-amber-200' : 'bg-[#e70518]/15 text-red-300'}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${error ? 'bg-amber-400' : view.practice ? 'bg-amber-300' : 'bg-red-500'}`} />
+      {error ? 'Reconnecting' : view.practice ? 'Practice' : 'Live'}
+    </span>
+  );
+
   return (
     <div className="min-h-screen bg-[#0a0f24] pb-16 text-gray-100">
       <header className="border-b border-white/10 bg-[#0c1537]">
@@ -347,7 +369,11 @@ export default function PickupView({ token, initial, terms }: { token: string; i
           <img src="/live/primetime-on-dark.png" alt="PrimeTime Timing" className="h-5 w-auto sm:h-7" />
           <div className="order-last w-full min-w-0 lg:order-none lg:w-auto lg:flex-1">
             <h1 className="text-lg font-bold tracking-tight sm:text-xl lg:truncate">{view.meet.name}</h1>
-            <p className="text-xs text-gray-400">Packet pickup{station.device ? ` · ${station.device}` : ''}{handsWord ? ` · ${handsWord}` : ''}</p>
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-400">
+              <span>Packet pickup{station.device ? ` · ${station.device}` : ''}{handsWord ? ` · ${handsWord}` : ''}</span>
+              {/* Here on phones and tablets: in the top row it wrapped onto a line of its own. */}
+              <span className="lg:hidden">{statusPill}</span>
+            </p>
           </div>
           {!view.practice && (
             <button onClick={() => setPracticeAsk(practiceAsk === 'start' ? null : 'start')} className="ml-auto rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800 lg:ml-0">
@@ -357,20 +383,17 @@ export default function PickupView({ token, initial, terms }: { token: string; i
           <button onClick={() => setSetup((v) => !v)} className={`${view.practice ? 'ml-auto lg:ml-0 ' : ''}rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800`}>
             This station
           </button>
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${error ? 'bg-amber-500/15 text-amber-300' : view.practice ? 'bg-amber-400/20 text-amber-200' : 'bg-[#e70518]/15 text-red-300'}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${error ? 'bg-amber-400' : view.practice ? 'bg-amber-300' : 'bg-red-500'}`} />
-            {error ? 'Reconnecting' : view.practice ? 'Practice' : 'Live'}
-          </span>
+          <span className="hidden lg:inline">{statusPill}</span>
         </div>
       </header>
 
       {view.practice && (
-        <div role="status" className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-amber-400/30 bg-amber-400/15 px-4 py-2.5 text-sm text-amber-100 sm:px-6">
+        <div role="status" className="flex flex-col items-start gap-2 border-b border-amber-400/30 bg-amber-400/15 px-4 py-2.5 text-sm text-amber-100 sm:flex-row sm:items-center sm:gap-4 sm:px-6">
           <p className="min-w-0 flex-1">
             <span className="font-semibold text-amber-200">Practice run since {clock(view.practice.since)}.</span>{' '}
             Nothing recorded now counts: pickups, signatures and coach passes are test data, kept apart from the real ones and deleted when the run ends.
           </p>
-          <button onClick={() => setPracticeAsk('end')} className="rounded-md bg-amber-300 px-3 py-1.5 text-sm font-semibold text-gray-950 hover:bg-amber-200">
+          <button onClick={() => setPracticeAsk('end')} className="shrink-0 rounded-md bg-amber-300 px-3 py-1.5 text-sm font-semibold text-gray-950 hover:bg-amber-200">
             End practice run
           </button>
         </div>
@@ -490,7 +513,7 @@ export default function PickupView({ token, initial, terms }: { token: string; i
       <div className="px-4 py-4 sm:px-6">
         <form onSubmit={submit} className="flex gap-2">
           <label htmlFor="pk-code" className="sr-only">Team label code</label>
-          <input id="pk-code" ref={input} autoFocus value={code} onChange={(e) => setCode(e.target.value)}
+          <input id="pk-code" ref={input} value={code} onChange={(e) => setCode(e.target.value)}
             autoComplete="off" spellCheck={false} placeholder="Scan a team label"
             className="min-w-0 flex-1 rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 text-lg placeholder:text-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
           <button type="submit" disabled={busy || !code.trim()}
