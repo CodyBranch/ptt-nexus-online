@@ -375,12 +375,8 @@ export default function PickupView({ token, initial, terms }: { token: string; i
               <span className="lg:hidden">{statusPill}</span>
             </p>
           </div>
-          {!view.practice && (
-            <button onClick={() => setPracticeAsk(practiceAsk === 'start' ? null : 'start')} className="ml-auto rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800 lg:ml-0">
-              Practice run
-            </button>
-          )}
-          <button onClick={() => setSetup((v) => !v)} className={`${view.practice ? 'ml-auto lg:ml-0 ' : ''}rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800`}>
+          {/* Practice run is started from This station: as a second header button it wrapped onto a line of its own on a phone. */}
+          <button onClick={() => setSetup((v) => !v)} className="ml-auto rounded-md px-3 py-1.5 text-sm text-gray-300 ring-1 ring-gray-700 hover:bg-gray-800 lg:ml-0">
             This station
           </button>
           <span className="hidden lg:inline">{statusPill}</span>
@@ -484,6 +480,15 @@ export default function PickupView({ token, initial, terms }: { token: string; i
             <input value={station.device} onChange={(e) => saveStation({ ...station, device: e.target.value.slice(0, 40) })}
               placeholder="Packet table 1" className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2" />
           </label>
+          {!view.practice && (
+            <div className="space-y-2 border-t border-gray-800 pt-3">
+              <h2 className="text-sm font-semibold">Practice run</h2>
+              <p className="text-xs text-gray-400">Try the whole pickup on this meet with test data: every station switches over, and nothing recorded counts.</p>
+              <button onClick={() => { setSetup(false); setPracticeAsk('start'); }} className="rounded-md px-3 py-1.5 text-sm text-amber-200 ring-1 ring-amber-400/40 hover:bg-amber-400/10">
+                Start a practice run
+              </button>
+            </div>
+          )}
         </section>
       )}
 
