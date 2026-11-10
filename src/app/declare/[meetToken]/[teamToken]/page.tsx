@@ -822,9 +822,13 @@ export default function DeclarePage() {
 
             // The race an alternate would go into in their place: the one they
             // are in, or the one the meet entered them in if not yet answered
-            // or marked not running (their place and bib are free).
+            // or marked not running (their place and bib are free). Marked not
+            // running, the meet may already have them as scratched: still that
+            // race, still free (swapRace in lib/declare-swap).
             const nowIn = choice.kind === 'race' ? choice.raceId
-              : (athlete.status === 'entered' || athlete.status === 'declared') ? athlete.raceId ?? null : null;
+              : (athlete.status === 'entered' || athlete.status === 'declared'
+                || (choice.kind === 'scratched' && athlete.status === 'scratched'))
+                ? athlete.raceId ?? null : null;
             const canSwapIn = nowIn && !lockedIn && !finalized.has(nowIn) && !raceClosed(nowIn) ? (data.roster.filter((a) =>
               isAlternate(a) && a.eligibleRaceIds.includes(nowIn))) : [];
 

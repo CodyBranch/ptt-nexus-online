@@ -74,9 +74,17 @@ export function currentRace(a: SwapRosterRow, ans: SwapAnswer | undefined): stri
  * The race an alternate would go into in this runner's place: the one they
  * are in, or for a runner marked not running, the one the meet entered them
  * in (their place and bib are free for an alternate).
+ *
+ * Once the desk has taken the coach's "not running" it sends the runner back
+ * as scratched, still with the race they were entered in. That is the same
+ * free place and bib, and the desk puts the entry back to make the swap, so
+ * it counts too: without it the Swap button went away as soon as the desk
+ * caught up, and came back only if the coach put the runner in a race.
  */
 export function swapRace(a: SwapRosterRow, ans: SwapAnswer | undefined): string | null {
-  if (ans?.status === 'scratched') return a.status === 'entered' || a.status === 'declared' ? a.raceId ?? null : null;
+  if (ans?.status === 'scratched') {
+    return a.status === 'entered' || a.status === 'declared' || a.status === 'scratched' ? a.raceId ?? null : null;
+  }
   return currentRace(a, ans);
 }
 

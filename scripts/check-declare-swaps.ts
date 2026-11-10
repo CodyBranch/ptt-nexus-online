@@ -28,6 +28,10 @@ async function main() {
     { id: 'jaden', firstName: 'Jaden', lastName: 'Laster', gender: 'M', eligibleRaceIds: ['r-men'], raceId: null, alternate: true },
     { id: 'aliyah', firstName: 'Aliyah', lastName: 'Mathis', gender: 'F', eligibleRaceIds: ['r-women'], raceId: null, alternate: true },
     { id: 'wren', firstName: 'Wren', lastName: 'Hale', bib: '300', gender: 'F', eligibleRaceIds: ['r-women'], status: 'entered', raceId: 'r-women' },
+    // Marked not running, and the desk has since scratched her: it sends her
+    // back as scratched, still with the race she was entered in.
+    { id: 'ivy', firstName: 'Ivy', lastName: 'Cole', bib: '301', gender: 'F', eligibleRaceIds: ['r-women'], status: 'scratched', raceId: 'r-women' },
+    { id: 'mia', firstName: 'Mia', lastName: 'Ford', gender: 'F', eligibleRaceIds: ['r-women'], raceId: null, alternate: true },
   ];
   const [access] = await db.insert(teamDeclarationAccess).values({ meetSessionId: sessionId, teamToken, teamId: 'T1', teamName: 'Grambling', rosterJson: JSON.stringify(roster) } as never).returning();
 
@@ -109,6 +113,9 @@ async function main() {
   await call({ declarations: [{ athleteId: 'wren', status: 'scratched', raceId: null }] });
   r = await call({ swap: { alternateId: 'aliyah', forAthleteId: 'wren' } });
   ok('an alternate goes in for a runner marked not running, in the race they were entered in', r.status === 200 && r.json.raceId === 'r-women', r.json);
+  await call({ declarations: [{ athleteId: 'ivy', status: 'scratched', raceId: null }] });
+  r = await call({ swap: { alternateId: 'mia', forAthleteId: 'ivy' } });
+  ok('and after the desk has scratched them too', r.status === 200 && r.json.raceId === 'r-women', r.json);
 
   await db.delete(meetDeclarationSessions).where(eq(meetDeclarationSessions.id, sessionId));
   console.log(fail ? `\n${fail} FAILED` : '\nOK');
