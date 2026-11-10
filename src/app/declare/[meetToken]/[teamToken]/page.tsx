@@ -608,7 +608,10 @@ export default function DeclarePage() {
                   Get text updates
                 </a>
               )}
-              <a href="/declare/help" target="_blank" rel="noopener"
+              {/* A meet with alternates has its own help: swapping, not choosing
+                  races. Known by the squad having any (listed or swapped out). */}
+              <a href={data.roster.some((a) => a.alternate) || Object.keys(swapState.outFor).length > 0
+                ? '/declare/help-alternate' : '/declare/help'} target="_blank" rel="noopener"
                 className="text-xs text-blue-400 hover:text-blue-300 underline-offset-2 hover:underline">
                 How this works
               </a>
