@@ -13,8 +13,8 @@ export const metadata: Metadata = {
   description: 'Confirming your entered runners, swapping an alternate in on a runner’s bib, and how it reaches the timing tent.',
 };
 
-/** The alternates tutorial on YouTube; the steps stand on their own until it is up. */
-const VIDEO_ID: string | null = null;
+/** The alternates tutorial on YouTube. */
+const VIDEO_ID: string | null = '2PpKXSX_zMQ';
 
 const STEPS: HelpStep[] = [
   { title: 'Scan the code', body: 'Your link is printed as a QR code on your Team Roster and Declaration Form. Point your phone’s camera at it. There is no app and no login, and the link opens your school and nothing else.' },
