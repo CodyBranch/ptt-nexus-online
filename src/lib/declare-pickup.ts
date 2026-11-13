@@ -1,11 +1,13 @@
 /**
  * Packet pickup: each school's packets handed over at the packet table.
  *
- * Every team label the desk prints carries a code, NXPKT-<desk team id>-<side>,
- * with the side F or M for a label per side of the field, or A for one label
- * for the whole school. Scanning it - a USB scanner on the staff page, the
- * tablet app's camera, or a scanner app calling ?code= - marks that packet
- * picked up. A school with no label to hand is marked from the list.
+ * Every team label and roster the desk prints carries a QR code that is the
+ * school's link to its declarations, with the side of the field on the end
+ * (F or M on a label per side, none on a roster or a whole-school label):
+ * see label-scan.ts, which also reads the older NXPKT-<desk team id>-<side>
+ * labels. Scanning it - a USB scanner on the staff page, the tablet app's
+ * camera, or a scanner app calling ?code= - marks that packet picked up. A
+ * school with no label to hand is marked from the list.
  *
  * The table can ask who took it and for their signature, on its own screen,
  * or hand the signing to a sign-off tablet facing the coach: then the scan
@@ -26,6 +28,7 @@
 
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '@/db/client';
+import { linkKey, parseScan } from '@/lib/label-scan';
 import {
   meetDeclarationSessions, teamDeclarationAccess, declarationPacketPickups, declarationCoachContacts, organizations, declarationStaffCheckins,
   declarationItemPickups,
@@ -65,6 +68,8 @@ export interface PacketSide {
 export interface PickupSchool {
   teamAccessId: string;
   teamId: string;
+  /** Its link token, hashed (label-scan.ts linkKey): what a scanned link is matched against. */
+  linkKey: string;
   name: string;
   /** Who may take its packets (the desk's staff list), for the table to offer by side. */
   staff: StaffMember[];
@@ -132,12 +137,6 @@ export async function pickupSession(token: string): Promise<Session | null> {
   if (!/^[0-9a-f]{32}$/i.test(token)) return null;
   const [s] = await db.select().from(meetDeclarationSessions).where(eq(meetDeclarationSessions.pickupToken, token)).limit(1);
   return s ?? null;
-}
-
-/** A label's code: NXPKT-<team id>-<F|M|A>. Case and stray spaces from a scanner do not matter. */
-export function parseLabelCode(raw: unknown): { teamId: string; side: 'F' | 'M' | 'A' } | null {
-  const m = /^NXPKT-([0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12})-([FMA])$/i.exec(String(raw ?? '').trim());
-  return m ? { teamId: m[1].toLowerCase(), side: m[2].toUpperCase() as 'F' | 'M' | 'A' } : null;
 }
 
 /** The side of the field a roster gender is on. */
@@ -271,7 +270,7 @@ function cleanSignature(s: unknown): string | null {
  */
 export async function recordPickup(
   session: Session,
-  target: { teamId?: string; teamAccessId?: string; side: 'F' | 'M' | 'X' | 'A' },
+  target: { teamId?: string; teamAccessId?: string; teamToken?: string; side: 'F' | 'M' | 'X' | 'A' },
   opts: RecordOptions,
 ): Promise<PickupResult> {
   if (target.teamAccessId && !UUID.test(target.teamAccessId)) {
@@ -279,7 +278,9 @@ export async function recordPickup(
   }
   const [access] = await db.select().from(teamDeclarationAccess).where(and(
     eq(teamDeclarationAccess.meetSessionId, session.id),
-    target.teamAccessId ? eq(teamDeclarationAccess.id, target.teamAccessId) : eq(teamDeclarationAccess.teamId, target.teamId ?? ''),
+    target.teamAccessId ? eq(teamDeclarationAccess.id, target.teamAccessId)
+      : target.teamToken ? eq(teamDeclarationAccess.teamToken, target.teamToken)
+        : eq(teamDeclarationAccess.teamId, target.teamId ?? ''),
   )).limit(1);
   if (!access) {
     return { status: 'unknown', message: 'That label is not for a school in this meet.', school: null, teamAccessId: null, sides: [], ids: [] };
@@ -354,13 +355,15 @@ export async function recordPickup(
   };
 }
 
-/** A scanned code: a team label, or nothing this meet knows. */
+/** A scanned code: a team label or roster, or nothing this meet knows. */
 export async function recordScan(session: Session, code: unknown, opts: RecordOptions): Promise<PickupResult> {
-  const label = parseLabelCode(code);
-  if (!label) {
-    return { status: 'unknown', message: `${String(code ?? '').trim() || 'That'} is not a team label's code.`, school: null, teamAccessId: null, sides: [], ids: [] };
+  const scan = parseScan(code);
+  if (!scan) {
+    return { status: 'unknown', message: `${String(code ?? '').trim().slice(0, 60) || 'That'} is not a team label's code.`, school: null, teamAccessId: null, sides: [], ids: [] };
   }
-  return recordPickup(session, { teamId: label.teamId, side: label.side }, opts);
+  return scan.kind === 'label'
+    ? recordPickup(session, { teamId: scan.teamId, side: scan.side }, opts)
+    : recordPickup(session, { teamToken: scan.token, side: scan.side }, opts);
 }
 
 export interface ItemResult {
@@ -498,6 +501,7 @@ export async function pickupView(session: Session): Promise<PickupView> {
   const orgOf = new Map(orgs.map((o) => [o.id, o]));
 
   const nameOf = new Map(teams.map((t) => [t.id, t.teamName]));
+  const keyOf = new Map(await Promise.all(teams.map(async (t) => [t.id, await linkKey(t.teamToken)] as const)));
   const checkins = (await db.select().from(declarationStaffCheckins).where(and(
     eq(declarationStaffCheckins.meetSessionId, session.id), isNull(declarationStaffCheckins.undoneAt),
     eq(declarationStaffCheckins.practice, practicing(session)),
@@ -568,7 +572,7 @@ export async function pickupView(session: Session): Promise<PickupView> {
     const coaches = [...new Set(contacts.filter((c) => c.teamAccessId === t.id).map((c) => c.name.trim()).filter(Boolean))];
     const o = t.organizationId ? orgOf.get(t.organizationId) : undefined;
     const badge = o ? { logoUrl: o.logoUrl ?? null, logoDarkUrl: o.logoDarkUrl ?? null, color: o.color ?? null } : null;
-    return { teamAccessId: t.id, teamId: t.teamId, name: t.teamName, badge, coaches, staff: staffOfTeam.get(t.id) ?? [], checkins: checkins.filter((c) => c.teamAccessId === t.id), sides, items: lines };
+    return { teamAccessId: t.id, teamId: t.teamId, linkKey: keyOf.get(t.id) ?? '', name: t.teamName, badge, coaches, staff: staffOfTeam.get(t.id) ?? [], checkins: checkins.filter((c) => c.teamAccessId === t.id), sides, items: lines };
   }).sort((a, b) => a.name.localeCompare(b.name));
   const allLog = [...log, ...itemLog].sort((a, b) => b.at.localeCompare(a.at));
 

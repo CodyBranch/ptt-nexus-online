@@ -9,8 +9,10 @@ import {
 // The packet table. The token in the path is the only key, as on the bib
 // returns desk.
 //
-//   GET  ?code=NXPKT-...-F           a scan from a scanner app that calls a URL:
-//   GET  ?code=...&device=gun1       marks the packet picked up. Answers in one
+//   GET  ?code=<the label's code>    a scan from a scanner app that calls a URL
+//   GET  ?code=...&device=gun1       (the label's link, URL-encoded, or an older
+//                                    NXPKT-...-F code): marks the packet picked
+//                                    up. Answers in one
 //                                    line of text for the scanner's log, or JSON
 //                                    with &format=json.
 //   GET  ?signature=<id>             a pickup's signature, as a PNG.

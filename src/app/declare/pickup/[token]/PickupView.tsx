@@ -5,11 +5,13 @@ import type { ItemLine, ItemPer, ItemSide, PickupItem, PickupResult, PickupSchoo
 import SignaturePad, { type SignaturePadHandle } from './SignaturePad';
 import SchoolBadge from './SchoolBadge';
 import { covers, sameName, type StaffMember } from '@/lib/declare-staff';
+import { linkKey, parseScan } from '@/lib/label-scan';
 
 /**
  * The packet table.
  *
- * The box at the top takes a team label's code: a USB or Bluetooth scanner
+ * The box at the top takes the QR code on a team label or roster (the
+ * school's link, see label-scan.ts): a USB or Bluetooth scanner
  * types it and presses Enter, an Android scanner in keyboard mode does the
  * same, and the Nexus XC Tablet app's Scan button hands its camera's read
  * over as a 'nexus-scan' event. A scan looks the school up and opens its
@@ -68,8 +70,6 @@ interface HandOver {
   /** Pickup items: how many of each item for each side (or the school). */
   items: Array<{ itemId: string; side: ItemSide; count: number }>;
 }
-
-const LABEL_CODE = /^NXPKT-([0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12})-([FMA])$/i;
 
 const FLASH: Record<PickupResult['status'], string> = {
   picked_up: 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200',
@@ -200,17 +200,27 @@ export default function PickupView({ token, initial, terms }: { token: string; i
     if (quietFocus()) setTimeout(() => input.current?.focus(), 0);
   }, []);
 
-  /** A label read by the scanner box, the tablet's camera, or while a window is open. */
-  const scanned = useCallback((raw: string) => {
+  /**
+   * A label or roster read by the scanner box, the tablet's camera, or while
+   * a window is open. A link is matched here, offline too, by its hashed
+   * token: the page never holds the tokens that open schools' declarations.
+   */
+  const scanned = useCallback(async (raw: string) => {
     const c = raw.trim();
     if (!c) return;
-    const m = LABEL_CODE.exec(c);
-    const school = m ? view.schools.find((s) => s.teamId === m[1].toLowerCase()) : undefined;
-    if (!m || !school) {
-      setFlash({ status: 'unknown', message: m ? 'That label is not for a school in this meet.' : `${c} is not a team label's code.` });
+    const scan = parseScan(c);
+    let school: PickupSchool | undefined;
+    if (scan?.kind === 'label') {
+      school = view.schools.find((s) => s.teamId === scan.teamId);
+    } else if (scan?.kind === 'link') {
+      const key = await linkKey(scan.token).catch(() => '');
+      school = key ? view.schools.find((s) => s.linkKey === key) : undefined;
+    }
+    if (!scan || !school) {
+      setFlash({ status: 'unknown', message: scan ? 'That code is not for a school in this meet.' : `${c.slice(0, 60)} is not a team label's code.` });
       return;
     }
-    const label = m[2].toUpperCase() as Side | 'A';
+    const label = scan.side as Side | 'A';
     const sides = !handsOut(station, 'packets') ? []
       : label === 'A' ? remaining(school) : remaining(school).filter((x) => x === label);
     if (open) {
@@ -229,7 +239,7 @@ export default function PickupView({ token, initial, terms }: { token: string; i
 
   // The tablet app's camera.
   useEffect(() => {
-    const onScan = (e: Event) => scanned(String((e as CustomEvent).detail ?? ''));
+    const onScan = (e: Event) => { void scanned(String((e as CustomEvent).detail ?? '')); };
     window.addEventListener('nexus-scan', onScan);
     return () => window.removeEventListener('nexus-scan', onScan);
   }, [scanned]);
@@ -247,7 +257,7 @@ export default function PickupView({ token, initial, terms }: { token: string; i
       if (now - last > 80) buf = '';
       last = now;
       if (e.key === 'Enter') {
-        if (LABEL_CODE.test(buf.trim())) { e.preventDefault(); scanned(buf); }
+        if (parseScan(buf)) { e.preventDefault(); void scanned(buf); }
         buf = '';
       } else if (e.key.length === 1) {
         buf += e.key;
@@ -259,7 +269,7 @@ export default function PickupView({ token, initial, terms }: { token: string; i
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    scanned(code);
+    void scanned(code);
     setCode('');
   };
 
@@ -519,7 +529,7 @@ export default function PickupView({ token, initial, terms }: { token: string; i
         <form onSubmit={submit} className="flex gap-2">
           <label htmlFor="pk-code" className="sr-only">Team label code</label>
           <input id="pk-code" ref={input} value={code} onChange={(e) => setCode(e.target.value)}
-            autoComplete="off" spellCheck={false} placeholder="Scan a team label"
+            autoComplete="off" spellCheck={false} placeholder="Scan a team label or roster"
             className="min-w-0 flex-1 rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 text-lg placeholder:text-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
           <button type="submit" disabled={busy || !code.trim()}
             className="rounded-lg bg-blue-600 px-5 font-semibold hover:bg-blue-500 disabled:opacity-40">Look up</button>
