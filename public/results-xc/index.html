@@ -2409,8 +2409,14 @@ function who(name,school){const d=h("div");d.appendChild(h("div","nm",name));if(
 function renderBook(){
   const host=$("#v-book");host.replaceChildren();
   screenSendBar(host,"book");
-  const b=BOOK();
-  if(!b){host.appendChild(h("p","note","No record book for this race."));return;}
+  const raw=BOOK();
+  if(!raw){host.appendChild(h("p","note","No record book for this race."));return;}
+  // Firebase keeps no empty lists: every list the panel reads, there or empty.
+  const L=v=>Array.isArray(v)?v:(v&&typeof v==="object"?Object.values(v):[]);
+  const b=Object.assign({},raw,{records:L(raw.records),titleLeaders:L(raw.titleLeaders),teams:L(raw.teams),
+    champions:L(raw.champions),teamChampions:L(raw.teamChampions),
+    inRace:L(raw.inRace).map(r=>Object.assign({},r,{titles:L(r.titles),allAmerican:L(r.allAmerican)})),
+    lastYear:raw.lastYear?Object.assign({},raw.lastYear,{results:L(raw.lastYear.results)}):null});
   host.appendChild(h("p","note",[b.meet+" record book",b.source].filter(Boolean).join(" · ")));
 
   // The two things said before the gun: who won it last year, and the record.
@@ -2436,7 +2442,8 @@ function renderBook(){
   if(inRace.length){
     host.appendChild(histGroup("In today’s race",inRace.length+" in the book",bookTable([["Bib"],["Athlete"],["Honors"]],
       inRace.map(r=>[[r.bib==null?"":r.bib,"pl"],[who(r.name,r.school)],
-        [[r.titles.length?"Champion "+r.titles.join(", "):"",r.allAmerican.length?"All-American "+r.allAmerican.join(", "):""].filter(Boolean).join(" · ")]]))));
+        // Firebase keeps no empty lists: a runner with no titles comes with none.
+        [[(r.titles||[]).length?"Champion "+r.titles.join(", "):"",(r.allAmerican||[]).length?"All-American "+r.allAmerican.join(", "):""].filter(Boolean).join(" · ")]]))));
   }
 
   const teams=h("div","histpair");
