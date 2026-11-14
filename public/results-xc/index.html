@@ -2431,6 +2431,14 @@ function renderBook(){
   }
   if(pair.children.length)host.appendChild(pair);
 
+  // The runners in this race the book names: past champions and All-Americans.
+  const inRace=b.inRace||[];
+  if(inRace.length){
+    host.appendChild(histGroup("In today’s race",inRace.length+" in the book",bookTable([["Bib"],["Athlete"],["Honors"]],
+      inRace.map(r=>[[r.bib==null?"":r.bib,"pl"],[who(r.name,r.school)],
+        [[r.titles.length?"Champion "+r.titles.join(", "):"",r.allAmerican.length?"All-American "+r.allAmerican.join(", "):""].filter(Boolean).join(" · ")]]))));
+  }
+
   const teams=h("div","histpair");
   if(b.lastYear&&b.lastYear.results.length){
     teams.appendChild(histGroup("Last year · "+b.lastYear.year,b.lastYear.site||null,bookTable([["Pl"],["Team"],["Score","r"]],
@@ -2453,6 +2461,21 @@ function renderBook(){
       here.map(t=>[[t.team],[t.lastYear?ord(t.lastYear.place)+" · "+t.lastYear.score:"—","tm r",t.lastYear?String(t.lastYear.year):""],
         [t.titles||"—","tm r",t.lastTitle?"last "+t.lastTitle:""]]))));
   }
+
+  // Every champion the book has: the runners, and the teams with the runner-up.
+  const past=h("div","histpair");
+  const champs=b.champions||[];
+  if(champs.length){
+    past.appendChild(histGroup("Past champions",String(champs.length),bookTable([["Year"],["Champion"],["Time","r"]],
+      champs.map(c=>[[c.year,"pl"],[who(c.name,c.school)],[c.mark||"","tm r",c.distance||""]]))));
+  }
+  const tc=b.teamChampions||[];
+  if(tc.length){
+    past.appendChild(histGroup("Team champions",String(tc.length),bookTable([["Year"],["Champion"],["Runner-up"]],
+      tc.map(t=>[[t.year,"pl"],[who(t.champion.team+(t.champion.score?" · "+t.champion.score:""),t.site||"")],
+        [t.runnerUp?t.runnerUp.team+(t.runnerUp.score?" · "+t.runnerUp.score:""):""]]))));
+  }
+  if(past.children.length)host.appendChild(past);
 
   const keys=Object.keys(b.teamRecords||{});
   if(keys.length){
